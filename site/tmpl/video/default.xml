@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+    <layout title="COM_YOUTUBEVIDEOS_VIDEO_VIEW_DEFAULT_TITLE">
+        <message>
+            <![CDATA[COM_YOUTUBEVIDEOS_VIDEO_VIEW_DEFAULT_DESC]]>
+        </message>
+    </layout>
+    
+    <fields name="request">
+        <fieldset name="request">
+            <field
+                name="id"
+                type="sql"
+                label="COM_YOUTUBEVIDEOS_FIELD_VIDEO_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_VIDEO_DESC"
+                query="SELECT id, title FROM #__youtubevideos_featured WHERE published = 1 ORDER BY title"
+                key_field="id"
+                value_field="title"
+                required="true"
+            />
+        </fieldset>
+    </fields>
+
+    <fields name="params">
+        <fieldset name="basic" label="COM_YOUTUBEVIDEOS_FIELDSET_DISPLAY_OPTIONS">
+            <field
+                name="show_title"
+                type="radio"
+                label="COM_YOUTUBEVIDEOS_FIELD_SHOW_TITLE_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_SHOW_TITLE_DESC"
+                layout="joomla.form.field.radio.switcher"
+                default="1"
+                >
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+
+            <field
+                name="show_description"
+                type="radio"
+                label="COM_YOUTUBEVIDEOS_FIELD_SHOW_DESC_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_SHOW_DESC_DESC"
+                layout="joomla.form.field.radio.switcher"
+                default="1"
+                >
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+
+            <field
+                name="show_info"
+                type="radio"
+                label="COM_YOUTUBEVIDEOS_FIELD_SHOW_INFO_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_SHOW_INFO_DESC"
+                layout="joomla.form.field.radio.switcher"
+                default="1"
+                >
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+
+            <field
+                name="autoplay"
+                type="radio"
+                label="COM_YOUTUBEVIDEOS_FIELD_AUTOPLAY_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_AUTOPLAY_DESC"
+                layout="joomla.form.field.radio.switcher"
+                default="0"
+                >
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+
+            <field
+                name="show_related"
+                type="radio"
+                label="COM_YOUTUBEVIDEOS_FIELD_SHOW_RELATED_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_SHOW_RELATED_DESC"
+                layout="joomla.form.field.radio.switcher"
+                default="1"
+                >
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+        </fieldset>
+    </fields>
+</metadata> 

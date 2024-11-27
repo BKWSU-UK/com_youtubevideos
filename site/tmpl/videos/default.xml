@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+    <layout title="COM_YOUTUBEVIDEOS_VIDEOS_VIEW_DEFAULT_TITLE">
+        <message>
+            <![CDATA[COM_YOUTUBEVIDEOS_VIDEOS_VIEW_DEFAULT_DESC]]>
+        </message>
+    </layout>
+    
+    <fields name="request">
+        <fieldset name="request">
+            <field
+                name="category_id"
+                type="category"
+                label="COM_YOUTUBEVIDEOS_FIELD_CATEGORY_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_CATEGORY_DESC"
+                extension="com_youtubevideos"
+                >
+                <option value="">COM_YOUTUBEVIDEOS_FIELD_SELECT_CATEGORY</option>
+            </field>
+            
+            <field
+                name="playlist_id"
+                type="sql"
+                label="COM_YOUTUBEVIDEOS_FIELD_PLAYLIST_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_PLAYLIST_DESC"
+                query="SELECT id, title FROM #__youtubevideos_playlists WHERE published = 1 ORDER BY title"
+                key_field="id"
+                value_field="title"
+                >
+                <option value="">COM_YOUTUBEVIDEOS_FIELD_SELECT_PLAYLIST</option>
+            </field>
+        </fieldset>
+    </fields>
+
+    <fields name="params">
+        <fieldset name="basic" label="COM_YOUTUBEVIDEOS_FIELDSET_DISPLAY_OPTIONS">
+            <field
+                name="show_title"
+                type="radio"
+                label="COM_YOUTUBEVIDEOS_FIELD_SHOW_TITLE_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_SHOW_TITLE_DESC"
+                layout="joomla.form.field.radio.switcher"
+                default="1"
+                >
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+
+            <field
+                name="show_description"
+                type="radio"
+                label="COM_YOUTUBEVIDEOS_FIELD_SHOW_DESC_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_SHOW_DESC_DESC"
+                layout="joomla.form.field.radio.switcher"
+                default="1"
+                >
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+
+            <field
+                name="show_date"
+                type="radio"
+                label="COM_YOUTUBEVIDEOS_FIELD_SHOW_DATE_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_SHOW_DATE_DESC"
+                layout="joomla.form.field.radio.switcher"
+                default="1"
+                >
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+
+            <field
+                name="show_views"
+                type="radio"
+                label="COM_YOUTUBEVIDEOS_FIELD_SHOW_VIEWS_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_SHOW_VIEWS_DESC"
+                layout="joomla.form.field.radio.switcher"
+                default="1"
+                >
+                <option value="0">JNO</option>
+                <option value="1">JYES</option>
+            </field>
+
+            <field
+                name="videos_per_row"
+                type="list"
+                label="COM_YOUTUBEVIDEOS_FIELD_VIDEOS_PER_ROW_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_VIDEOS_PER_ROW_DESC"
+                default="3"
+                >
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="6">6</option>
+            </field>
+
+            <field
+                name="videos_per_page"
+                type="list"
+                label="COM_YOUTUBEVIDEOS_FIELD_VIDEOS_PER_PAGE_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_VIDEOS_PER_PAGE_DESC"
+                default="12"
+                >
+                <option value="6">6</option>
+                <option value="12">12</option>
+                <option value="24">24</option>
+                <option value="48">48</option>
+            </field>
+        </fieldset>
+    </fields>
+</metadata> 

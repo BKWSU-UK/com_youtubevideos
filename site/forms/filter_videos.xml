@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fields name="filter">
+        <field
+            name="search"
+            type="text"
+            label="COM_YOUTUBEVIDEOS_FILTER_SEARCH_LABEL"
+            description="COM_YOUTUBEVIDEOS_FILTER_SEARCH_DESC"
+            hint="JSEARCH_FILTER"
+        />
+
+        <field
+            name="source"
+            type="list"
+            label="COM_YOUTUBEVIDEOS_FILTER_SOURCE_LABEL"
+            description="COM_YOUTUBEVIDEOS_FILTER_SOURCE_DESC"
+            onchange="this.form.submit();"
+            default="channel"
+            >
+            <option value="channel">COM_YOUTUBEVIDEOS_SOURCE_CHANNEL</option>
+            <option value="playlist">COM_YOUTUBEVIDEOS_SOURCE_PLAYLIST</option>
+        </field>
+
+        <field
+            name="tag"
+            type="list"
+            label="COM_YOUTUBEVIDEOS_FILTER_TAG_LABEL"
+            description="COM_YOUTUBEVIDEOS_FILTER_TAG_DESC"
+            onchange="this.form.submit();"
+            >
+            <option value="">COM_YOUTUBEVIDEOS_SELECT_TAG</option>
+            <option value="dynamic">JFIELD_DYNAMIC_OPTIONS</option>
+        </field>
+    </fields>
+
+    <fields name="list">
+        <field
+            name="limit"
+            type="limitbox"
+            label="JGLOBAL_LIST_LIMIT"
+            default="25"
+            onchange="this.form.submit();"
+        />
+    </fields>
+</form> 

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="component" method="upgrade">
+    <name>com_youtubevideos</name>
+    <author>Allan Schweitz</author>
+    <creationDate>November 2024</creationDate>
+    <copyright>(C) 2024 Brahma Kumaris. All rights reserved.</copyright>
+    <license>GNU General Public License version 2 or later;</license>
+    <authorEmail>allan@bkconnect.net</authorEmail>
+    <authorUrl>www.brahmakumaris.org</authorUrl>
+    <version>1.0.0</version>
+    <description>COM_YOUTUBEVIDEOS_XML_DESCRIPTION</description>
+    <namespace path="src">BKWSU\Component\Youtubevideos</namespace>
+    <scriptfile>script.php</scriptfile>
+
+    <!-- Media files -->
+    <media folder="media" destination="com_youtubevideos">
+        <filename>joomla.asset.json</filename>
+        <folder>css</folder>
+        <folder>js</folder>
+    </media>
+
+    <!-- Front-end files -->
+    <files folder="site">
+        <folder>forms</folder>
+        <folder>src</folder>
+        <folder>tmpl</folder>
+        <folder>language</folder>
+    </files>
+
+    <!-- Back-end files -->
+    <administration>
+        <menu>COM_YOUTUBEVIDEOS</menu>
+        <submenu>
+            <menu link="option=com_youtubevideos">COM_YOUTUBEVIDEOS_DASHBOARD</menu>
+            <menu link="option=com_youtubevideos&amp;view=categories">COM_YOUTUBEVIDEOS_CATEGORIES</menu>
+            <menu link="option=com_youtubevideos&amp;view=playlists">COM_YOUTUBEVIDEOS_PLAYLISTS</menu>
+            <menu link="option=com_youtubevideos&amp;view=featured">COM_YOUTUBEVIDEOS_FEATURED</menu>
+        </submenu>
+        <files folder="admin">
+            <filename>access.xml</filename>
+            <folder>language</folder>
+            <folder>services</folder>
+            <folder>sql</folder>
+            <folder>src</folder>
+            <folder>tmpl</folder>
+        </files>
+    </administration>
+
+    <!-- SQL files to run on installation -->
+    <install>
+        <sql>
+            <file driver="mysql" charset="utf8">sql/install.mysql.sql</file>
+        </sql>
+    </install>
+    <uninstall>
+        <sql>
+            <file driver="mysql" charset="utf8">sql/uninstall.mysql.sql</file>
+        </sql>
+    </uninstall>
+    <update>
+        <schemas>
+            <schemapath type="mysql">sql/updates/mysql</schemapath>
+        </schemas>
+    </update>
+</extension> 
