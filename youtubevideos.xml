@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later;</license>
     <authorEmail>allan@bkconnect.net</authorEmail>
     <authorUrl>www.brahmakumaris.org</authorUrl>
-    <version>1.0.0</version>
+    <version>1.0.2</version>
     <description>COM_YOUTUBEVIDEOS_XML_DESCRIPTION</description>
     <namespace path="src">BKWSU\Component\Youtubevideos</namespace>
     <scriptfile>script.php</scriptfile>
@@ -26,6 +26,11 @@
         <folder>tmpl</folder>
         <folder>language</folder>
     </files>
+    
+    <!-- Layouts -->
+    <files folder="layouts" target="layouts">
+        <folder>components</folder>
+    </files>
 
     <!-- Back-end files -->
     <administration>
@@ -38,7 +43,10 @@
         </submenu>
         <files folder="admin">
             <filename>access.xml</filename>
+            <filename>config.xml</filename>
+            <folder>forms</folder>
             <folder>language</folder>
+            <folder>layouts</folder>
             <folder>services</folder>
             <folder>sql</folder>
             <folder>src</folder>

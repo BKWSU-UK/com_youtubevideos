@@ -18,14 +18,19 @@ class HtmlView extends BaseHtmlView
     protected $params;
 
     /**
-     * @var array The list of available tags
-     */
-    protected $tags;
-
-    /**
      * @var \Joomla\CMS\Object\CMSObject The state information
      */
     protected $state;
+
+    /**
+     * @var \Joomla\CMS\Form\Form The filter form
+     */
+    public $filterForm;
+
+    /**
+     * @var array The active filters
+     */
+    public $activeFilters;
 
     /**
      * Execute and display a template script.
@@ -40,9 +45,8 @@ class HtmlView extends BaseHtmlView
         $this->params = $app->getParams('com_youtubevideos');
         $this->state = $this->get('State');
         $this->items = $this->get('Videos');
-        
-        // Get available tags (you might want to implement this in your model)
-        $this->tags = $this->get('AvailableTags');
+        $this->filterForm = $this->get('FilterForm');
+        $this->activeFilters = $this->get('ActiveFilters');
 
         // Check for errors
         if (count($errors = $this->get('Errors'))) {
@@ -82,7 +86,7 @@ class HtmlView extends BaseHtmlView
 
         // Add the component's media files
         $wa = $this->document->getWebAssetManager();
-        $wa->useStyle('com_youtubevideos.component')
+        $wa->useStyle('com_youtubevideos.site.css')
            ->useScript('com_youtubevideos.youtube-player');
     }
 } 

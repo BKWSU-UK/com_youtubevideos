@@ -71,6 +71,7 @@ class HtmlView extends BaseHtmlView
     {
         $app = Factory::getApplication();
         $user = $app->getIdentity();
+        $params = \Joomla\CMS\Component\ComponentHelper::getParams('com_youtubevideos');
 
         // Get the toolbar object instance
         $toolbar = Toolbar::getInstance('toolbar');
@@ -79,6 +80,21 @@ class HtmlView extends BaseHtmlView
 
         if ($user->authorise('core.admin', 'com_youtubevideos')) {
             $toolbar->preferences('com_youtubevideos');
+        }
+
+        // Add OAuth buttons if enabled
+        if ($params->get('oauth_enabled') && $user->authorise('core.admin', 'com_youtubevideos')) {
+            if ($this->systemInfo->oauthConnected) {
+                $toolbar->standardButton('disconnect')
+                    ->text('COM_YOUTUBEVIDEOS_OAUTH_DISCONNECT')
+                    ->task('oauth.disconnect')
+                    ->icon('icon-cancel');
+            } else {
+                $toolbar->standardButton('connect')
+                    ->text('COM_YOUTUBEVIDEOS_OAUTH_CONNECT')
+                    ->task('oauth.authorize')
+                    ->icon('icon-link');
+            }
         }
 
         // Add "Sync Now" button

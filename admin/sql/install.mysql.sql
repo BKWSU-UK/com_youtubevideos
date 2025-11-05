@@ -153,4 +153,23 @@ CREATE TABLE IF NOT EXISTS `#__youtubevideos_video_tag_map` (
     CONSTRAINT `fk_videotag_tag` FOREIGN KEY (`tag_id`) REFERENCES `#__youtubevideos_tags` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Table structure for OAuth tokens
+--
+CREATE TABLE IF NOT EXISTS `#__youtubevideos_oauth_tokens` (
+    `id` int unsigned NOT NULL AUTO_INCREMENT,
+    `user_id` int unsigned NOT NULL DEFAULT '0',
+    `access_token` text NOT NULL,
+    `refresh_token` text,
+    `token_type` varchar(50) NOT NULL DEFAULT 'Bearer',
+    `expires_in` int unsigned NOT NULL DEFAULT '0',
+    `expires_at` datetime NOT NULL,
+    `scope` text,
+    `created` datetime NOT NULL,
+    `modified` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_expires_at` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS=1; 

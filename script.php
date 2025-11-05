@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  com_youtubevideos
  *
- * @copyright   Copyright (C) [YEAR] Your Name. All rights reserved.
+ * @copyright   Copyright (C) 2024 Brahma Kumaris. All rights reserved.
  * @license     GNU General Public License version 2 or later;
  */
 
@@ -34,7 +34,7 @@ class Com_YouTubeVideosInstallerScript
      * @var    string
      * @since  1.0.0
      */
-    private $minimumPHPVersion = '8.1';
+    private $minimumPHPVersion = '8.3';
 
     /**
      * Method to install the extension

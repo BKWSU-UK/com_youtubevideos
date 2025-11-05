@@ -6,26 +6,26 @@
     "license": "GPL-2.0-or-later",
     "assets": [
         {
-            "name": "com_youtubevideos.admin",
+            "name": "com_youtubevideos.admin.css",
             "type": "style",
-            "uri": "com_youtubevideos/admin.css",
+            "uri": "com_youtubevideos/component.css",
             "dependencies": ["fontawesome"]
         },
         {
-            "name": "com_youtubevideos.site",
+            "name": "com_youtubevideos.site.css",
             "type": "style",
-            "uri": "com_youtubevideos/site.css"
+            "uri": "com_youtubevideos/component.css"
         },
         {
-            "name": "com_youtubevideos.admin",
+            "name": "com_youtubevideos.admin.js",
             "type": "script",
             "uri": "com_youtubevideos/admin.js",
             "dependencies": ["core", "bootstrap.modal"]
         },
         {
-            "name": "com_youtubevideos.site",
+            "name": "com_youtubevideos.youtube-player",
             "type": "script",
-            "uri": "com_youtubevideos/site.js",
+            "uri": "com_youtubevideos/youtube-player.js",
             "dependencies": ["core", "bootstrap.modal"]
         }
     ]

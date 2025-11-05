@@ -21,10 +21,11 @@ HTMLHelper::_('bootstrap.framework');
 HTMLHelper::_('behavior.core');
 
 $wa = $this->document->getWebAssetManager();
-$wa->useScript('com_youtubevideos.admin')
-   ->useStyle('com_youtubevideos.admin');
+$wa->useScript('com_youtubevideos.admin.js')
+   ->useStyle('com_youtubevideos.admin.css');
 ?>
 
+<form action="<?php echo Route::_('index.php?option=com_youtubevideos&view=dashboard'); ?>" method="post" name="adminForm" id="adminForm">
 <div class="row">
     <!-- Quick Statistics Cards -->
     <div class="col-md-12">
@@ -153,4 +154,6 @@ $wa->useScript('com_youtubevideos.admin')
     </div>
 </div>
 
-<?php echo HTMLHelper::_('uitab.endTab'); ?> 
+<input type="hidden" name="task" value="" />
+<?php echo HTMLHelper::_('form.token'); ?>
+</form> 

@@ -3,7 +3,7 @@
  * @package     Joomla.Site
  * @subpackage  com_youtubevideos
  *
- * @copyright   Copyright (C) 2024 Your Name. All rights reserved.
+ * @copyright   Copyright (C) 2024 BKWSU. All rights reserved.
  * @license     GNU General Public License version 2 or later;
  */
 
@@ -14,7 +14,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Layout\LayoutHelper;
 use Joomla\CMS\Router\Route;
 
-/** @var \YourNamespace\Component\Youtubevideos\Site\View\Category\HtmlView $this */
+/** @var \BKWSU\Component\Youtubevideos\Site\View\Category\HtmlView $this */
 
 $params = $this->params;
 $category = $this->category;
@@ -23,8 +23,7 @@ $videos = $this->items;
 // Load required assets
 HTMLHelper::_('bootstrap.framework');
 $wa = $this->document->getWebAssetManager();
-$wa->useScript('com_youtubevideos.site')
-   ->useStyle('com_youtubevideos.site');
+$wa->useStyle('com_youtubevideos.site.css');
 ?>
 
 <div class="com-youtubevideos-category category-list">
@@ -61,6 +60,14 @@ $wa->useScript('com_youtubevideos.site')
         <div class="alert alert-info">
             <span class="icon-info-circle" aria-hidden="true"></span>
             <?php echo Text::_('COM_YOUTUBEVIDEOS_NO_VIDEOS_IN_CATEGORY'); ?>
+        </div>
+        <!-- Debug Info -->
+        <div class="alert alert-warning">
+            <strong>Debug Information:</strong><br>
+            Category ID: <?php echo $category->id ?? 'N/A'; ?><br>
+            Category Title: <?php echo $category->title ?? 'N/A'; ?><br>
+            Videos Count: <?php echo count($videos); ?><br>
+            Items: <pre><?php var_dump($videos); ?></pre>
         </div>
     <?php endif; ?>
 </div> 

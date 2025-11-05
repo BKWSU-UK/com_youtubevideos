@@ -6,14 +6,21 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 
-extract($displayData);
+/** @var array $displayData */
+/** @var object $displayData['video'] */
+/** @var Joomla\Registry\Registry $displayData['params'] */
 
-/** @var object $video */
-/** @var Joomla\Registry\Registry $params */
+$video = $displayData['video'] ?? null;
+$params = $displayData['params'] ?? Factory::getApplication()->getParams();
+
+if (!$video) {
+    return;
+}
 
 $videoLink = Route::_('index.php?option=com_youtubevideos&view=video&id=' . $video->id);
 $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $video->youtube_video_id . '/maxresdefault.jpg';

@@ -1,47 +1,366 @@
-.video-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
-    padding: 20px;
+/* Main container */
+.com-youtubevideos.videos {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 20px;
 }
 
-.video-item {
-    cursor: pointer;
-    transition: transform 0.2s;
+/* Page header */
+.com-youtubevideos.videos .page-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 0;
+    border-bottom: none;
 }
 
-.video-item:hover {
-    transform: scale(1.05);
-}
-
-.thumbnail {
-    position: relative;
-}
-
-.thumbnail img {
-    width: 100%;
-    height: auto;
-}
-
-.duration {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 2px 4px;
-    border-radius: 2px;
-}
-
-.video-item h3 {
-    margin: 8px 0;
-    font-size: 1rem;
+.com-youtubevideos.videos .page-title {
+    font-size: 2.5rem;
+    font-weight: 500;
+    color: inherit;
+    margin: 0 0 0.5rem 0;
     line-height: 1.2;
 }
 
-.filters {
-    padding: 20px;
-    display: flex;
-    gap: 10px;
+/* Filter bar styling */
+.com-youtubevideos-videos__form .js-stools {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 32px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.com-youtubevideos-videos__form .js-stools-container-bar {
+    margin-bottom: 0;
+}
+
+.com-youtubevideos-videos__form .js-stools-container-bar .btn-toolbar {
+    gap: 12px;
     flex-wrap: wrap;
+    align-items: stretch;
+}
+
+.com-youtubevideos-videos__form .js-stools .filter-search-bar {
+    flex: 2 1 auto;
+    max-width: 100%;
+    min-width: 600px !important;
+    width: 600px;
+}
+
+.com-youtubevideos-videos__form .js-stools .filter-search-bar__input-group {
+    display: flex;
+    width: 100%;
+    min-width: 600px !important;
+}
+
+@media (max-width: 768px) {
+    .com-youtubevideos-videos__form .js-stools .filter-search-bar,
+    .com-youtubevideos-videos__form .js-stools .filter-search-bar__input-group {
+        min-width: auto !important;
+        width: auto;
+        flex: 1;
+    }
+}
+
+.com-youtubevideos-videos__form .js-stools .filter-search,
+.com-youtubevideos-videos__form .js-stools input[name="filter[search]"] {
+    flex: 1;
+    min-width: 400px !important;
+    border-radius: 8px 0 0 8px !important;
+    border: 2px solid #dee2e6;
+    border-right: none;
+    padding: 10px 16px;
+    font-size: 15px;
+    transition: all 0.2s ease;
+}
+
+@media (max-width: 768px) {
+    .com-youtubevideos-videos__form .js-stools .filter-search,
+    .com-youtubevideos-videos__form .js-stools input[name="filter[search]"] {
+        min-width: auto !important;
+    }
+}
+
+.com-youtubevideos-videos__form .js-stools .filter-search:focus {
+    border-color: var(--bs-primary, #0d6efd);
+    outline: none;
+    box-shadow: none;
+}
+
+.com-youtubevideos-videos__form .js-stools .filter-search::placeholder {
+    color: #adb5bd;
+}
+
+/* Search button */
+.com-youtubevideos-videos__form .js-stools .filter-search-bar__button {
+    background-color: var(--bs-primary, #0d6efd) !important;
+    border-color: var(--bs-primary, #0d6efd) !important;
+    border-radius: 0 8px 8px 0 !important;
+    padding: 10px 24px;
+    font-size: 15px;
+    font-weight: 500;
+    color: white !important;
+    border: 2px solid var(--bs-primary, #0d6efd) !important;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 100px;
+}
+
+.com-youtubevideos-videos__form .js-stools .filter-search-bar__button::before {
+    content: "\f52a";
+    font-family: "bootstrap-icons" !important;
+    font-size: 16px;
+    display: inline-block;
+    line-height: 1;
+}
+
+.com-youtubevideos-videos__form .js-stools .filter-search-bar__button::after {
+    content: "Search";
+    font-weight: 500;
+}
+
+.com-youtubevideos-videos__form .js-stools .filter-search-bar__button:hover {
+    background-color: var(--bs-secondary, #6c757d) !important;
+    border-color: var(--bs-secondary, #6c757d) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+}
+
+.com-youtubevideos-videos__form .js-stools .filter-search-bar__button:active {
+    transform: translateY(0);
+}
+
+/* Clear button */
+.com-youtubevideos-videos__form .js-stools .filter-search-actions .btn,
+.com-youtubevideos-videos__form .js-stools .filter-search-actions button,
+.com-youtubevideos-videos__form .js-stools .btn-clear {
+    border-radius: 8px !important;
+    padding: 10px 20px;
+    font-size: 15px;
+    font-weight: 500;
+    border: 2px solid var(--bs-primary, #0d6efd) !important;
+    background-color: var(--bs-primary, #0d6efd) !important;
+    color: white !important;
+    transition: all 0.2s ease;
+}
+
+.com-youtubevideos-videos__form .js-stools .filter-search-actions .btn:hover,
+.com-youtubevideos-videos__form .js-stools .filter-search-actions button:hover,
+.com-youtubevideos-videos__form .js-stools .btn-clear:hover {
+    background-color: var(--bs-secondary, #6c757d) !important;
+    border-color: var(--bs-secondary, #6c757d) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+}
+
+/* Filter options button */
+.com-youtubevideos-videos__form .js-stools .btn-wrapper .btn {
+    border-radius: 8px !important;
+    padding: 10px 20px;
+    font-size: 15px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+/* List limit dropdown */
+.com-youtubevideos-videos__form .js-stools .list-limit,
+.com-youtubevideos-videos__form .js-stools select[name="list[limit]"] {
+    border-radius: 8px !important;
+    border: 2px solid #dee2e6 !important;
+    padding: 10px 40px 10px 20px !important;
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    background-color: white !important;
+    color: #495057 !important;
+    transition: all 0.2s ease;
+    height: auto !important;
+    min-height: 44px !important;
+    line-height: 1.5 !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23495057" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3e%3cpolyline points="6 9 12 15 18 9"%3e%3c/polyline%3e%3c/svg%3e') !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    background-size: 16px !important;
+    vertical-align: middle;
+    display: inline-flex;
+    align-items: center;
+}
+
+.com-youtubevideos-videos__form .js-stools .list-limit:focus,
+.com-youtubevideos-videos__form .js-stools select[name="list[limit]"]:focus {
+    border-color: var(--bs-primary, #0d6efd) !important;
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+/* Hide description tooltip by default - it's shown on focus */
+.com-youtubevideos-videos__form .filter-search-bar__description {
+    display: none;
+}
+
+/* Filters container - hide as we have no filter dropdowns */
+.com-youtubevideos-videos__form .js-stools-container-filters {
+    display: none !important;
+}
+
+/* Video grid */
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+    margin-bottom: 40px;
+}
+
+/* Video item card */
+.video-item {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+}
+
+.video-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.video-item:focus {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+}
+
+/* Thumbnail */
+.video-item__thumbnail {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: #f0f0f0;
+    overflow: hidden;
+}
+
+.video-item__thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.video-item:hover .video-item__thumbnail img {
+    transform: scale(1.05);
+}
+
+.video-item__duration {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Video content */
+.video-item__title {
+    margin: 12px 16px 8px;
+    font-size: 15px;
+    line-height: 1.4;
+    font-weight: 600;
+    color: #1a1a1a;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.video-item__description {
+    margin: 0 16px 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #666;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Empty state */
+.com-youtubevideos-videos__form .alert-info {
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    border: none;
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+    color: #1976d2;
+    font-size: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.com-youtubevideos-videos__form .alert-info .icon-info-circle {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 16px;
+    opacity: 0.7;
+}
+
+/* Video modal */
+.modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    border-bottom: 1px solid #e9ecef;
+    padding: 16px 24px;
+    background: #f8f9fa;
+    border-radius: 12px 12px 0 0;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.modal-body {
+    padding: 0;
+}
+
+#youtube-player {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .video-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 16px;
+    }
+    
+    .com-youtubevideos-videos__form .js-stools {
+        padding: 15px;
+    }
+    
+    .com-youtubevideos-videos__form .js-stools .input-group {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .video-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
 } 

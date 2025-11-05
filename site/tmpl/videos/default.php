@@ -3,7 +3,7 @@
  * @package     Joomla.Site
  * @subpackage  com_youtubevideos
  *
- * @copyright   Copyright (C) 2023 Your Name. All rights reserved.
+ * @copyright   Copyright (C) 2024 BKWSU. All rights reserved.
  * @license     GNU General Public License version 2 or later;
  */
 
@@ -18,7 +18,26 @@ use Joomla\CMS\Layout\LayoutHelper;
 
 ?>
 <div class="com-youtubevideos videos">
-    <?php echo LayoutHelper::render('joomla.content.full_title', ['params' => $this->params]); ?>
+    <div class="page-header">
+        <h1 class="page-title">
+            <?php 
+            // Get page title from menu or use default
+            $pageHeading = $this->params->get('page_heading');
+            
+            if (empty($pageHeading)) {
+                // Try to get from page title parameter
+                $pageHeading = $this->params->get('page_title');
+            }
+            
+            if (empty($pageHeading)) {
+                // Use default
+                $pageHeading = Text::_('COM_YOUTUBEVIDEOS_VIDEOS_VIEW_DEFAULT_TITLE');
+            }
+            
+            echo $this->escape($pageHeading);
+            ?>
+        </h1>
+    </div>
 
     <form action="<?php echo Route::_('index.php?option=com_youtubevideos'); ?>" 
           method="post" 
@@ -38,22 +57,33 @@ use Joomla\CMS\Layout\LayoutHelper;
             <div class="com-youtubevideos-videos__items video-grid">
                 <?php foreach ($this->items as $video) : ?>
                     <div class="video-item" 
-                         data-video-id="<?php echo $this->escape($video->id->videoId); ?>"
+                         data-video-id="<?php echo $this->escape($video->videoId); ?>"
                          data-bs-toggle="modal"
-                         data-bs-target="#videoModal">
+                         data-bs-target="#videoModal"
+                         role="button"
+                         tabindex="0"
+                         aria-label="<?php echo $this->escape($video->title); ?>">
                         <div class="video-item__thumbnail thumbnail">
-                            <img src="<?php echo $this->escape($video->snippet->thumbnails->medium->url); ?>" 
-                                 alt="<?php echo $this->escape($video->snippet->title); ?>"
+                            <?php 
+                            $thumbnailUrl = $video->thumbnails->medium->url ?? $video->thumbnails->high->url ?? $video->thumbnails->default->url ?? '';
+                            ?>
+                            <img src="<?php echo $this->escape($thumbnailUrl); ?>" 
+                                 alt="<?php echo $this->escape($video->title); ?>"
                                  loading="lazy">
-                            <?php if (isset($video->contentDetails->duration)) : ?>
+                            <?php if (isset($video->duration)) : ?>
                                 <span class="video-item__duration duration">
-                                    <?php echo $this->escape($video->contentDetails->duration); ?>
+                                    <?php echo $this->escape($video->duration); ?>
                                 </span>
                             <?php endif; ?>
                         </div>
                         <h3 class="video-item__title">
-                            <?php echo $this->escape($video->snippet->title); ?>
+                            <?php echo $this->escape($video->title); ?>
                         </h3>
+                        <?php if ($this->params->get('show_description', 1) && !empty($video->description)) : ?>
+                            <p class="video-item__description">
+                                <?php echo HTMLHelper::_('string.truncate', strip_tags($video->description), 100); ?>
+                            </p>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
             </div>

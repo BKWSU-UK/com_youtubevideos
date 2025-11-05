@@ -3,7 +3,7 @@
  * @package     Joomla.Site
  * @subpackage  com_youtubevideos
  *
- * @copyright   Copyright (C) 2024 Your Name. All rights reserved.
+ * @copyright   Copyright (C) 2024 BKWSU. All rights reserved.
  * @license     GNU General Public License version 2 or later;
  */
 
@@ -14,7 +14,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Layout\LayoutHelper;
 use Joomla\CMS\Router\Route;
 
-/** @var \YourNamespace\Component\Youtubevideos\Site\View\Video\HtmlView $this */
+/** @var \BKWSU\Component\Youtubevideos\Site\View\Video\HtmlView $this */
 
 $params = $this->params;
 $video = $this->item;

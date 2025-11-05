@@ -6,16 +6,29 @@ document.addEventListener('DOMContentLoaded', function() {
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
     var player;
-    var modal = document.getElementById('video-modal');
+    var modal = document.getElementById('videoModal');
+
+    if (!modal) {
+        console.error('Video modal element not found');
+        return;
+    }
 
     // Initialize player when API is ready
     window.onYouTubeIframeAPIReady = function() {
+        var playerElement = document.getElementById('youtube-player');
+        
+        if (!playerElement) {
+            console.error('YouTube player element not found');
+            return;
+        }
+
         player = new YT.Player('youtube-player', {
             height: '390',
             width: '640',
             playerVars: {
                 'autoplay': 1,
-                'rel': 0
+                'rel': 0,
+                'modestbranding': 1
             }
         });
     };
@@ -24,13 +37,52 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.video-item').forEach(function(item) {
         item.addEventListener('click', function() {
             var videoId = this.dataset.videoId;
-            player.loadVideoById(videoId);
-            bootstrap.Modal.getOrCreateInstance(modal).show();
+            
+            if (!videoId) {
+                console.error('No video ID found for this item');
+                return;
+            }
+
+            // Initialize player if not already done
+            if (typeof YT !== 'undefined' && YT.Player && player) {
+                player.loadVideoById(videoId);
+            } else {
+                console.warn('YouTube player not ready yet');
+            }
+
+            // Show modal
+            var modalInstance = bootstrap.Modal.getOrCreateInstance(modal);
+            modalInstance.show();
         });
     });
 
     // Stop video when modal is closed
     modal.addEventListener('hidden.bs.modal', function() {
-        player.stopVideo();
+        if (player && typeof player.stopVideo === 'function') {
+            player.stopVideo();
+        }
     });
+
+    // Handle Clear button functionality
+    var clearButton = document.querySelector('.filter-search-actions .btn, .filter-search-actions button, .btn-clear');
+    if (clearButton) {
+        clearButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Clear the search input
+            var searchInput = document.querySelector('.filter-search, input[name="filter[search]"]');
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            
+            // Submit the form to reload without search
+            var form = document.querySelector('.com-youtubevideos-videos__form, form[name="adminForm"]');
+            if (form) {
+                form.submit();
+            } else {
+                // Fallback: reload the page
+                window.location.href = window.location.pathname;
+            }
+        });
+    }
 }); 
