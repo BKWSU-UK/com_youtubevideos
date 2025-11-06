@@ -5,6 +5,19 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.12] - 2024-11-06
+
+### Fixed
+- "Videos per Row" menu parameter now correctly controls the grid layout (2, 3, 4, or 6 columns)
+- "Videos per Page" menu parameter now properly limits the number of videos displayed per page
+- Added pagination controls when there are multiple pages of videos
+
+### Technical
+- Model now sets `list.limit` from the `videos_per_page` menu parameter
+- Template now applies dynamic CSS classes based on `videos_per_row` parameter
+- Added responsive CSS rules for different grid column layouts
+- Added pagination styling to match component design
+
 ## [1.0.11] - 2024-11-06
 
 ### Fixed
@@ -216,6 +229,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.12** (2024-11-06) - Menu Parameters Fix (Videos per Row/Page)
 - **1.0.11** (2024-11-06) - Category Save Fix
 - **1.0.10** (2024-11-06) - Batch Controller DB Retrieval Fix
 - **1.0.9** (2024-11-06) - Batch Modal Asset Fix

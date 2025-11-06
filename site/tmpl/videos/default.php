@@ -54,7 +54,11 @@ use Joomla\CMS\Layout\LayoutHelper;
                 <?php echo Text::_('COM_YOUTUBEVIDEOS_NO_VIDEOS_FOUND'); ?>
             </div>
         <?php else : ?>
-            <div class="com-youtubevideos-videos__items video-grid">
+            <?php 
+            $videosPerRow = $this->params->get('videos_per_row', 3);
+            $gridClass = 'video-grid video-grid--' . $videosPerRow . '-cols';
+            ?>
+            <div class="com-youtubevideos-videos__items <?php echo $gridClass; ?>">
                 <?php foreach ($this->items as $video) : ?>
                     <div class="video-item" 
                          data-video-id="<?php echo $this->escape($video->videoId); ?>"
@@ -87,6 +91,12 @@ use Joomla\CMS\Layout\LayoutHelper;
                     </div>
                 <?php endforeach; ?>
             </div>
+
+            <?php if ($this->pagination->pagesTotal > 1) : ?>
+                <div class="com-youtubevideos-videos__pagination">
+                    <?php echo $this->pagination->getPagesLinks(); ?>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
 
         <input type="hidden" name="task" value="">

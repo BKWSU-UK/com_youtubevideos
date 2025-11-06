@@ -68,6 +68,10 @@ class VideosModel extends ListModel
         $search = $app->input->getString('search', '');
         $this->setState('filter.search', $search);
 
+        // Set list limit from menu parameters
+        $limit = $params->get('videos_per_page', 12);
+        $this->setState('list.limit', $limit);
+
         parent::populateState($ordering, $direction);
     }
 
