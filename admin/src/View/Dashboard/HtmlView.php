@@ -13,6 +13,7 @@ class HtmlView extends BaseHtmlView
      * Dashboard statistics
      */
     protected $totalVideos;
+    protected $videoStats;
     protected $featuredVideos;
     protected $categories;
     protected $playlists;
@@ -53,6 +54,7 @@ class HtmlView extends BaseHtmlView
         $model = $this->getModel();
 
         $this->totalVideos = $model->getTotalVideos();
+        $this->videoStats = $model->getVideoStats();
         $this->featuredVideos = $model->getFeaturedVideos();
         $this->categories = $model->getCategories();
         $this->playlists = $model->getPlaylists();

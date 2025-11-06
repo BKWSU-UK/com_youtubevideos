@@ -182,5 +182,11 @@ $featuredStates = [
             </div>
         </div>
     </div>
+
+    <?php // Load the batch processing form ?>
+    <?php if ($this->batchForm) : ?>
+        <?php echo $this->loadTemplate('batch'); ?>
+    <?php endif; ?>
 </form>
+
 

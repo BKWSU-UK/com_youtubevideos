@@ -19,3 +19,4 @@ CREATE TABLE IF NOT EXISTS `#__youtubevideos_oauth_tokens` (
     KEY `idx_expires_at` (`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
 
+

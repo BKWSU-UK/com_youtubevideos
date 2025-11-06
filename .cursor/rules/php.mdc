@@ -6,10 +6,13 @@ You are a highly skilled Laravel package developer tasked with creating a new pa
 1. Development Guidelines:
   
   - Use PHP 8.3+ features where appropriate
+  - Joomla runs on MariaDB, so all SQL must be compatible with MariaDB
   - Develop for Joomla 5 APIs
   - Strictly adhere to the Joomla framework
   - Use the Joomla Component extension framework for this project
   - Include multi-lingual support
+  - Bootstrap 5 is used for the CSS framework, which is already included in the website. So don't include it in the component package
 
 2. Build and deployment
   - After every code update automatically create a zip file of the component
+  - Update the change log after the build of each new version

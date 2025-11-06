@@ -158,12 +158,14 @@ class YoutubeHelper
      * @param   string  $search      Search query
      * @param   string  $tag         Tag to filter by
      * @param   int     $maxResults  Maximum number of results (default from params)
+     * @param   bool    $forMine     Use forMine=true for owned channels
+     * @param   string  $pageToken   Page token for pagination
      *
      * @return  object|null  YouTube API response or null on error
      *
      * @since   1.0.0
      */
-    public function fetchChannelVideos(string $search = '', string $tag = '', int $maxResults = 0): ?object
+    public function fetchChannelVideos(string $search = '', string $tag = '', int $maxResults = 0, bool $forMine = false, string $pageToken = ''): ?object
     {
         try {
             $http = HttpFactory::getHttp();
@@ -180,11 +182,18 @@ class YoutubeHelper
                 'maxResults' => min($maxResults, 50), // YouTube API max is 50
                 'order' => 'date'
             ];
+            
+            if (!empty($pageToken)) {
+                $params['pageToken'] = $pageToken;
+            }
 
-            // If using OAuth, always prefer configured channelId if available
-            // OAuth authentication will allow access to unlisted videos on that channel
-            if ($this->oauthToken) {
-                // Use configured channel ID if set
+            // If using OAuth with forMine, get videos from authenticated user's owned channel
+            if ($this->oauthToken && $forMine) {
+                $params['forMine'] = 'true';
+                Log::add('Using OAuth with forMine=true for owned channel videos', Log::INFO, 'com_youtubevideos');
+            } elseif ($this->oauthToken) {
+                // Use configured channel ID with OAuth authentication
+                // This allows access to unlisted videos on channels you manage
                 if ($this->channelId) {
                     $params['channelId'] = $this->channelId;
                     Log::add('Using OAuth with configured channelId: ' . $this->channelId, Log::INFO, 'com_youtubevideos');
@@ -309,13 +318,14 @@ class YoutubeHelper
      * Fetch all videos from channel's uploads playlist
      * This method is better for syncing as it gets all channel videos (public only with API key)
      *
-     * @param   int  $maxResults  Maximum number of results to fetch
+     * @param   int     $maxResults  Maximum number of results to fetch
+     * @param   string  $pageToken   Page token for pagination
      *
      * @return  object|null  YouTube API response or null on error
      *
      * @since   1.0.0
      */
-    public function fetchChannelUploads(int $maxResults = 50): ?object
+    public function fetchChannelUploads(int $maxResults = 50, string $pageToken = ''): ?object
     {
         try {
             $http = HttpFactory::getHttp();
@@ -375,6 +385,10 @@ class YoutubeHelper
                 'part' => 'snippet,contentDetails',
                 'maxResults' => min($maxResults, 50) // YouTube API max is 50
             ];
+            
+            if (!empty($pageToken)) {
+                $playlistParams['pageToken'] = $pageToken;
+            }
 
             // Add API key only if not using OAuth
             if (!$this->oauthToken) {
@@ -452,15 +466,17 @@ class YoutubeHelper
      * @param   string  $search      Search query
      * @param   string  $tag         Tag to filter by
      * @param   int     $maxResults  Maximum number of results (default from params)
+     * @param   string  $pageToken   Page token for pagination
      *
      * @return  object|null  YouTube API response or null on error
      *
      * @since   1.0.0
      */
-    public function fetchPlaylistVideos(string $search = '', string $tag = '', int $maxResults = 0): ?object
+    public function fetchPlaylistVideos(string $search = '', string $tag = '', int $maxResults = 0, string $pageToken = ''): ?object
     {
         try {
             $http = HttpFactory::getHttp();
+            $headers = $this->getAuthHeaders();
             $url = 'https://www.googleapis.com/youtube/v3/playlistItems';
             
             if ($maxResults === 0) {
@@ -468,13 +484,23 @@ class YoutubeHelper
             }
             
             $params = [
-                'key' => $this->apiKey,
                 'playlistId' => $this->playlistId,
-                'part' => 'snippet',
+                'part' => 'snippet,contentDetails',
                 'maxResults' => min($maxResults, 50) // YouTube API max is 50
             ];
+            
+            if (!empty($pageToken)) {
+                $params['pageToken'] = $pageToken;
+            }
 
-            $response = $http->get($url . '?' . http_build_query($params));
+            // Add API key only if not using OAuth
+            if (!$this->oauthToken) {
+                $params['key'] = $this->apiKey;
+            } else {
+                Log::add('Using OAuth to fetch playlist: ' . $this->playlistId, Log::INFO, 'com_youtubevideos');
+            }
+
+            $response = $http->get($url . '?' . http_build_query($params), $headers);
             
             if ($response->code !== 200) {
                 $this->logError('YouTube API returned status ' . $response->code, $response->body);

@@ -5,6 +5,92 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2024-11-06
+
+### Security
+- **OAuth Scope Restriction:** Changed OAuth scope from `youtube.force-ssl` back to `youtube.readonly` following the principle of least privilege
+- The component only performs read operations on YouTube API (fetching videos, channels, and playlists), so write permissions are unnecessary
+
+### Technical
+- Updated OAuth authorization scope in `OauthController.php` to use readonly permissions
+- This reduces security risk by limiting the permissions granted to the application
+
+## [1.0.5] - 2024-11-06
+
+### Fixed
+- **Critical:** Fixed "Call to protected method loadForm()" error in Videos HtmlView
+- Batch button now appears in the "Change Status" dropdown menu following Joomla standards
+- Batch modal now uses Bootstrap modal structure with correct selector
+
+### Changed
+- Moved batch button from standalone to dropdown child toolbar (following Joomla best practices)
+- Changed modal implementation from `joomla-modal` to Bootstrap modal with id `collapseModal`
+- Batch form now loads using `Form::getInstance()` directly instead of calling protected model method
+
+### Technical
+- Updated `loadBatchForm()` to use `Form::getInstance()` for proper form loading
+- Added `Form` class to imports in HtmlView
+- Batch button now uses `popupButton()` method within the status dropdown
+- Modal moved inside form tag for proper submission handling
+
+## [1.0.4] - 2024-11-06
+
+### Added
+- **Batch operations for videos** - Assign multiple videos to a category, playlist, access level, or language in one go
+- Batch button in Videos admin toolbar
+- Batch modal with category, playlist, access level, and language selectors
+- Option to remove category or playlist assignments in batch operations
+
+### Fixed
+- Category filtering in menu items now works correctly - videos are properly filtered by the selected category from the database
+- Playlist filtering in menu items now works correctly
+
+### Changed
+- **Frontend videos are now loaded from the database** (`#__youtubevideos_featured` table) instead of YouTube API
+- Videos view now respects Joomla's language and access level filters
+- Improved search functionality - now searches both title and description in the database
+
+### Technical
+- Completely rewrote `VideosModel::getListQuery()` to query from database instead of YouTube API
+- Added proper filtering by `category_id` and `playlist_id` from menu item parameters
+- Removed dependency on YouTube API for frontend video listing
+- Videos are ordered by `ordering` field and creation date
+- Thumbnails are generated from YouTube video IDs or use custom thumbnails if set
+- Added `batch()` method to VideosController for bulk operations
+- Created `batch_videos.xml` form for batch modal
+- Added batch template (`default_batch.php`) for Videos view
+
+## [1.0.3] - 2024-11-06
+
+### Added
+- Pagination support for video synchronisation - now syncs ALL videos, not just the first 50
+- Duplicate detection and handling during sync process
+- Enhanced sync reporting showing published/unpublished video breakdown
+- **Comprehensive diagnostic logging** to identify why videos are skipped during sync
+- **Skip tracking** - sync message now shows if videos were skipped and why
+- Database migration to add unique constraint on `youtube_video_id` (prevents future duplicates)
+- Cleanup utility script (`cleanup_duplicates.php`) for identifying and removing existing duplicates
+- Detailed logging for pagination progress during sync
+
+### Changed
+- **Dashboard now includes unpublished videos in total count** with breakdown showing published/unpublished
+- Video sync now fetches all pages from YouTube API (up to 1,000 videos with safety limit)
+- Sync success message now shows: "X added, Y updated. Total in database: Z (A published, B unpublished)"
+- Improved duplicate handling - updates all duplicate records during sync
+- **Admin menu label changed from "Featured Videos" to "Videos"** for clearer navigation
+- Component version updated to 1.0.3
+
+### Fixed
+- Issue where only first 50 videos were synced despite having more videos in channel/playlist
+- Discrepancy between sync count and dashboard total due to unpublished videos not being reported
+- Potential duplicate video entries during sync from paginated API responses
+
+### Technical
+- Added `pageToken` parameter to all YouTube API fetch methods
+- Implemented `do-while` pagination loop in `syncVideos()` method
+- Added safety limit of 20 pages (1,000 videos) to prevent infinite loops
+- Enhanced database queries to detect and report duplicate entries
+
 ## [1.0.0] - 2024-11-05
 
 ### Added
@@ -81,11 +167,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.6** (2024-11-06) - OAuth Security Fix (Scope Restriction)
+- **1.0.5** (2024-11-06) - Batch Form Loading Fix
+- **1.0.4** (2024-11-06) - Category Filtering Fix
+- **1.0.3** (2024-11-06) - Pagination Support & Duplicate Detection
 - **1.0.0** (2024-11-05) - Initial Release
 
 ---
 
 ## Migration Notes
+
+### From 1.0.0 to 1.0.3
+1. **Check for Duplicates (Optional but Recommended)**:
+   - Before updating, run the `cleanup_duplicates.php` script to check for duplicate video entries
+   - Upload the script to your Joomla root directory
+   - Run via CLI: `php cleanup_duplicates.php` or access via browser (Super User only)
+   - The script runs in DRY RUN mode by default (safe, no changes)
+   - If duplicates are found, backup your database and run with `$dryRun = false`
+
+2. **Update Component**:
+   - Install the new version via Joomla's Extension Manager
+   - The database migration (1.0.3.sql) will run automatically
+   - This adds a unique constraint on `youtube_video_id` to prevent future duplicates
+
+3. **Verify Sync**:
+   - After updating, run the video sync from the dashboard
+   - You should now see all videos synced with detailed breakdown
+   - Check the sync message for published/unpublished counts
+
+4. **Security**:
+   - Delete `cleanup_duplicates.php` after use for security
 
 ### From No Previous Version
 This is the initial release. Follow the installation instructions in README.md

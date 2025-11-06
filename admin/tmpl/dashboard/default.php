@@ -31,6 +31,7 @@ $wa->useScript('com_youtubevideos.admin.js')
     <div class="col-md-12">
         <?php echo LayoutHelper::render('components.youtubevideos.admin.dashboard.statistics', [
             'totalVideos' => $this->totalVideos,
+            'videoStats' => $this->videoStats,
             'featuredVideos' => count($this->featuredVideos),
             'categories' => count($this->categories),
             'playlists' => count($this->playlists)

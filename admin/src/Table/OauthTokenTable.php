@@ -24,3 +24,4 @@ class OauthTokenTable extends Table
     }
 }
 
+

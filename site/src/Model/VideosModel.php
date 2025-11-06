@@ -4,7 +4,6 @@ namespace BKWSU\Component\Youtubevideos\Site\Model;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ListModel;
-use BKWSU\Component\Youtubevideos\Site\Helper\YoutubeHelper;
 
 /**
  * Videos List Model
@@ -101,20 +100,63 @@ class VideosModel extends ListModel
     }
 
     /**
-     * Method to get a list of items (not used, overridden by getVideos)
+     * Method to get a list query for videos from database
      *
-     * @return  array  An array of data items
+     * @return  \Joomla\Database\DatabaseQuery  A database query
      *
      * @since   1.0.0
      */
     protected function getListQuery()
     {
-        // Not used for YouTube API data
-        return null;
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true);
+
+        // Select from featured videos table
+        $query->select('v.*')
+            ->from($db->quoteName('#__youtubevideos_featured', 'v'));
+
+        // Filter by published state
+        $query->where($db->quoteName('v.published') . ' = 1');
+
+        // Filter by category if set in menu item
+        $categoryId = $this->getState('category_id', 0);
+        if ($categoryId > 0) {
+            $query->where($db->quoteName('v.category_id') . ' = ' . (int) $categoryId);
+        }
+
+        // Filter by playlist if set in menu item
+        $playlistId = $this->getState('playlist_id', 0);
+        if ($playlistId > 0) {
+            $query->where($db->quoteName('v.playlist_id') . ' = ' . (int) $playlistId);
+        }
+
+        // Filter by search
+        $search = $this->getState('filter.search', '');
+        if (!empty($search)) {
+            $search = $db->quote('%' . $db->escape($search, true) . '%');
+            $query->where(
+                '(' . $db->quoteName('v.title') . ' LIKE ' . $search .
+                ' OR ' . $db->quoteName('v.description') . ' LIKE ' . $search . ')'
+            );
+        }
+
+        // Filter by language
+        $language = Factory::getLanguage()->getTag();
+        $query->whereIn($db->quoteName('v.language'), [$db->quote($language), $db->quote('*')]);
+
+        // Filter by access level
+        $user = Factory::getApplication()->getIdentity();
+        $groups = $user->getAuthorisedViewLevels();
+        $query->whereIn($db->quoteName('v.access'), $groups);
+
+        // Order by ordering and created date
+        $query->order($db->quoteName('v.ordering') . ' ASC, ' . $db->quoteName('v.created') . ' DESC');
+
+        return $query;
     }
 
     /**
-     * Method to get videos from YouTube API
+     * Method to get videos from database
      *
      * @return  array  Array of video objects
      *
@@ -122,183 +164,66 @@ class VideosModel extends ListModel
      */
     public function getVideos(): array
     {
-        $playlistId = $this->getState('playlist_id', 0);
-        $search = $this->getState('filter.search', '');
-
-        // If a playlist is selected in the menu item, use it
-        if ($playlistId > 0) {
-            $data = $this->getPlaylistVideosFromDb($playlistId, $search);
-        } else {
-            // Otherwise use channel videos
-            $helper = new YoutubeHelper();
-            $data = $helper->getChannelVideos($search);
+        $items = $this->getItems();
+        
+        if (!$items) {
+            return [];
         }
 
-        // Normalize the YouTube API response
-        if ($data && isset($data->items) && is_array($data->items)) {
-            $source = $playlistId > 0 ? 'playlist' : 'channel';
-            return $this->normalizeVideos($data->items, $source);
-        }
-
-        return [];
+        // Convert database items to the format expected by the view
+        return $this->normalizeVideos($items);
     }
 
     /**
-     * Get videos from a playlist stored in the database
+     * Normalize database records to a consistent format for the view
      *
-     * @param   int     $playlistId  Playlist database ID
-     * @param   string  $search      Search query
-     *
-     * @return  object|null  YouTube API response or null on error
-     *
-     * @since   1.0.0
-     */
-    protected function getPlaylistVideosFromDb(int $playlistId, string $search = ''): ?object
-    {
-        try {
-            $db = $this->getDatabase();
-            $query = $db->getQuery(true);
-
-            // Get the YouTube playlist ID from the database
-            $query->select($db->quoteName('youtube_playlist_id'))
-                ->from($db->quoteName('#__youtubevideos_playlists'))
-                ->where($db->quoteName('id') . ' = ' . (int) $playlistId)
-                ->where($db->quoteName('published') . ' = 1');
-
-            $db->setQuery($query);
-            $youtubePlaylistId = $db->loadResult();
-
-            if (empty($youtubePlaylistId)) {
-                return null;
-            }
-
-            // Fetch videos from YouTube using the playlist ID
-            $helper = new YoutubeHelper();
-            
-            // We need to temporarily set the playlist ID in the helper
-            // Since YoutubeHelper expects playlist_id from params, we'll use reflection
-            // Or better, we can call fetchPlaylistVideos directly with the ID
-            return $this->fetchVideosForPlaylist($youtubePlaylistId, $search);
-
-        } catch (\Exception $e) {
-            $this->setError($e->getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Fetch videos for a specific YouTube playlist ID
-     *
-     * @param   string  $youtubePlaylistId  YouTube playlist ID
-     * @param   string  $search             Search query
-     *
-     * @return  object|null  YouTube API response or null on error
-     *
-     * @since   1.0.0
-     */
-    protected function fetchVideosForPlaylist(string $youtubePlaylistId, string $search = ''): ?object
-    {
-        try {
-            $app = Factory::getApplication();
-            $params = $app->getParams('com_youtubevideos');
-            $apiKey = $params->get('api_key');
-
-            if (empty($apiKey)) {
-                return null;
-            }
-
-            $http = \Joomla\CMS\Http\HttpFactory::getHttp();
-            $url = 'https://www.googleapis.com/youtube/v3/playlistItems';
-            
-            $maxResults = (int) $params->get('videos_per_page', 12);
-            
-            $apiParams = [
-                'key' => $apiKey,
-                'playlistId' => $youtubePlaylistId,
-                'part' => 'snippet',
-                'maxResults' => min($maxResults, 50)
-            ];
-
-            $response = $http->get($url . '?' . http_build_query($apiParams));
-            
-            if ($response->code !== 200) {
-                return null;
-            }
-
-            $data = json_decode($response->body);
-            
-            if (json_last_error() !== JSON_ERROR_NONE || !$data) {
-                return null;
-            }
-
-            if (isset($data->error)) {
-                return null;
-            }
-
-            // Filter by search if provided
-            if ($search && isset($data->items)) {
-                $data->items = array_values(array_filter($data->items, function($item) use ($search) {
-                    $titleMatch = stripos($item->snippet->title ?? '', $search) !== false;
-                    $descMatch = stripos($item->snippet->description ?? '', $search) !== false;
-                    return $titleMatch || $descMatch;
-                }));
-            }
-
-            return $data;
-
-        } catch (\Exception $e) {
-            $this->setError($e->getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Normalize YouTube API response to a consistent format
-     *
-     * @param   array   $items   Raw YouTube API items
-     * @param   string  $source  Source type (channel or playlist)
+     * @param   array  $items  Database records
      *
      * @return  array  Normalized video objects
      *
      * @since   1.0.0
      */
-    protected function normalizeVideos(array $items, string $source): array
+    protected function normalizeVideos(array $items): array
     {
         $normalized = [];
 
         foreach ($items as $item) {
             $video = new \stdClass();
 
-            // Extract video ID based on source
-            if ($source === 'playlist') {
-                $video->videoId = $item->snippet->resourceId->videoId ?? '';
-            } else {
-                $video->videoId = $item->id->videoId ?? '';
-            }
+            // Map database fields
+            $video->videoId = $item->youtube_video_id ?? '';
+            $video->title = $item->title ?? '';
+            $video->description = $item->description ?? '';
+            $video->publishedAt = $item->created ?? '';
 
-            // Skip if no video ID
-            if (empty($video->videoId)) {
-                continue;
-            }
-
-            // Extract common fields
-            $video->title = $item->snippet->title ?? '';
-            $video->description = $item->snippet->description ?? '';
-            $video->publishedAt = $item->snippet->publishedAt ?? '';
-            $video->channelId = $item->snippet->channelId ?? '';
-            $video->channelTitle = $item->snippet->channelTitle ?? '';
-
-            // Extract thumbnails
+            // Create thumbnails object from YouTube video ID
             $video->thumbnails = new \stdClass();
-            if (isset($item->snippet->thumbnails)) {
-                $video->thumbnails->default = $item->snippet->thumbnails->default ?? null;
-                $video->thumbnails->medium = $item->snippet->thumbnails->medium ?? null;
-                $video->thumbnails->high = $item->snippet->thumbnails->high ?? null;
-            }
+            if (!empty($video->videoId)) {
+                // Use YouTube thumbnail URLs
+                $video->thumbnails->default = (object)[
+                    'url' => "https://i.ytimg.com/vi/{$video->videoId}/default.jpg",
+                    'width' => 120,
+                    'height' => 90
+                ];
+                $video->thumbnails->medium = (object)[
+                    'url' => "https://i.ytimg.com/vi/{$video->videoId}/mqdefault.jpg",
+                    'width' => 320,
+                    'height' => 180
+                ];
+                $video->thumbnails->high = (object)[
+                    'url' => "https://i.ytimg.com/vi/{$video->videoId}/hqdefault.jpg",
+                    'width' => 480,
+                    'height' => 360
+                ];
 
-            // Add duration if available
-            if (isset($item->contentDetails->duration)) {
-                $video->duration = $item->contentDetails->duration;
+                // Use custom thumbnail if available
+                if (!empty($item->custom_thumbnail)) {
+                    $video->thumbnails->medium = (object)[
+                        'url' => $item->custom_thumbnail,
+                        'width' => 320,
+                        'height' => 180
+                    ];
+                }
             }
 
             $normalized[] = $video;

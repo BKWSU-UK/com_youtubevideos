@@ -17,6 +17,12 @@ extract($displayData);
                             <?php echo Text::_('COM_YOUTUBEVIDEOS_TOTAL_VIDEOS'); ?>
                         </div>
                         <div class="display-6 fw-bold"><?php echo number_format($totalVideos); ?></div>
+                        <?php if (isset($videoStats) && ($videoStats->published > 0 || $videoStats->unpublished > 0)) : ?>
+                        <div class="text-white-75 small mt-2">
+                            <?php echo number_format($videoStats->published); ?> published, 
+                            <?php echo number_format($videoStats->unpublished); ?> unpublished
+                        </div>
+                        <?php endif; ?>
                     </div>
                     <span class="icon-video icon-3x"></span>
                 </div>

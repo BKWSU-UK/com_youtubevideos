@@ -2,6 +2,7 @@
 namespace BKWSU\Component\Youtubevideos\Administrator\View\Videos;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Form\Form;
 use Joomla\CMS\Helper\ContentHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\GenericDataException;
@@ -57,6 +58,14 @@ class HtmlView extends BaseHtmlView
     public $activeFilters;
 
     /**
+     * Batch form
+     *
+     * @var    \Joomla\CMS\Form\Form
+     * @since  1.0.4
+     */
+    public $batchForm;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  Template name
@@ -74,6 +83,9 @@ class HtmlView extends BaseHtmlView
         $this->filterForm    = $this->get('FilterForm');
         $this->activeFilters = $this->get('ActiveFilters');
 
+        // Load the batch form
+        $this->batchForm = $this->loadBatchForm();
+
         // Check for errors.
         if (count($errors = $this->get('Errors')))
         {
@@ -83,6 +95,32 @@ class HtmlView extends BaseHtmlView
         $this->addToolbar();
 
         parent::display($tpl);
+    }
+
+    /**
+     * Load the batch form
+     *
+     * @return  \Joomla\CMS\Form\Form|null  The batch form or null
+     *
+     * @since   1.0.4
+     */
+    protected function loadBatchForm()
+    {
+        try {
+            // Load the form using Form class directly
+            Form::addFormPath(JPATH_ADMINISTRATOR . '/components/com_youtubevideos/forms');
+            
+            $form = Form::getInstance(
+                'com_youtubevideos.batch',
+                'batch_videos',
+                ['control' => 'batch', 'load_data' => false]
+            );
+
+            return $form;
+        } catch (\Exception $e) {
+            Factory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+            return null;
+        }
     }
 
     /**
@@ -145,6 +183,15 @@ class HtmlView extends BaseHtmlView
             {
                 $childBar->trash('videos.trash')->listCheck(true);
             }
+
+            // Add batch button to dropdown
+            if ($this->batchForm)
+            {
+                $childBar->popupButton('batch')
+                    ->text('JTOOLBAR_BATCH')
+                    ->selector('collapseModal')
+                    ->listCheck(true);
+            }
         }
 
         if ($user->authorise('core.admin', 'com_youtubevideos') || $user->authorise('core.options', 'com_youtubevideos'))
@@ -155,4 +202,5 @@ class HtmlView extends BaseHtmlView
         ToolbarHelper::help('', false, 'https://docs.joomla.org/');
     }
 }
+
 

@@ -14,7 +14,7 @@ use Joomla\CMS\MVC\Model\BaseDatabaseModel;
 class DashboardModel extends BaseDatabaseModel
 {
     /**
-     * Get total number of featured videos
+     * Get total number of featured videos (includes both published and unpublished)
      *
      * @return  int
      */
@@ -24,12 +24,35 @@ class DashboardModel extends BaseDatabaseModel
         $query = $db->getQuery(true);
 
         $query->select('COUNT(*)')
-            ->from($db->quoteName('#__youtubevideos_featured'))
-            ->where($db->quoteName('published') . ' = 1');
+            ->from($db->quoteName('#__youtubevideos_featured'));
 
         $db->setQuery($query);
 
         return (int) $db->loadResult();
+    }
+
+    /**
+     * Get video count breakdown by published status
+     *
+     * @return  object  Object with total, published, and unpublished counts
+     *
+     * @since   1.0.3
+     */
+    public function getVideoStats(): object
+    {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true);
+
+        $query->select([
+                'COUNT(*) as total',
+                'SUM(CASE WHEN published = 1 THEN 1 ELSE 0 END) as published',
+                'SUM(CASE WHEN published = 0 THEN 1 ELSE 0 END) as unpublished'
+            ])
+            ->from($db->quoteName('#__youtubevideos_featured'));
+
+        $db->setQuery($query);
+
+        return $db->loadObject() ?? (object) ['total' => 0, 'published' => 0, 'unpublished' => 0];
     }
 
     /**
@@ -200,7 +223,7 @@ class DashboardModel extends BaseDatabaseModel
         $systemInfo->apiKey = $params->get('api_key') ? 'Configured' : 'Not Configured';
         $systemInfo->channelId = $params->get('channel_id') ? 'Configured' : 'Not Configured';
         $systemInfo->playlistId = $params->get('playlist_id') ? 'Configured' : 'Not Configured';
-        $systemInfo->version = '1.0.2';
+        $systemInfo->version = '1.0.3';
         $systemInfo->apiStatus = ($params->get('api_key') && $params->get('channel_id')) ? 'Connected' : 'Disconnected';
         $systemInfo->oauthEnabled = $params->get('oauth_enabled', 0);
         $systemInfo->oauthConnected = $this->isOAuthConnected();
@@ -245,6 +268,7 @@ class DashboardModel extends BaseDatabaseModel
             'success' => false,
             'added' => 0,
             'updated' => 0,
+            'skipped' => 0,
             'error' => ''
         ];
 
@@ -284,57 +308,108 @@ class DashboardModel extends BaseDatabaseModel
                 return $result;
             }
             
-            // Fetch videos from YouTube
-            // Priority: 1) Custom Playlist, 2) OAuth Channel, 3) Channel Uploads, 4) Channel Search
-            if ($playlistId) {
-                // Use custom playlist if configured
-                \Joomla\CMS\Log\Log::add('Using configured playlist ID: ' . $playlistId, \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
-                $data = $helper->fetchPlaylistVideos('', '', 50);
+            // Fetch videos from YouTube with pagination support
+            // Priority: 1) Custom Playlist (with OAuth if available), 2) OAuth with uploads playlist, 3) OAuth with forMine, 4) Channel Uploads, 5) Channel Search
+            $allItems = [];
+            $pageToken = '';
+            $pageCount = 0;
+            $maxPages = 20; // Safety limit to prevent infinite loops (20 pages × 50 = 1000 videos max)
+            
+            do {
+                $pageCount++;
                 
-                if (!$data || !isset($data->items) || empty($data->items)) {
-                    $result['error'] = 'Failed to fetch videos from the configured playlist. Please verify the Playlist ID is correct and accessible with your API key.';
-                    return $result;
+                if ($playlistId) {
+                    // Use custom playlist if configured (works best for channel managers with OAuth)
+                    if ($pageCount === 1) {
+                        \Joomla\CMS\Log\Log::add('Using configured playlist ID: ' . $playlistId . ' (OAuth: ' . ($helper->isOAuthConnected() ? 'yes' : 'no') . ')', \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
+                    }
+                    $data = $helper->fetchPlaylistVideos('', '', 50, $pageToken);
+                    
+                    if (!$data || !isset($data->items)) {
+                        if ($pageCount === 1) {
+                            $authMethod = $helper->isOAuthConnected() ? 'OAuth' : 'API key';
+                            $result['error'] = 'Failed to fetch videos from the configured playlist using ' . $authMethod . '. Please verify the Playlist ID is correct and accessible.';
+                            return $result;
+                        }
+                        break; // Error on subsequent pages, just stop pagination
+                    }
+                } elseif ($helper->isOAuthConnected()) {
+                    // OAuth connected - use uploads playlist which works for channel managers
+                    if ($pageCount === 1) {
+                        \Joomla\CMS\Log\Log::add('Using OAuth to fetch channel uploads (including unlisted videos)', \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
+                    }
+                    $data = $helper->fetchChannelUploads(50, $pageToken);
+                    
+                    // If uploads playlist fails on first page, fall back to search with forMine for owned channels
+                    if ($pageCount === 1 && (!$data || !isset($data->items) || empty($data->items))) {
+                        \Joomla\CMS\Log\Log::add('Uploads playlist returned no results, trying search with forMine=true', \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
+                        $data = $helper->fetchChannelVideos('', '', 50, true, $pageToken); // Pass true for forMine
+                    }
+                } else {
+                    // No OAuth and no playlist - try channel uploads first, then fall back to search
+                    $data = $helper->fetchChannelUploads(50, $pageToken);
+
+                    if ($pageCount === 1 && (!$data || !isset($data->items))) {
+                        \Joomla\CMS\Log\Log::add('Uploads playlist failed, trying search method as fallback', \Joomla\CMS\Log\Log::WARNING, 'com_youtubevideos');
+                        $data = $helper->fetchChannelVideos('', '', 50, false, $pageToken);
+                    }
                 }
-            } elseif ($helper->isOAuthConnected()) {
-                // OAuth connected - use search API with forMine=true for all videos
-                \Joomla\CMS\Log\Log::add('Using OAuth search with forMine=true to fetch all videos (including unlisted)', \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
-                $data = $helper->fetchChannelVideos('', '', 50);
-            } else {
-                // No OAuth and no playlist - try channel uploads first, then fall back to search
-                $data = $helper->fetchChannelUploads(50);
 
                 if (!$data || !isset($data->items)) {
-                    \Joomla\CMS\Log\Log::add('Uploads playlist failed, trying search method as fallback', \Joomla\CMS\Log\Log::WARNING, 'com_youtubevideos');
-                    $data = $helper->fetchChannelVideos();
+                    if ($pageCount === 1) {
+                        if ($playlistId) {
+                            $result['error'] = 'Failed to fetch videos from YouTube API. Please verify your Playlist ID is correct. Check Joomla logs for details.';
+                        } else {
+                            $result['error'] = 'Failed to fetch videos from YouTube API. Please verify your Channel ID is correct (should start with "UC"). Check Joomla logs for details.';
+                        }
+                        return $result;
+                    }
+                    break; // Error on subsequent pages, just stop pagination
                 }
-            }
 
-            if (!$data || !isset($data->items)) {
-                if ($playlistId) {
-                    $result['error'] = 'Failed to fetch videos from YouTube API. Please verify your Playlist ID is correct. Check Joomla logs for details.';
-                } else {
-                    $result['error'] = 'Failed to fetch videos from YouTube API. Please verify your Channel ID is correct (should start with "UC"). Check Joomla logs for details.';
+                // Check if items array is empty on first page
+                if ($pageCount === 1 && empty($data->items)) {
+                    if ($playlistId && !$helper->isOAuthConnected()) {
+                        $result['error'] = 'The configured playlist returned 0 videos. Please check that the playlist ID is correct and contains videos.';
+                    } elseif ($helper->isOAuthConnected()) {
+                        \Joomla\CMS\Log\Log::add('OAuth sync returned 0 videos. Channel ID: ' . $channelId . ', OAuth connected: yes', \Joomla\CMS\Log\Log::WARNING, 'com_youtubevideos');
+                        $result['error'] = 'API returned 0 videos with OAuth. WORKAROUND: Create a custom YouTube playlist, add your unlisted videos to it, then enter the Playlist ID (starts with PL) in Component Options → Basic Settings → Playlist ID. OAuth will work with custom playlists even for managed channels.';
+                    } else {
+                        $result['error'] = 'API returned 0 videos. Note: Only PUBLIC videos can be synced via API key. If your videos are unlisted or private, please enable and connect OAuth in Component Options.';
+                    }
+                    return $result;
                 }
-                return $result;
-            }
-
-            // Check if items array is empty
-            if (empty($data->items)) {
-                if ($playlistId) {
-                    $result['error'] = 'The configured playlist returned 0 videos. Please check that the playlist ID is correct and contains videos.';
-                } elseif ($helper->isOAuthConnected()) {
-                    $result['error'] = 'API returned 0 videos. Your OAuth connection is active, but no videos were found. Please check that your YouTube channel has videos and that you connected with the correct Google account.';
-                } else {
-                    $result['error'] = 'API returned 0 videos. Note: Only PUBLIC videos can be synced via API key. If your videos are unlisted or private, please enable and connect OAuth in Component Options.';
+                
+                // Accumulate items from this page
+                if (!empty($data->items)) {
+                    $allItems = array_merge($allItems, $data->items);
+                    \Joomla\CMS\Log\Log::add('Fetched page ' . $pageCount . ': ' . count($data->items) . ' videos (total so far: ' . count($allItems) . ')', \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
                 }
-                return $result;
+                
+                // Get next page token
+                $pageToken = $data->nextPageToken ?? '';
+                
+            } while (!empty($pageToken) && $pageCount < $maxPages);
+            
+            if ($pageCount >= $maxPages) {
+                \Joomla\CMS\Log\Log::add('Reached maximum page limit (' . $maxPages . ' pages). Syncing first ' . count($allItems) . ' videos.', \Joomla\CMS\Log\Log::WARNING, 'com_youtubevideos');
             }
+            
+            \Joomla\CMS\Log\Log::add('Total videos fetched: ' . count($allItems) . ' from ' . $pageCount . ' page(s)', \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
 
             $db = Factory::getDbo();
             $user = Factory::getApplication()->getIdentity();
             $date = Factory::getDate();
+            
+            // Track processed video IDs to avoid duplicates
+            $processedVideoIds = [];
+            $skippedNoVideoId = 0;
+            $skippedDuplicates = 0;
+            $itemIndex = 0;
 
-            foreach ($data->items as $item) {
+            foreach ($allItems as $item) {
+                $itemIndex++;
+                
                 // Extract video data - handle both playlist and search API formats
                 // Playlist API: item->snippet->resourceId->videoId or item->contentDetails->videoId
                 // Search API: item->id->videoId
@@ -344,30 +419,52 @@ class DashboardModel extends BaseDatabaseModel
                     ?? null;
                 
                 if (!$videoId) {
+                    $skippedNoVideoId++;
+                    $itemTitle = $item->snippet->title ?? 'Unknown';
+                    \Joomla\CMS\Log\Log::add(
+                        'Skipping item #' . $itemIndex . ' - no valid video ID found. Title: ' . $itemTitle . 
+                        '. Item data: ' . json_encode($item),
+                        \Joomla\CMS\Log\Log::WARNING,
+                        'com_youtubevideos'
+                    );
                     continue;
                 }
+                
+                // Skip if we've already processed this video ID (handles duplicates in API response)
+                if (isset($processedVideoIds[$videoId])) {
+                    $skippedDuplicates++;
+                    \Joomla\CMS\Log\Log::add('Skipping duplicate video ID in API response: ' . $videoId, \Joomla\CMS\Log\Log::DEBUG, 'com_youtubevideos');
+                    continue;
+                }
+                $processedVideoIds[$videoId] = true;
 
                 $title = $item->snippet->title ?? '';
                 $description = $item->snippet->description ?? '';
 
-                // Check if video already exists
+                // Check if video already exists (get all matching records to detect duplicates)
                 $query = $db->getQuery(true)
-                    ->select('id')
+                    ->select(['id', 'published'])
                     ->from($db->quoteName('#__youtubevideos_featured'))
                     ->where($db->quoteName('youtube_video_id') . ' = ' . $db->quote($videoId));
 
                 $db->setQuery($query);
-                $existingId = $db->loadResult();
-
-                if ($existingId) {
-                    // Update existing video
+                $existingRecords = $db->loadObjectList();
+                
+                // Check for duplicate database entries
+                if (count($existingRecords) > 1) {
+                    \Joomla\CMS\Log\Log::add('WARNING: Found ' . count($existingRecords) . ' duplicate entries for video ID: ' . $videoId . ' - updating all of them', \Joomla\CMS\Log\Log::WARNING, 'com_youtubevideos');
+                }
+                
+                if (!empty($existingRecords)) {
+                    // Update existing video(s) - handle both single entries and duplicates
+                    // Update all records with this youtube_video_id
                     $query = $db->getQuery(true)
                         ->update($db->quoteName('#__youtubevideos_featured'))
                         ->set($db->quoteName('title') . ' = ' . $db->quote($title))
                         ->set($db->quoteName('description') . ' = ' . $db->quote($description))
                         ->set($db->quoteName('modified') . ' = ' . $db->quote($date->toSql()))
                         ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
-                        ->where($db->quoteName('id') . ' = ' . (int) $existingId);
+                        ->where($db->quoteName('youtube_video_id') . ' = ' . $db->quote($videoId));
 
                     $db->setQuery($query);
                     $db->execute();
@@ -410,6 +507,55 @@ class DashboardModel extends BaseDatabaseModel
             }
 
             $result['success'] = true;
+            $result['skipped'] = $skippedNoVideoId + $skippedDuplicates;
+            
+            // Get final counts to show breakdown
+            $query = $db->getQuery(true)
+                ->select([
+                    'COUNT(*) as total',
+                    'SUM(CASE WHEN published = 1 THEN 1 ELSE 0 END) as published',
+                    'SUM(CASE WHEN published = 0 THEN 1 ELSE 0 END) as unpublished'
+                ])
+                ->from($db->quoteName('#__youtubevideos_featured'));
+            
+            $db->setQuery($query);
+            $counts = $db->loadObject();
+            
+            $result['total_in_db'] = (int) $counts->total;
+            $result['published_count'] = (int) $counts->published;
+            $result['unpublished_count'] = (int) $counts->unpublished;
+            $result['fetched_from_api'] = count($allItems);
+            
+            // Log detailed sync summary
+            \Joomla\CMS\Log\Log::add(
+                'Sync processing summary: ' . 
+                'Fetched from API: ' . count($allItems) . ', ' .
+                'Processed: ' . ($result['added'] + $result['updated']) . ', ' .
+                'Added: ' . $result['added'] . ', ' .
+                'Updated: ' . $result['updated'] . ', ' .
+                'Skipped (no video ID): ' . $skippedNoVideoId . ', ' .
+                'Skipped (duplicates): ' . $skippedDuplicates,
+                \Joomla\CMS\Log\Log::INFO,
+                'com_youtubevideos'
+            );
+            
+            \Joomla\CMS\Log\Log::add(
+                'Database summary: Total in DB: ' . $result['total_in_db'] . 
+                ' (Published: ' . $result['published_count'] . 
+                ', Unpublished: ' . $result['unpublished_count'] . ')',
+                \Joomla\CMS\Log\Log::INFO,
+                'com_youtubevideos'
+            );
+            
+            // Alert if videos were skipped
+            if ($skippedNoVideoId > 0) {
+                \Joomla\CMS\Log\Log::add(
+                    'ALERT: ' . $skippedNoVideoId . ' items were skipped because they had no valid video ID. ' .
+                    'Check the log for details. This may indicate deleted videos, private videos, or API response issues.',
+                    \Joomla\CMS\Log\Log::WARNING,
+                    'com_youtubevideos'
+                );
+            }
 
         } catch (\Exception $e) {
             $result['error'] = $e->getMessage();

@@ -31,12 +31,30 @@ class DashboardController extends BaseController
             $result = $model->syncVideos();
 
             if ($result['success']) {
-                $message = Text::sprintf(
-                    'COM_YOUTUBEVIDEOS_SYNC_SUCCESS',
-                    $result['added'],
-                    $result['updated']
-                );
-                $this->setMessage($message, 'message');
+                // Use different message if videos were skipped
+                if (($result['skipped'] ?? 0) > 0) {
+                    $message = Text::sprintf(
+                        'COM_YOUTUBEVIDEOS_SYNC_SUCCESS_WITH_SKIPPED',
+                        $result['added'],
+                        $result['updated'],
+                        $result['skipped'],
+                        $result['total_in_db'] ?? 0,
+                        $result['published_count'] ?? 0,
+                        $result['unpublished_count'] ?? 0,
+                        $result['skipped']
+                    );
+                    $this->setMessage($message, 'warning');
+                } else {
+                    $message = Text::sprintf(
+                        'COM_YOUTUBEVIDEOS_SYNC_SUCCESS',
+                        $result['added'],
+                        $result['updated'],
+                        $result['total_in_db'] ?? 0,
+                        $result['published_count'] ?? 0,
+                        $result['unpublished_count'] ?? 0
+                    );
+                    $this->setMessage($message, 'message');
+                }
             } else {
                 $this->setMessage(
                     Text::sprintf('COM_YOUTUBEVIDEOS_SYNC_ERROR', $result['error']),
