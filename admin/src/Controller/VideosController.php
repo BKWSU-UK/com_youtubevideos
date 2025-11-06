@@ -50,8 +50,15 @@ class VideosController extends AdminController
         Session::checkToken() or jexit(Text::_('JINVALID_TOKEN'));
 
         $model = $this->getModel('Video', '', []);
-        $vars  = $this->input->post->get('batch', [], 'array');
+        $batchData = $this->input->post->get('batch', [], 'array');
         $cid   = $this->input->post->get('cid', [], 'array');
+
+        // The batch fields are nested inside another 'batch' key
+        $vars = $batchData['batch'] ?? [];
+
+        // Debug: Log what we received
+        \Joomla\CMS\Log\Log::add('Batch data received: ' . print_r($vars, true), \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
+        \Joomla\CMS\Log\Log::add('Selected IDs: ' . print_r($cid, true), \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
 
         // Check for valid items
         if (empty($cid)) {
@@ -77,15 +84,23 @@ class VideosController extends AdminController
                 $fields = [];
 
                 // Update category
-                if (isset($vars['category_id']) && $vars['category_id'] !== '') {
+                if (isset($vars['category_id']) && $vars['category_id'] !== '' && $vars['category_id'] !== '0') {
                     $categoryId = (int) $vars['category_id'];
-                    $fields[] = $db->quoteName('category_id') . ' = ' . ($categoryId > 0 ? (int) $categoryId : 'NULL');
+                    $fields[] = $db->quoteName('category_id') . ' = ' . $categoryId;
+                    \Joomla\CMS\Log\Log::add('Setting category_id to: ' . $categoryId, \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
+                } elseif (isset($vars['category_id']) && $vars['category_id'] === '0') {
+                    // Remove category
+                    $fields[] = $db->quoteName('category_id') . ' = NULL';
+                    \Joomla\CMS\Log\Log::add('Removing category', \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
                 }
 
                 // Update playlist
-                if (isset($vars['playlist_id']) && $vars['playlist_id'] !== '') {
+                if (isset($vars['playlist_id']) && $vars['playlist_id'] !== '' && $vars['playlist_id'] !== '0') {
                     $playlistId = (int) $vars['playlist_id'];
-                    $fields[] = $db->quoteName('playlist_id') . ' = ' . ($playlistId > 0 ? (int) $playlistId : 'NULL');
+                    $fields[] = $db->quoteName('playlist_id') . ' = ' . $playlistId;
+                } elseif (isset($vars['playlist_id']) && $vars['playlist_id'] === '0') {
+                    // Remove playlist
+                    $fields[] = $db->quoteName('playlist_id') . ' = NULL';
                 }
 
                 // Update access
@@ -106,6 +121,7 @@ class VideosController extends AdminController
                         ->where($db->quoteName('id') . ' = ' . $id);
 
                     $db->setQuery($query);
+                    \Joomla\CMS\Log\Log::add('Executing query: ' . $query, \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
                     $db->execute();
                     $updated++;
                 }
@@ -118,6 +134,7 @@ class VideosController extends AdminController
             }
         } catch (\Exception $e) {
             $this->setMessage($e->getMessage(), 'error');
+            \Joomla\CMS\Log\Log::add('Batch error: ' . $e->getMessage(), \Joomla\CMS\Log\Log::ERROR, 'com_youtubevideos');
         }
     }
 }
