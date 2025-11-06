@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - View now loads pagination object from model
 - List limit dropdown now dynamically shows only multiples of `videos_per_row` (e.g., if 3 per row: 3, 6, 9, 12, etc.)
 - Model automatically rounds up selected limits to nearest multiple to ensure complete rows
+- Default list limit is set to 4th multiple (e.g., 12 for 3 per row, 16 for 4 per row)
 
 ## [1.0.11] - 2024-11-06
 

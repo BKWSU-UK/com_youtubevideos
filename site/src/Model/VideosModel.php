@@ -71,8 +71,12 @@ class VideosModel extends ListModel
         // Get videos per row from menu parameters
         $videosPerRow = (int) $params->get('videos_per_row', 3);
         
+        // Set default limit to 4th multiple (e.g., if 3 per row, default is 12)
+        $multiples = [1, 2, 3, 4, 6, 8, 12, 16];
+        $defaultLimit = $videosPerRow * $multiples[3]; // 4th item (index 3)
+        
         // Adjust list limit to be a multiple of videos_per_row
-        $limit = $app->getUserStateFromRequest($this->context . '.list.limit', 'limit', $app->get('list_limit'), 'uint');
+        $limit = $app->getUserStateFromRequest($this->context . '.list.limit', 'limit', $defaultLimit, 'uint');
         
         // Round up to the nearest multiple of videos_per_row
         if ($limit > 0 && $videosPerRow > 0) {
@@ -115,6 +119,7 @@ class VideosModel extends ListModel
         
         // Generate custom limit options as multiples of videos_per_row
         $multiples = [1, 2, 3, 4, 6, 8, 12, 16];
+        $defaultLimit = $videosPerRow * $multiples[3]; // 4th item
         $optionsXml = '';
         
         foreach ($multiples as $multiplier) {
@@ -128,6 +133,7 @@ class VideosModel extends ListModel
                 name="limit"
                 type="list"
                 label="JGLOBAL_LIST_LIMIT"
+                default="' . $defaultLimit . '"
                 onchange="this.form.submit();"
                 class="form-select list-limit"
                 >
