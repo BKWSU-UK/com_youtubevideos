@@ -16,17 +16,6 @@ use Joomla\CMS\Layout\LayoutHelper;
 
 /** @var \BKWSU\Component\Youtubevideos\Site\View\Videos\HtmlView $this */
 
-// Add limit options as inline script for JavaScript to use
-$limitOptionsJson = json_encode($this->limitOptions);
-$this->document->addScriptDeclaration("
-    document.addEventListener('DOMContentLoaded', function() {
-        const limitSelect = document.querySelector('select[name=\"list[limit]\"]');
-        if (limitSelect) {
-            limitSelect.setAttribute('data-limit-options', '" . addslashes($limitOptionsJson) . "');
-        }
-    });
-");
-
 ?>
 <div class="com-youtubevideos videos">
     <div class="page-header">

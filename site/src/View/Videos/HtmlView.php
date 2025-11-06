@@ -38,11 +38,6 @@ class HtmlView extends BaseHtmlView
     public $pagination;
 
     /**
-     * @var array Custom limit options
-     */
-    public $limitOptions;
-
-    /**
      * Execute and display a template script.
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -58,7 +53,6 @@ class HtmlView extends BaseHtmlView
         $this->filterForm = $this->get('FilterForm');
         $this->activeFilters = $this->get('ActiveFilters');
         $this->pagination = $this->get('Pagination');
-        $this->limitOptions = $this->get('LimitOptions');
 
         // Check for errors
         if (count($errors = $this->get('Errors'))) {
@@ -99,7 +93,6 @@ class HtmlView extends BaseHtmlView
         // Add the component's media files
         $wa = $this->document->getWebAssetManager();
         $wa->useStyle('com_youtubevideos.site.css')
-           ->useScript('com_youtubevideos.youtube-player')
-           ->useScript('com_youtubevideos.videos-list');
+           ->useScript('com_youtubevideos.youtube-player');
     }
 } 

@@ -109,33 +109,34 @@ class VideosModel extends ListModel
             return false;
         }
 
-        return $form;
-    }
-
-    /**
-     * Get custom limit options based on videos per row setting
-     *
-     * @return  array  Array of limit options (multiples of videos_per_row)
-     *
-     * @since   1.0.12
-     */
-    public function getLimitOptions(): array
-    {
+        // Get videos per row from menu parameters
         $params = $this->getState('params');
         $videosPerRow = (int) $params->get('videos_per_row', 3);
         
-        // Generate limit options as multiples of videos_per_row
-        $options = [];
-        $multipliers = [1, 2, 3, 4, 6, 8, 10, 12, 16];
+        // Generate custom limit options as multiples of videos_per_row
+        $multiples = [1, 2, 3, 4, 6, 8, 12, 16];
+        $optionsXml = '';
         
-        foreach ($multipliers as $multiplier) {
+        foreach ($multiples as $multiplier) {
             $value = $videosPerRow * $multiplier;
-            if ($value <= 100) { // Cap at reasonable maximum
-                $options[] = $value;
-            }
+            $optionsXml .= '<option value="' . $value . '">' . $value . '</option>';
         }
         
-        return $options;
+        // Replace the limitbox field with custom options
+        $limitFieldXml = '
+            <field
+                name="limit"
+                type="list"
+                label="JGLOBAL_LIST_LIMIT"
+                onchange="this.form.submit();"
+                class="form-select list-limit"
+                >
+                ' . $optionsXml . '
+            </field>';
+        
+        $form->setField(new \SimpleXMLElement($limitFieldXml), 'list');
+
+        return $form;
     }
 
     /**
