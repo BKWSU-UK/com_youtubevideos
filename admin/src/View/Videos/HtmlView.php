@@ -4,6 +4,7 @@ namespace BKWSU\Component\Youtubevideos\Administrator\View\Videos;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Form\Form;
 use Joomla\CMS\Helper\ContentHelper;
+use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\GenericDataException;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
@@ -85,6 +86,12 @@ class HtmlView extends BaseHtmlView
 
         // Load the batch form
         $this->batchForm = $this->loadBatchForm();
+
+        // Ensure Bootstrap modal assets are available when batch form exists
+        if ($this->batchForm)
+        {
+            HTMLHelper::_('bootstrap.modal', 'collapseModal');
+        }
 
         // Check for errors.
         if (count($errors = $this->get('Errors')))
@@ -187,10 +194,11 @@ class HtmlView extends BaseHtmlView
             // Add batch button to dropdown
             if ($this->batchForm)
             {
-                $childBar->popupButton('batch')
+                $childBar->linkButton('batch')
                     ->text('JTOOLBAR_BATCH')
-                    ->selector('collapseModal')
-                    ->listCheck(true);
+                    ->icon('icon-square')
+                    ->url('#collapseModal')
+                    ->attributes(['data-bs-toggle' => 'modal', 'data-bs-target' => '#collapseModal', 'id' => 'toolbar-batch-trigger']);
             }
         }
 

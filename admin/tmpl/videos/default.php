@@ -154,7 +154,12 @@ $featuredStates = [
                                     </div>
                                 </th>
                                 <td class="small d-none d-md-table-cell">
-                                    <?php echo $this->escape($item->youtube_video_id); ?>
+                                    <a href="https://www.youtube.com/watch?v=<?php echo $this->escape($item->youtube_video_id); ?>" 
+                                       target="_blank" 
+                                       rel="noopener noreferrer"
+                                       title="<?php echo Text::_('COM_YOUTUBEVIDEOS_WATCH_ON_YOUTUBE'); ?>">
+                                        <?php echo $this->escape($item->youtube_video_id); ?>
+                                    </a>
                                 </td>
                                 <td class="small d-none d-md-table-cell">
                                     <?php echo $this->escape($item->category_title ?? Text::_('JNONE')); ?>

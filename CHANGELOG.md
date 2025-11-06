@@ -5,6 +5,46 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.10] - 2024-11-06
+
+### Fixed
+- Batch controller no longer calls the deprecated `getBootableContainer()` method, preventing fatal errors on Joomla 5
+
+### Technical
+- Switched database retrieval in `VideosController::batch()` to `Factory::getContainer()->get('DatabaseDriver')`
+
+## [1.0.9] - 2024-11-06
+
+### Fixed
+- Batch modal now opens reliably by using Joomla's `HTMLHelper::_('bootstrap.modal')` to ensure required assets are loaded
+- Batch toolbar button now uses data attributes instead of a JavaScript constructor that was unavailable in some Joomla configurations
+
+### Technical
+- Switched toolbar button to `linkButton` with Bootstrap 5 attributes
+- Removed `listCheck` override to avoid conflicting JavaScript and added modal initialisation via Joomla's Bootstrap helper
+
+## [1.0.8] - 2024-11-06
+
+### Fixed
+- **Batch Modal Not Opening:** Fixed batch button not triggering the modal when clicked
+- Changed from `popupButton()` to `standardButton()` with proper Bootstrap modal trigger
+
+### Technical
+- Added hidden trigger button with Bootstrap 5 `data-bs-toggle` and `data-bs-target` attributes
+- Batch toolbar button now clicks the hidden trigger via JavaScript
+- This properly initializes the Bootstrap modal using Bootstrap's native modal API
+
+## [1.0.7] - 2024-11-06
+
+### Changed
+- **Video ID Links:** Video IDs in the admin videos list are now clickable links that open the actual YouTube video in a new tab
+- Added security attributes (`rel="noopener noreferrer"`) to YouTube links
+- Added "Watch on YouTube" tooltip to video ID links
+
+### Technical
+- Updated `admin/tmpl/videos/default.php` to wrap Video ID in anchor tag
+- Added `COM_YOUTUBEVIDEOS_WATCH_ON_YOUTUBE` language string
+
 ## [1.0.6] - 2024-11-06
 
 ### Security
@@ -167,6 +207,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.10** (2024-11-06) - Batch Controller DB Retrieval Fix
+- **1.0.9** (2024-11-06) - Batch Modal Asset Fix
+- **1.0.8** (2024-11-06) - Batch Modal Trigger Fix
+- **1.0.7** (2024-11-06) - Video ID Clickable Links
 - **1.0.6** (2024-11-06) - OAuth Security Fix (Scope Restriction)
 - **1.0.5** (2024-11-06) - Batch Form Loading Fix
 - **1.0.4** (2024-11-06) - Category Filtering Fix

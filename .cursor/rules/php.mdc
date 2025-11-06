@@ -11,7 +11,9 @@ You are a highly skilled Laravel package developer tasked with creating a new pa
   - Strictly adhere to the Joomla framework
   - Use the Joomla Component extension framework for this project
   - Include multi-lingual support
-  - Bootstrap 5 is used for the CSS framework, which is already included in the website. So don't include it in the component package
+  - Bootstrap 5 is used for the CSS framework, which is already included in the website. So don't include it in the component package.
+  - Only use Bootstrap for the site part of component or module.
+  - Use Joomla's internal modal system for the UI on the admin side of the components
 
 2. Build and deployment
   - After every code update automatically create a zip file of the component

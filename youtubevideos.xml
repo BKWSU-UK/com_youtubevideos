@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later;</license>
     <authorEmail>allan@bkconnect.net</authorEmail>
     <authorUrl>www.brahmakumaris.org</authorUrl>
-    <version>1.0.6</version>
+    <version>1.0.10</version>
     <description>COM_YOUTUBEVIDEOS_XML_DESCRIPTION</description>
     <namespace path="src">BKWSU\Component\Youtubevideos</namespace>
     <scriptfile>script.php</scriptfile>

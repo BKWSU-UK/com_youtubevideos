@@ -1,6 +1,7 @@
 <?php
 namespace BKWSU\Component\Youtubevideos\Administrator\Controller;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Controller\AdminController;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
@@ -63,7 +64,7 @@ class VideosController extends AdminController
         $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=videos', false));
 
         try {
-            $db = $this->app->getBootableContainer()->get('DatabaseDriver');
+            $db = Factory::getContainer()->get('DatabaseDriver');
             $updated = 0;
 
             foreach ($cid as $id) {
