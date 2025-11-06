@@ -124,7 +124,7 @@ class FeaturedTable extends Table implements VersionableTableInterface
      *
      * @since   1.0.0
      */
-    public function store($updateNulls = false)
+    public function store($updateNulls = true)
     {
         return parent::store($updateNulls);
     }

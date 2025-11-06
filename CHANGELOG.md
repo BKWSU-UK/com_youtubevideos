@@ -5,6 +5,15 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2024-11-06
+
+### Fixed
+- Category changes on videos now save correctly - the `category_id` field properly updates when changed or cleared
+
+### Technical
+- Changed `FeaturedTable::store()` default parameter from `$updateNulls = false` to `$updateNulls = true`
+- This ensures nullable fields like `category_id` and `playlist_id` are properly updated in the database when set to NULL
+
 ## [1.0.10] - 2024-11-06
 
 ### Fixed
@@ -207,6 +216,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.11** (2024-11-06) - Category Save Fix
 - **1.0.10** (2024-11-06) - Batch Controller DB Retrieval Fix
 - **1.0.9** (2024-11-06) - Batch Modal Asset Fix
 - **1.0.8** (2024-11-06) - Batch Modal Trigger Fix
