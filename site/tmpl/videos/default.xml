@@ -115,19 +115,6 @@
                 <option value="4">4</option>
                 <option value="6">6</option>
             </field>
-
-            <field
-                name="videos_per_page"
-                type="list"
-                label="COM_YOUTUBEVIDEOS_FIELD_VIDEOS_PER_PAGE_LABEL"
-                description="COM_YOUTUBEVIDEOS_FIELD_VIDEOS_PER_PAGE_DESC"
-                default="12"
-                >
-                <option value="6">6</option>
-                <option value="12">12</option>
-                <option value="24">24</option>
-                <option value="48">48</option>
-            </field>
         </fieldset>
     </fields>
 </metadata> 

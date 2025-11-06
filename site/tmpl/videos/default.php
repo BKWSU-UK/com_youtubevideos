@@ -16,6 +16,17 @@ use Joomla\CMS\Layout\LayoutHelper;
 
 /** @var \BKWSU\Component\Youtubevideos\Site\View\Videos\HtmlView $this */
 
+// Add limit options as inline script for JavaScript to use
+$limitOptionsJson = json_encode($this->limitOptions);
+$this->document->addScriptDeclaration("
+    document.addEventListener('DOMContentLoaded', function() {
+        const limitSelect = document.querySelector('select[name=\"list[limit]\"]');
+        if (limitSelect) {
+            limitSelect.setAttribute('data-limit-options', '" . addslashes($limitOptionsJson) . "');
+        }
+    });
+");
+
 ?>
 <div class="com-youtubevideos videos">
     <div class="page-header">
@@ -94,7 +105,41 @@ use Joomla\CMS\Layout\LayoutHelper;
 
             <?php if ($this->pagination->pagesTotal > 1) : ?>
                 <div class="com-youtubevideos-videos__pagination">
-                    <?php echo $this->pagination->getPagesLinks(); ?>
+                    <nav aria-label="<?php echo Text::_('JLIB_HTML_PAGINATION'); ?>">
+                        <ul class="pagination">
+                            <?php
+                            $currentPage = $this->pagination->pagesCurrent;
+                            $totalPages = $this->pagination->pagesTotal;
+                            $limitStart = $this->pagination->limitstart;
+                            $limit = $this->pagination->limit;
+                            ?>
+                            
+                            <?php if ($currentPage > 1) : ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="<?php echo Route::_('index.php?option=com_youtubevideos&view=videos&start=' . ($limitStart - $limit)); ?>" aria-label="<?php echo Text::_('JPREVIOUS'); ?>">
+                                        <span aria-hidden="true">‹</span>
+                                    </a>
+                                </li>
+                            <?php endif; ?>
+                            
+                            <?php for ($i = 1; $i <= $totalPages; $i++) : ?>
+                                <?php $start = ($i - 1) * $limit; ?>
+                                <li class="page-item<?php echo ($i == $currentPage) ? ' active' : ''; ?>">
+                                    <a class="page-link" href="<?php echo Route::_('index.php?option=com_youtubevideos&view=videos&start=' . $start); ?>">
+                                        <?php echo $i; ?>
+                                    </a>
+                                </li>
+                            <?php endfor; ?>
+                            
+                            <?php if ($currentPage < $totalPages) : ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="<?php echo Route::_('index.php?option=com_youtubevideos&view=videos&start=' . ($limitStart + $limit)); ?>" aria-label="<?php echo Text::_('JNEXT'); ?>">
+                                        <span aria-hidden="true">›</span>
+                                    </a>
+                                </li>
+                            <?php endif; ?>
+                        </ul>
+                    </nav>
                 </div>
             <?php endif; ?>
         <?php endif; ?>

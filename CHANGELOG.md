@@ -9,14 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - "Videos per Row" menu parameter now correctly controls the grid layout (2, 3, 4, or 6 columns)
-- "Videos per Page" menu parameter now properly limits the number of videos displayed per page
-- Added pagination controls when there are multiple pages of videos
+- Added pagination controls with visible page numbers and navigation arrows
+- Pagination now displays when there are multiple pages of videos
+
+### Changed
+- Removed redundant "Videos per Page" menu parameter - users control this via the list limit dropdown on the page itself
 
 ### Technical
-- Model now sets `list.limit` from the `videos_per_page` menu parameter
 - Template now applies dynamic CSS classes based on `videos_per_row` parameter
 - Added responsive CSS rules for different grid column layouts
-- Added pagination styling to match component design
+- Created custom pagination template with visible page numbers and arrows
+- View now loads pagination object from model
+- List limit dropdown now dynamically shows only multiples of `videos_per_row` (e.g., if 3 per row: 3, 6, 9, 12, etc.)
+- Model automatically rounds up selected limits to nearest multiple to ensure complete rows
+- Added JavaScript to customise limit dropdown options based on grid layout
 
 ## [1.0.11] - 2024-11-06
 

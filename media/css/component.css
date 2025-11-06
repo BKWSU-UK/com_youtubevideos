@@ -326,11 +326,52 @@
     padding: 10px 16px;
     font-weight: 500;
     transition: all 0.2s ease;
+    min-width: 44px;
+    text-align: center;
 }
 
 .com-youtubevideos-videos__pagination .page-item.active .page-link {
     background-color: var(--bs-primary, #0d6efd);
     border-color: var(--bs-primary, #0d6efd);
+}
+
+/* Add content to pagination links based on aria-label */
+.com-youtubevideos-videos__pagination .page-link[aria-label*="start"]::before,
+.com-youtubevideos-videos__pagination .page-link[aria-label*="Start"]::before,
+.com-youtubevideos-videos__pagination .page-link[aria-label*="first"]::before,
+.com-youtubevideos-videos__pagination .page-link[aria-label*="First"]::before {
+    content: "‹‹";
+    font-weight: bold;
+}
+
+.com-youtubevideos-videos__pagination .page-link[aria-label*="previous"]::before,
+.com-youtubevideos-videos__pagination .page-link[aria-label*="Previous"]::before {
+    content: "‹";
+    font-weight: bold;
+}
+
+.com-youtubevideos-videos__pagination .page-link[aria-label*="next"]::before,
+.com-youtubevideos-videos__pagination .page-link[aria-label*="Next"]::before {
+    content: "›";
+    font-weight: bold;
+}
+
+.com-youtubevideos-videos__pagination .page-link[aria-label*="end"]::before,
+.com-youtubevideos-videos__pagination .page-link[aria-label*="End"]::before,
+.com-youtubevideos-videos__pagination .page-link[aria-label*="last"]::before,
+.com-youtubevideos-videos__pagination .page-link[aria-label*="Last"]::before {
+    content: "››";
+    font-weight: bold;
+}
+
+/* Numbered page links - show the page number from the link text or calculate it */
+.com-youtubevideos-videos__pagination .page-link[aria-label*="page"] {
+    /* Page numbers are in the link text, just ensure they're visible */
+}
+
+.com-youtubevideos-videos__pagination .page-item.disabled .page-link {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* Empty state */

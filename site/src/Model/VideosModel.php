@@ -68,8 +68,17 @@ class VideosModel extends ListModel
         $search = $app->input->getString('search', '');
         $this->setState('filter.search', $search);
 
-        // Set list limit from menu parameters
-        $limit = $params->get('videos_per_page', 12);
+        // Get videos per row from menu parameters
+        $videosPerRow = (int) $params->get('videos_per_row', 3);
+        
+        // Adjust list limit to be a multiple of videos_per_row
+        $limit = $app->getUserStateFromRequest($this->context . '.list.limit', 'limit', $app->get('list_limit'), 'uint');
+        
+        // Round up to the nearest multiple of videos_per_row
+        if ($limit > 0 && $videosPerRow > 0) {
+            $limit = (int) (ceil($limit / $videosPerRow) * $videosPerRow);
+        }
+        
         $this->setState('list.limit', $limit);
 
         parent::populateState($ordering, $direction);
@@ -101,6 +110,32 @@ class VideosModel extends ListModel
         }
 
         return $form;
+    }
+
+    /**
+     * Get custom limit options based on videos per row setting
+     *
+     * @return  array  Array of limit options (multiples of videos_per_row)
+     *
+     * @since   1.0.12
+     */
+    public function getLimitOptions(): array
+    {
+        $params = $this->getState('params');
+        $videosPerRow = (int) $params->get('videos_per_row', 3);
+        
+        // Generate limit options as multiples of videos_per_row
+        $options = [];
+        $multipliers = [1, 2, 3, 4, 6, 8, 10, 12, 16];
+        
+        foreach ($multipliers as $multiplier) {
+            $value = $videosPerRow * $multiplier;
+            if ($value <= 100) { // Cap at reasonable maximum
+                $options[] = $value;
+            }
+        }
+        
+        return $options;
     }
 
     /**
