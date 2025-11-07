@@ -45,7 +45,7 @@
             <menu link="option=com_youtubevideos&amp;view=dashboard">COM_YOUTUBEVIDEOS_DASHBOARD</menu>
             <menu link="option=com_youtubevideos&amp;view=categories">COM_YOUTUBEVIDEOS_CATEGORIES</menu>
             <menu link="option=com_youtubevideos&amp;view=playlists">COM_YOUTUBEVIDEOS_PLAYLISTS</menu>
-            <menu link="option=com_youtubevideos&amp;view=featured">COM_YOUTUBEVIDEOS_FEATURED</menu>
+            <menu link="option=com_youtubevideos&amp;view=videos">COM_YOUTUBEVIDEOS_VIDEOS</menu>
         </submenu>
         <files folder="admin">
             <filename>access.xml</filename>
