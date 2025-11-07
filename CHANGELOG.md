@@ -5,6 +5,25 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.15] - 2024-11-07
+
+### Fixed
+- **Installation Messages:** Added missing translation strings for installer script messages
+- Install, update, and uninstall messages now display properly instead of showing language keys
+
+### Technical
+- Added `COM_YOUTUBEVIDEOS_INSTALLERSCRIPT_INSTALL`, `COM_YOUTUBEVIDEOS_INSTALLERSCRIPT_UPDATE`, and `COM_YOUTUBEVIDEOS_INSTALLERSCRIPT_UNINSTALL` constants to `com_youtubevideos.sys.ini`
+
+## [1.0.14] - 2024-11-07
+
+### Fixed
+- **Admin Menu Highlighting:** Dashboard menu item no longer remains highlighted when other menu items are active
+- Dashboard menu link now explicitly specifies `view=dashboard` parameter for proper menu highlighting
+
+### Technical
+- Updated XML manifest submenu configuration to include explicit view parameter for Dashboard link
+- This ensures Joomla correctly identifies the active menu item based on the current view
+
 ## [1.0.13] - 2024-11-07
 
 ### Changed
@@ -252,6 +271,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.15** (2024-11-07) - Installation Messages Translation Fix
+- **1.0.14** (2024-11-07) - Admin Menu Highlighting Fix
 - **1.0.13** (2024-11-07) - Video Player Modal Enhancement
 - **1.0.12** (2024-11-06) - Menu Parameters Fix (Videos per Row/Page)
 - **1.0.11** (2024-11-06) - Category Save Fix
