@@ -28,12 +28,12 @@ The YouTube Videos Component integrates seamlessly with the YouTube Data API v3 
 - **ACL Integration**: Granular permission control
 - **Multi-language Support**: Full internationalisation
 
-## Requirements
-
-- **Joomla**: 5.0 or higher
-- **PHP**: 8.3 or higher
-- **MySQL**: 5.7 or higher
-- **YouTube Data API v3 Key**: Required for API access
+## Technologies
+- **PHP 8.3+**: Modern PHP with type declarations
+- **Joomla 5 Framework**: MVC architecture
+- **YouTube Data API v3**: Video data retrieval
+- **Bootstrap 5**: Frontend styling (via Joomla)
+- **YouTube IFrame API**: Video playback
 
 ## Installation
 
@@ -203,21 +203,6 @@ com_youtubevideos/
 ├── script.php                      # Installation script
 └── youtubevideos.xml              # Component manifest
 ```
-
-## Development
-
-### Technologies Used
-- **PHP 8.3+**: Modern PHP with type declarations
-- **Joomla 5 Framework**: MVC architecture
-- **YouTube Data API v3**: Video data retrieval
-- **Bootstrap 5**: Frontend styling (via Joomla)
-- **YouTube IFrame API**: Video playback
-
-## Support
-
-For support and questions:
-- **Email**: allan@bkconnect.net
-- **Website**: https://www.brahmakumaris.org
 
 ## Licence
 
