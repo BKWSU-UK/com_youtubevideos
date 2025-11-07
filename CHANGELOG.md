@@ -5,6 +5,23 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.13] - 2024-11-07
+
+### Changed
+- **Video Player Modal:** Modal title now displays the actual video title instead of the generic "Video Player" text
+- **Video Description:** Full video description is now displayed below the video player in the modal
+- **Modal Aesthetics:** Enhanced modal design with gradient header, improved spacing, and better overall visual appeal
+- Modal width set to 900px (large size) for comfortable viewing without being too wide
+- Added custom scrollbar styling for the description section
+
+### Technical
+- Added `data-video-title` and `data-video-description` attributes to video items in the videos list
+- JavaScript now updates modal title and description dynamically when a video is clicked
+- Added new CSS styles for the video description section with custom scrollbar
+- Modal styling uses Bootstrap CSS variables (--bs-primary, --bs-light, etc.) for consistent theming
+- Added `COM_YOUTUBEVIDEOS_DESCRIPTION` language string
+- Description content preserves line breaks and is scrollable when longer than 300px
+
 ## [1.0.12] - 2024-11-06
 
 ### Fixed
@@ -235,6 +252,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.13** (2024-11-07) - Video Player Modal Enhancement
 - **1.0.12** (2024-11-06) - Menu Parameters Fix (Videos per Row/Page)
 - **1.0.11** (2024-11-06) - Category Save Fix
 - **1.0.10** (2024-11-06) - Batch Controller DB Retrieval Fix

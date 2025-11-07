@@ -37,10 +37,36 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.video-item').forEach(function(item) {
         item.addEventListener('click', function() {
             var videoId = this.dataset.videoId;
+            var videoTitle = this.dataset.videoTitle || 'Video Player';
+            var videoDescription = this.dataset.videoDescription || '';
             
             if (!videoId) {
                 console.error('No video ID found for this item');
                 return;
+            }
+
+            // Update modal title
+            var modalTitle = document.getElementById('videoModalLabel');
+            if (modalTitle) {
+                modalTitle.textContent = videoTitle;
+            }
+
+            // Update video description
+            var descriptionContainer = document.getElementById('video-description-container');
+            var descriptionContent = document.getElementById('video-description-content');
+            
+            if (descriptionContainer && descriptionContent) {
+                if (videoDescription && videoDescription.trim() !== '') {
+                    // Convert line breaks to <br> tags and preserve formatting
+                    var formattedDescription = videoDescription
+                        .replace(/\n/g, '<br>')
+                        .replace(/\r/g, '');
+                    
+                    descriptionContent.innerHTML = formattedDescription;
+                    descriptionContainer.style.display = 'block';
+                } else {
+                    descriptionContainer.style.display = 'none';
+                }
             }
 
             // Initialize player if not already done

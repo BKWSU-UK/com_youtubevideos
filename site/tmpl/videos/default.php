@@ -62,6 +62,8 @@ use Joomla\CMS\Layout\LayoutHelper;
                 <?php foreach ($this->items as $video) : ?>
                     <div class="video-item" 
                          data-video-id="<?php echo $this->escape($video->videoId); ?>"
+                         data-video-title="<?php echo htmlspecialchars($video->title, ENT_QUOTES, 'UTF-8'); ?>"
+                         data-video-description="<?php echo htmlspecialchars($video->description ?? '', ENT_QUOTES, 'UTF-8'); ?>"
                          data-bs-toggle="modal"
                          data-bs-target="#videoModal"
                          role="button"
@@ -148,6 +150,10 @@ use Joomla\CMS\Layout\LayoutHelper;
             </div>
             <div class="modal-body">
                 <div id="youtube-player"></div>
+                <div id="video-description-container" class="video-description-modal" style="display: none;">
+                    <h6 class="video-description-title"><?php echo Text::_('COM_YOUTUBEVIDEOS_DESCRIPTION'); ?></h6>
+                    <div id="video-description-content" class="video-description-content"></div>
+                </div>
             </div>
         </div>
     </div>
