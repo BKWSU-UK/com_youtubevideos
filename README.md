@@ -112,6 +112,7 @@ The YouTube Videos Component integrates seamlessly with the YouTube Data API v3 
    - Description (optional)
    - Category (optional)
    - Custom thumbnail (optional)
+   - Tags (comma-separated, optional)
 4. Set as **Featured** and **Published**
 5. Save
 

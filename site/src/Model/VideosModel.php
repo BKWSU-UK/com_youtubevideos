@@ -32,6 +32,7 @@ class VideosModel extends ListModel
         if (empty($config['filter_fields'])) {
             $config['filter_fields'] = [
                 'search',
+                'tag',
             ];
         }
 
@@ -67,6 +68,17 @@ class VideosModel extends ListModel
         // Load filter state
         $search = $app->input->getString('search', '');
         $this->setState('filter.search', $search);
+
+        $filtersInput = $app->input->get('filter', null, 'array');
+
+        if ($filtersInput !== null) {
+            $tagFilter = (int) ($filtersInput['tag'] ?? 0);
+            $app->setUserState($this->context . '.filter.tag', $tagFilter);
+        } else {
+            $tagFilter = (int) $app->getUserState($this->context . '.filter.tag', 0);
+        }
+
+        $this->setState('filter.tag', $tagFilter);
 
         // Get videos per row from menu parameters
         $videosPerRow = (int) $params->get('videos_per_row', 3);
@@ -174,6 +186,19 @@ class VideosModel extends ListModel
         $playlistId = $this->getState('playlist_id', 0);
         if ($playlistId > 0) {
             $query->where($db->quoteName('v.playlist_id') . ' = ' . (int) $playlistId);
+        }
+
+        // Filter by tag
+        $tagId = (int) $this->getState('filter.tag', 0);
+
+        if ($tagId > 0) {
+            $query->join(
+                'INNER',
+                $db->quoteName('#__youtubevideos_video_tag_map', 'vtm')
+                . ' ON ' . $db->quoteName('vtm.video_id') . ' = ' . $db->quoteName('v.youtube_video_id')
+            );
+            $query->where($db->quoteName('vtm.tag_id') . ' = ' . $tagId);
+            $query->group($db->quoteName('v.id'));
         }
 
         // Filter by search

@@ -5,6 +5,15 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.16] - 2025-11-14
+
+### Added
+- **Video Tagging:** Video edit form now includes a tags field so editors can attach comma-separated tags without leaving the screen
+- **Frontend Tag Filter:** Visitors can filter the videos list by a published tag using the Search Tools sidebar
+
+### Changed
+- Video model persists tag relationships via the `#__youtubevideos_video_tag_map` table and auto-creates tag records when needed
+
 ## [1.0.15] - 2024-11-07
 
 ### Fixed

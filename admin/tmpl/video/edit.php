@@ -49,6 +49,7 @@ $this->useCoreUI = true;
                         <?php echo $this->form->renderField('custom_thumbnail'); ?>
                         <?php echo $this->form->renderField('category_id'); ?>
                         <?php echo $this->form->renderField('playlist_id'); ?>
+                        <?php echo $this->form->renderField('tags'); ?>
                     </div>
                 </div>
             </div>

@@ -15,7 +15,7 @@
             name="limit"
             type="limitbox"
             label="JGLOBAL_LIST_LIMIT"
-            default="25"
+            default="12"
             onchange="this.form.submit();"
         />
     </fields>
