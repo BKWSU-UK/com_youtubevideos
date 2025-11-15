@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS `#__youtubevideos_categories` (
     `title` varchar(255) NOT NULL,
     `alias` varchar(400) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '',
     `description` mediumtext,
-    `youtube_tag` varchar(100) NOT NULL,
+    `youtube_tag` varchar(100) NOT NULL DEFAULT '',
     `published` tinyint NOT NULL DEFAULT '0',
     `checked_out` int unsigned DEFAULT NULL,
     `checked_out_time` datetime DEFAULT NULL,

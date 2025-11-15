@@ -56,12 +56,6 @@ class CategoryTable extends Table implements VersionableTableInterface
             return false;
         }
 
-        // Check for valid youtube_tag
-        if (trim($this->youtube_tag) == '') {
-            $this->setError(Text::_('COM_YOUTUBEVIDEOS_WARNING_PROVIDE_VALID_YOUTUBE_TAG'));
-            return false;
-        }
-
         // Generate alias if empty
         if (empty($this->alias)) {
             $this->alias = $this->title;

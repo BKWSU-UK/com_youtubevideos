@@ -70,9 +70,6 @@ if ($saveOrder && !empty($this->items)) {
                                     <?php echo HTMLHelper::_('searchtools.sort', 'JGLOBAL_TITLE', 'a.title', $listDirn, $listOrder); ?>
                                 </th>
                                 <th scope="col" class="w-10 d-none d-md-table-cell">
-                                    <?php echo HTMLHelper::_('searchtools.sort', 'COM_YOUTUBEVIDEOS_FIELD_YOUTUBE_TAG_LABEL', 'a.youtube_tag', $listDirn, $listOrder); ?>
-                                </th>
-                                <th scope="col" class="w-10 d-none d-md-table-cell">
                                     <?php echo HTMLHelper::_('searchtools.sort', 'JGRID_HEADING_ACCESS', 'a.access', $listDirn, $listOrder); ?>
                                 </th>
                                 <th scope="col" class="w-10 d-none d-md-table-cell">
@@ -132,9 +129,6 @@ if ($saveOrder && !empty($this->items)) {
                                             <?php echo Text::_('JGLOBAL_FIELD_ALIAS_LABEL') . ': ' . $this->escape($item->alias); ?>
                                         </div>
                                     </div>
-                                </td>
-                                <td class="small d-none d-md-table-cell">
-                                    <?php echo $this->escape($item->youtube_tag); ?>
                                 </td>
                                 <td class="small d-none d-md-table-cell">
                                     <?php echo $this->escape($item->access_level); ?>

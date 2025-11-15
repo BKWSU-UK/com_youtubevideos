@@ -44,7 +44,6 @@ $this->useCoreUI = true;
                     <div class="card-body">
                         <?php echo $this->form->renderField('title'); ?>
                         <?php echo $this->form->renderField('alias'); ?>
-                        <?php echo $this->form->renderField('youtube_tag'); ?>
                         <?php echo $this->form->renderField('description'); ?>
                     </div>
                 </div>

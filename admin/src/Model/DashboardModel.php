@@ -96,8 +96,7 @@ class DashboardModel extends BaseDatabaseModel
 
         $query->select([
                 $db->quoteName('id'),
-                $db->quoteName('title'),
-                $db->quoteName('youtube_tag')
+                $db->quoteName('title')
             ])
             ->from($db->quoteName('#__youtubevideos_categories'))
             ->where($db->quoteName('published') . ' = 1')

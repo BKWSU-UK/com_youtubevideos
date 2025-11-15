@@ -5,6 +5,50 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.20] - 2025-11-15
+
+### Fixed
+- **Filters:** Fixed category and playlist dropdown filters in videos list view showing IDs instead of names
+- Filter dropdowns now correctly display category and playlist titles when selected
+
+### Technical
+- Added `key_field="id"` and `value_field="title"` attributes to category and playlist SQL fields in `admin/forms/filter_featured.xml`
+- SQL field type now properly maps database columns to display values and option values
+- Configuration matches the working implementation in `batch_videos.xml` and `video.xml`
+- Created `build.sh` script to automate component packaging
+
+## [1.0.19] - 2025-11-15
+
+### Removed
+- **Categories:** Removed YouTube tag field from category management interface as it was not being used
+- Removed youtube_tag from category edit form, list view, and all related models
+
+### Fixed
+- **Database:** Added default empty string to youtube_tag column to fix "Field 'youtube_tag' doesn't have a default value" error when saving categories
+
+### Technical
+- Removed field from `admin/forms/category.xml`
+- Removed field rendering from `admin/tmpl/category/edit.php`
+- Removed validation check from `admin/src/Table/CategoryTable.php`
+- Removed from filter fields, select query, and search in `admin/src/Model/CategoriesModel.php`
+- Removed from select query in `admin/src/Model/DashboardModel.php`
+- Removed column header and data from `admin/tmpl/categories/default.php`
+- Added database migration `1.0.19.sql` to set default value for youtube_tag column
+- Updated `install.mysql.sql` to include default empty string for youtube_tag column
+- Database column still exists for data preservation but is no longer used in the interface
+
+## [1.0.18] - 2025-11-15
+
+### Fixed
+- **Critical:** Fixed "Form::loadForm could not load file" error when editing videos in admin
+- Video edit form now loads correctly with all required fields
+
+### Technical
+- Created complete `admin/forms/video.xml` form definition (was previously empty)
+- Added all required fields: title, alias, youtube_video_id, description, custom_thumbnail, category_id, playlist_id, tags, featured, published, access, language, ordering, timestamps, publish_up, publish_down, and params
+- Form now properly maps to the `#__youtubevideos_featured` table structure
+- Updated form to use correct existing language strings from `com_youtubevideos.ini`
+
 ## [1.0.17] - 2025-11-15
 
 ### Fixed
@@ -295,6 +339,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.18** (2025-11-15) - Video Edit Form Fix
 - **1.0.17** (2025-11-15) - Pagination Fix for Videos List
 - **1.0.16** (2025-11-14) - Video Tagging and Frontend Tag Filter
 - **1.0.15** (2024-11-07) - Installation Messages Translation Fix

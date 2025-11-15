@@ -33,16 +33,6 @@
             />
 
         <field
-            name="youtube_tag"
-            type="text"
-            label="COM_YOUTUBEVIDEOS_FIELD_YOUTUBE_TAG_LABEL"
-            description="COM_YOUTUBEVIDEOS_FIELD_YOUTUBE_TAG_DESC"
-            class="input-xlarge"
-            size="40"
-            required="true"
-            />
-
-        <field
             name="description"
             type="editor"
             label="JGLOBAL_DESCRIPTION"

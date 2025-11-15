@@ -26,7 +26,6 @@ class CategoriesModel extends ListModel
                 'id', 'a.id',
                 'title', 'a.title',
                 'alias', 'a.alias',
-                'youtube_tag', 'a.youtube_tag',
                 'published', 'a.published',
                 'ordering', 'a.ordering',
                 'access', 'a.access',
@@ -100,7 +99,7 @@ class CategoriesModel extends ListModel
         $query->select(
             $this->getState(
                 'list.select',
-                'a.id, a.title, a.alias, a.youtube_tag, a.description, ' .
+                'a.id, a.title, a.alias, a.description, ' .
                 'a.published, a.access, a.language, a.ordering, ' .
                 'a.created, a.created_by, a.modified, a.modified_by, a.hits, ' .
                 'a.checked_out, a.checked_out_time'
@@ -159,8 +158,8 @@ class CategoriesModel extends ListModel
                     ->bind(':search', $search, ParameterType::INTEGER);
             } else {
                 $search = '%' . str_replace(' ', '%', $db->escape(trim($search), true) . '%');
-                $query->where('(' . $db->quoteName('a.title') . ' LIKE :search1 OR ' . $db->quoteName('a.alias') . ' LIKE :search2 OR ' . $db->quoteName('a.youtube_tag') . ' LIKE :search3)')
-                    ->bind([':search1', ':search2', ':search3'], $search);
+                $query->where('(' . $db->quoteName('a.title') . ' LIKE :search1 OR ' . $db->quoteName('a.alias') . ' LIKE :search2)')
+                    ->bind([':search1', ':search2'], $search);
             }
         }
 
