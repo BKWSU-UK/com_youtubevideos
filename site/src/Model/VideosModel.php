@@ -78,8 +78,13 @@ class VideosModel extends ListModel
             $tagFilter = (int) $app->getUserState($this->context . '.filter.tag', 0);
         }
 
+
         $this->setState('filter.tag', $tagFilter);
 
+        // Call parent to set up basic pagination state first
+        parent::populateState($ordering, $direction);
+
+        // Now override list.limit to be a multiple of videos_per_row
         // Get videos per row from menu parameters
         $videosPerRow = (int) $params->get('videos_per_row', 3);
         
@@ -97,7 +102,18 @@ class VideosModel extends ListModel
         
         $this->setState('list.limit', $limit);
 
-        parent::populateState($ordering, $direction);
+        // Override list.start to support both 'limitstart' and 'start' parameters
+        // Priority: limitstart takes precedence over start if both are provided
+        // Use sentinel value -1 to detect if parameter was provided
+        $limitstart = $app->input->get('limitstart', -1, 'int');
+        if ($limitstart === -1) {
+            // limitstart not provided, try start parameter
+            $limitstart = $app->input->get('start', 0, 'uint');
+        } else {
+            // Ensure limitstart is non-negative
+            $limitstart = max(0, $limitstart);
+        }
+        $this->setState('list.start', $limitstart);
     }
 
     /**

@@ -5,6 +5,21 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.17] - 2025-11-15
+
+### Fixed
+- **Pagination:** Fixed issue where all videos were being displayed instead of only the first page
+- Videos list now properly respects pagination settings and displays only the configured number of videos per page
+
+### Technical
+- Added proper handling of `list.start` parameter in `VideosModel::populateState()`
+- Calls `parent::populateState()` **first**, then overrides pagination state to prevent parent from resetting custom values
+- Model now checks both `limitstart` and `start` URL parameters for pagination offset
+- Uses sentinel value (-1) to detect if `limitstart` parameter was provided, avoiding filter type conflicts
+- `limitstart` parameter correctly takes priority over `start` when both are provided
+- Ensures `limitstart` is always non-negative even if a negative value is somehow passed
+- This ensures pagination works correctly when users navigate between pages
+
 ## [1.0.16] - 2025-11-14
 
 ### Added
@@ -280,6 +295,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.17** (2025-11-15) - Pagination Fix for Videos List
+- **1.0.16** (2025-11-14) - Video Tagging and Frontend Tag Filter
 - **1.0.15** (2024-11-07) - Installation Messages Translation Fix
 - **1.0.14** (2024-11-07) - Admin Menu Highlighting Fix
 - **1.0.13** (2024-11-07) - Video Player Modal Enhancement
