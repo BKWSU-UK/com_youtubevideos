@@ -12,10 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pagination links now correctly preserve the current menu item ID (`Itemid`) to stay on the same page
 - Form action also preserves `Itemid` to maintain correct context when using filters
 
+### Changed
+- **Pagination Display:** Pagination now shows a maximum of 10 page links with ellipsis for better usability
+- Active pagination link now has primary colour background with white text and increased font weight
+- Added hover effect to pagination links with subtle primary colour
+- Pagination is now centred on the page with improved spacing
+
 ### Technical
 - Added `Itemid` preservation logic in `site/tmpl/videos/default.php`
 - All pagination URLs (previous, page numbers, next) now include the current `Itemid` parameter
 - Form action URL also includes `Itemid` to maintain context when submitting filters
+- Implemented smart pagination algorithm that displays maximum 10 page links
+- Algorithm automatically adjusts when current page is near start or end
+- Enhanced active pagination link styling in `media/css/component.css`
+- Added explicit white text colour and increased font weight for active page
 - This fixes the issue where Joomla's router would select a different menu item when multiple menu items point to the same view type
 
 ## [1.0.20] - 2025-11-15
