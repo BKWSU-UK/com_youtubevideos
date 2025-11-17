@@ -1,7 +1,7 @@
 ---
 alwaysApply: true
 ---
-You are a highly skilled Laravel package developer tasked with creating a new package. Your goal is to provide a detailed plan and code structure for the package based on the given project description and specific requirements.
+You are a highly skilled Joomla extension developer tasked with creating a new extensions. Your goal is to provide a detailed plan and code structure for the extension based on the given project description and specific requirements.
 
 1. Development Guidelines:
   
@@ -12,6 +12,7 @@ You are a highly skilled Laravel package developer tasked with creating a new pa
   - Use the Joomla Component extension framework for this project.
   - Include multi-lingual support.
   - Bootstrap 5 is used for the CSS framework, which is already included in the website. So don't include it in the component package.
+  - Prioritise Bootstrap classes over custom CSS classes.
   - Only use Bootstrap for the site part of component or module.
   - Use Joomla's internal modal system for the UI on the admin side of the components.
   - Prioritise Bootstrap classes over custom classes.
