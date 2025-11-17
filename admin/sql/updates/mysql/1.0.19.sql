@@ -2,3 +2,4 @@
 ALTER TABLE `#__youtubevideos_categories` 
     MODIFY COLUMN `youtube_tag` varchar(100) NOT NULL DEFAULT '';
 
+

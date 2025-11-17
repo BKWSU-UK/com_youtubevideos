@@ -32,3 +32,4 @@ echo "Component packaged successfully: $OUTPUT_FILE"
 # Show the file size
 ls -lh "$OUTPUT_FILE"
 
+
