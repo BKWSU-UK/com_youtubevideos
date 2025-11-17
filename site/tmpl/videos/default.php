@@ -16,6 +16,11 @@ use Joomla\CMS\Layout\LayoutHelper;
 
 /** @var \BKWSU\Component\Youtubevideos\Site\View\Videos\HtmlView $this */
 
+// Get the current menu item ID to preserve in URLs
+$app = \Joomla\CMS\Factory::getApplication();
+$itemId = $app->input->getInt('Itemid', 0);
+$itemIdParam = $itemId > 0 ? '&Itemid=' . $itemId : '';
+
 ?>
 <div class="com-youtubevideos videos">
     <div class="page-header">
@@ -39,7 +44,7 @@ use Joomla\CMS\Layout\LayoutHelper;
         </h1>
     </div>
 
-    <form action="<?php echo Route::_('index.php?option=com_youtubevideos'); ?>" 
+    <form action="<?php echo Route::_('index.php?option=com_youtubevideos&view=videos' . $itemIdParam); ?>" 
           method="post" 
           name="adminForm" 
           id="adminForm" 
@@ -107,7 +112,7 @@ use Joomla\CMS\Layout\LayoutHelper;
                             
                             <?php if ($currentPage > 1) : ?>
                                 <li class="page-item">
-                                    <a class="page-link" href="<?php echo Route::_('index.php?option=com_youtubevideos&view=videos&start=' . ($limitStart - $limit)); ?>" aria-label="<?php echo Text::_('JPREVIOUS'); ?>">
+                                    <a class="page-link" href="<?php echo Route::_('index.php?option=com_youtubevideos&view=videos&start=' . ($limitStart - $limit) . $itemIdParam); ?>" aria-label="<?php echo Text::_('JPREVIOUS'); ?>">
                                         <span aria-hidden="true">‹</span>
                                     </a>
                                 </li>
@@ -116,7 +121,7 @@ use Joomla\CMS\Layout\LayoutHelper;
                             <?php for ($i = 1; $i <= $totalPages; $i++) : ?>
                                 <?php $start = ($i - 1) * $limit; ?>
                                 <li class="page-item<?php echo ($i == $currentPage) ? ' active' : ''; ?>">
-                                    <a class="page-link" href="<?php echo Route::_('index.php?option=com_youtubevideos&view=videos&start=' . $start); ?>">
+                                    <a class="page-link" href="<?php echo Route::_('index.php?option=com_youtubevideos&view=videos&start=' . $start . $itemIdParam); ?>">
                                         <?php echo $i; ?>
                                     </a>
                                 </li>
@@ -124,7 +129,7 @@ use Joomla\CMS\Layout\LayoutHelper;
                             
                             <?php if ($currentPage < $totalPages) : ?>
                                 <li class="page-item">
-                                    <a class="page-link" href="<?php echo Route::_('index.php?option=com_youtubevideos&view=videos&start=' . ($limitStart + $limit)); ?>" aria-label="<?php echo Text::_('JNEXT'); ?>">
+                                    <a class="page-link" href="<?php echo Route::_('index.php?option=com_youtubevideos&view=videos&start=' . ($limitStart + $limit) . $itemIdParam); ?>" aria-label="<?php echo Text::_('JNEXT'); ?>">
                                         <span aria-hidden="true">›</span>
                                     </a>
                                 </li>

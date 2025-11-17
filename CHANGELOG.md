@@ -5,6 +5,19 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.21] - 2025-11-17
+
+### Fixed
+- **Pagination Navigation:** Fixed issue where clicking pagination links would jump to a different menu item
+- Pagination links now correctly preserve the current menu item ID (`Itemid`) to stay on the same page
+- Form action also preserves `Itemid` to maintain correct context when using filters
+
+### Technical
+- Added `Itemid` preservation logic in `site/tmpl/videos/default.php`
+- All pagination URLs (previous, page numbers, next) now include the current `Itemid` parameter
+- Form action URL also includes `Itemid` to maintain context when submitting filters
+- This fixes the issue where Joomla's router would select a different menu item when multiple menu items point to the same view type
+
 ## [1.0.20] - 2025-11-15
 
 ### Fixed
@@ -339,6 +352,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.21** (2025-11-17) - Pagination Navigation Fix (Itemid Preservation)
+- **1.0.20** (2025-11-15) - Filter Dropdowns Fix (Category/Playlist Names)
+- **1.0.19** (2025-11-15) - Category YouTube Tag Field Removal
 - **1.0.18** (2025-11-15) - Video Edit Form Fix
 - **1.0.17** (2025-11-15) - Pagination Fix for Videos List
 - **1.0.16** (2025-11-14) - Video Tagging and Frontend Tag Filter
