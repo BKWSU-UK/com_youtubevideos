@@ -193,7 +193,7 @@ $itemIdParam = $itemId > 0 ? '&Itemid=' . $itemId : '';
             <div class="modal-body">
                 <div id="youtube-player"></div>
                 <div id="video-description-container" class="video-description-modal" style="display: none;">
-                    <h6 class="video-description-title"><?php echo Text::_('COM_YOUTUBEVIDEOS_DESCRIPTION'); ?></h6>
+                    <!--h6 class="video-description-title"><?php echo Text::_('COM_YOUTUBEVIDEOS_DESCRIPTION'); ?></h6-->
                     <div id="video-description-content" class="video-description-content"></div>
                 </div>
             </div>
