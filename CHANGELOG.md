@@ -5,6 +5,15 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.27] - 2025-11-21
+
+### Fixed
+- **Menu View Name:** Automatically corrects any menu items incorrectly using 'videolist' view to use the correct 'videos' view
+- Prevents "View not found [name, type, prefix]: videolist, html, site" error
+
+### Technical
+- Added SQL update script `1.0.27.sql` to update menu items with incorrect view names during component update
+
 ## [1.0.26] - 2025-11-21
 
 ### Added
