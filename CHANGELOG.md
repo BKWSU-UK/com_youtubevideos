@@ -5,6 +5,36 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.22] - 2025-11-21
+
+### Added
+- **SEO Enhancements:** Comprehensive structured data (JSON+LD) implementation across all templates
+- **Video View:** Added VideoObject schema with thumbnails, upload dates, embedUrl, and interaction statistics (views, likes)
+- **Video View:** Added BreadcrumbList schema showing navigation hierarchy (Home → Videos → Category → Current Video)
+- **Videos Listing:** Added ItemList schema for video collections with complete video metadata
+- **Videos Listing:** Added CollectionPage schema with total item counts
+- **Videos Listing:** Added pagination meta tags (rel="prev" and rel="next") for search engine crawlers
+- **Category View:** Added ItemList schema for videos within categories
+- **Category View:** Added CollectionPage schema for category pages
+- **Category View:** Added BreadcrumbList schema (Home → Videos → Category)
+- **Enhanced Meta Tags:** Improved OpenGraph and Twitter Card meta tags across all views
+- **OpenGraph Tags:** Added og:site_name, og:image dimensions, og:video URL for better social sharing
+- **Twitter Cards:** Added twitter:player with dimensions for rich video previews
+- **Canonical URLs:** Ensured all pages have proper canonical URLs for SEO
+
+### Changed
+- **Meta Descriptions:** Optimised meta descriptions to 160 characters maximum for search engine snippets
+- **Video Thumbnails:** Using maxresdefault quality images for better social media previews
+
+### Technical
+- Added `addStructuredData()` method to Video, Videos, and Category HtmlView classes
+- Added `addPaginationLinks()` method to Videos and Category HtmlView classes
+- Enhanced `prepareDocument()` methods to generate comprehensive SEO metadata
+- All structured data uses Schema.org vocabulary with JSON+LD format
+- Structured data includes proper @context and @type annotations for search engines
+- Timestamps formatted in ISO 8601 format (RFC 3339) for structured data
+- All URLs in structured data are absolute URLs (including scheme and host)
+
 ## [1.0.21] - 2025-11-17
 
 ### Fixed
@@ -362,6 +392,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.22** (2025-11-21) - SEO Enhancements (JSON+LD Structured Data & Meta Tags)
 - **1.0.21** (2025-11-17) - Pagination Navigation Fix (Itemid Preservation)
 - **1.0.20** (2025-11-15) - Filter Dropdowns Fix (Category/Playlist Names)
 - **1.0.19** (2025-11-15) - Category YouTube Tag Field Removal

@@ -100,12 +100,14 @@ class HtmlView extends BaseHtmlView
         $this->document->setTitle($title);
 
         // Set meta description
+        $description = '';
         if ($this->category->description) {
             $description = strip_tags($this->category->description);
             $description = mb_substr($description, 0, 160);
             $this->document->setDescription($description);
         } elseif ($this->params->get('menu-meta_description')) {
-            $this->document->setDescription($this->params->get('menu-meta_description'));
+            $description = $this->params->get('menu-meta_description');
+            $this->document->setDescription($description);
         }
 
         // Set meta keywords
@@ -118,15 +120,166 @@ class HtmlView extends BaseHtmlView
             $this->document->setMetaData('robots', $this->params->get('robots'));
         }
 
+        // Get current URL
+        $baseUrl = \Joomla\CMS\Uri\Uri::getInstance()->toString(['scheme', 'host', 'port']);
+        $categoryUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=category&id=' . $this->category->id);
+
+        // OpenGraph meta tags
+        $this->document->setMetaData('og:title', $title);
+        $this->document->setMetaData('og:type', 'website');
+        $this->document->setMetaData('og:url', $categoryUrl);
+        $this->document->setMetaData('og:site_name', $app->get('sitename'));
+        
+        if ($description) {
+            $this->document->setMetaData('og:description', $description);
+        }
+
+        // Twitter Card
+        $this->document->setMetaData('twitter:card', 'summary');
+        $this->document->setMetaData('twitter:title', $title);
+        if ($description) {
+            $this->document->setMetaData('twitter:description', $description);
+        }
+
         // Add canonical URL
-        $this->document->addHeadLink(
-            \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=category&id=' . $this->category->id),
-            'canonical'
-        );
+        $this->document->addHeadLink($categoryUrl, 'canonical');
+
+        // Add pagination meta tags (prev/next)
+        $this->addPaginationLinks();
+
+        // Add JSON+LD structured data
+        $this->addStructuredData();
 
         // Add the component's media files
         $wa = $this->document->getWebAssetManager();
         $wa->useStyle('com_youtubevideos.site.css');
+    }
+
+    /**
+     * Adds pagination links to the document
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    protected function addPaginationLinks(): void
+    {
+        if ($this->pagination->pagesTotal <= 1) {
+            return;
+        }
+
+        $baseUrl = \Joomla\CMS\Uri\Uri::getInstance()->toString(['scheme', 'host', 'port']);
+        $currentPage = $this->pagination->pagesCurrent;
+        $totalPages = $this->pagination->pagesTotal;
+        $limit = $this->pagination->limit;
+
+        // Previous page link
+        if ($currentPage > 1) {
+            $start = ($currentPage - 2) * $limit;
+            $prevUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=category&id=' . $this->category->id . '&start=' . $start);
+            $this->document->addHeadLink($prevUrl, 'prev');
+        }
+
+        // Next page link
+        if ($currentPage < $totalPages) {
+            $start = $currentPage * $limit;
+            $nextUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=category&id=' . $this->category->id . '&start=' . $start);
+            $this->document->addHeadLink($nextUrl, 'next');
+        }
+    }
+
+    /**
+     * Adds JSON+LD structured data to the document
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    protected function addStructuredData(): void
+    {
+        $app = Factory::getApplication();
+        $baseUrl = \Joomla\CMS\Uri\Uri::getInstance()->toString(['scheme', 'host', 'port']);
+        $categoryUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=category&id=' . $this->category->id);
+
+        // ItemList schema for video collection in category
+        if (!empty($this->items)) {
+            $itemListSchema = [
+                '@context' => 'https://schema.org',
+                '@type' => 'ItemList',
+                'itemListElement' => []
+            ];
+
+            $position = 1;
+            foreach ($this->items as $video) {
+                $videoUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=video&id=' . $video->id);
+                $thumbnailUrl = $video->custom_thumbnail ?? 'https://img.youtube.com/vi/' . $video->youtube_video_id . '/maxresdefault.jpg';
+
+                $itemListSchema['itemListElement'][] = [
+                    '@type' => 'ListItem',
+                    'position' => $position++,
+                    'url' => $videoUrl,
+                    'item' => [
+                        '@type' => 'VideoObject',
+                        'name' => $video->title,
+                        'description' => strip_tags($video->description ?? ''),
+                        'thumbnailUrl' => $thumbnailUrl,
+                        'uploadDate' => date('c', strtotime($video->created)),
+                        'contentUrl' => 'https://www.youtube.com/watch?v=' . $video->youtube_video_id,
+                        'embedUrl' => 'https://www.youtube.com/embed/' . $video->youtube_video_id,
+                    ]
+                ];
+            }
+
+            $this->document->addScriptDeclaration(json_encode($itemListSchema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), 'application/ld+json');
+        }
+
+        // CollectionPage schema
+        $collectionSchema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'CollectionPage',
+            'name' => $this->category->title,
+            'url' => $categoryUrl,
+            'mainEntity' => [
+                '@type' => 'ItemList',
+                'numberOfItems' => $this->pagination->total
+            ]
+        ];
+
+        if ($this->category->description) {
+            $collectionSchema['description'] = strip_tags($this->category->description);
+        }
+
+        $this->document->addScriptDeclaration(json_encode($collectionSchema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), 'application/ld+json');
+
+        // BreadcrumbList schema
+        $videosUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=videos');
+        
+        $breadcrumbSchema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => [
+                [
+                    '@type' => 'ListItem',
+                    'position' => 1,
+                    'name' => 'Home',
+                    'item' => $baseUrl . '/'
+                ],
+                [
+                    '@type' => 'ListItem',
+                    'position' => 2,
+                    'name' => 'Videos',
+                    'item' => $videosUrl
+                ],
+                [
+                    '@type' => 'ListItem',
+                    'position' => 3,
+                    'name' => $this->category->title,
+                    'item' => $categoryUrl
+                ]
+            ]
+        ];
+
+        $this->document->addScriptDeclaration(json_encode($breadcrumbSchema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), 'application/ld+json');
     }
 }
 
