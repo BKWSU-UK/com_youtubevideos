@@ -27,6 +27,12 @@
             "type": "script",
             "uri": "com_youtubevideos/youtube-player.js",
             "dependencies": ["core", "bootstrap.modal"]
+        },
+        {
+            "name": "com_youtubevideos.playlist-player",
+            "type": "script",
+            "uri": "com_youtubevideos/playlist-player.js",
+            "dependencies": ["core"]
         }
     ]
 } 

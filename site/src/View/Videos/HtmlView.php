@@ -181,8 +181,13 @@ class HtmlView extends BaseHtmlView
 
         $position = 1;
         foreach ($this->items as $video) {
+            // Skip videos without required data
+            if (empty($video->id) || empty($video->videoId)) {
+                continue;
+            }
+
             $videoUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=video&id=' . $video->id);
-            $thumbnailUrl = $video->custom_thumbnail ?? 'https://img.youtube.com/vi/' . $video->youtube_video_id . '/maxresdefault.jpg';
+            $thumbnailUrl = $video->custom_thumbnail ?? 'https://img.youtube.com/vi/' . $video->videoId . '/maxresdefault.jpg';
 
             $itemListSchema['itemListElement'][] = [
                 '@type' => 'ListItem',
@@ -193,9 +198,9 @@ class HtmlView extends BaseHtmlView
                     'name' => $video->title,
                     'description' => strip_tags($video->description ?? ''),
                     'thumbnailUrl' => $thumbnailUrl,
-                    'uploadDate' => date('c', strtotime($video->created)),
-                    'contentUrl' => 'https://www.youtube.com/watch?v=' . $video->youtube_video_id,
-                    'embedUrl' => 'https://www.youtube.com/embed/' . $video->youtube_video_id,
+                    'uploadDate' => !empty($video->publishedAt) ? date('c', strtotime($video->publishedAt)) : date('c'),
+                    'contentUrl' => 'https://www.youtube.com/watch?v=' . $video->videoId,
+                    'embedUrl' => 'https://www.youtube.com/embed/' . $video->videoId,
                 ]
             ];
         }

@@ -22,8 +22,7 @@ $video = $this->item;
 // Load required assets
 HTMLHelper::_('bootstrap.framework');
 $wa = $this->document->getWebAssetManager();
-$wa->useScript('com_youtubevideos.site')
-   ->useStyle('com_youtubevideos.site');
+$wa->useStyle('com_youtubevideos.site.css');
 
 // Prepare YouTube embed parameters
 $embedParams = [
@@ -36,9 +35,11 @@ $embedUrl = 'https://www.youtube.com/embed/' . $video->youtube_video_id . '?' . 
 
 <div class="com-youtubevideos-video video-details">
     <?php if ($params->get('show_title', 1)) : ?>
-        <h1>
-            <?php echo $this->escape($video->title); ?>
-        </h1>
+        <div class="page-header">
+            <h1>
+                <?php echo $this->escape($video->title); ?>
+            </h1>
+        </div>
     <?php endif; ?>
 
     <div class="video-player ratio ratio-16x9 mb-4">

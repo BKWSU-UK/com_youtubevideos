@@ -55,6 +55,11 @@ class Router extends RouterView
         $category->setKey('id');
         $this->registerView($category);
 
+        // Playlist view
+        $playlist = new RouterViewConfiguration('playlist');
+        $playlist->setKey('id');
+        $this->registerView($playlist);
+
         // Video view
         $video = new RouterViewConfiguration('video');
         $video->setKey('id');
@@ -180,6 +185,72 @@ class Router extends RouterView
         $dbquery = $db->getQuery(true)
             ->select($db->quoteName('id'))
             ->from($db->quoteName('#__youtubevideos_featured'))
+            ->where($db->quoteName('alias') . ' = :alias')
+            ->bind(':alias', $segment);
+
+        $db->setQuery($dbquery);
+
+        $id = $db->loadResult();
+
+        if ($id) {
+            return (int) $id;
+        }
+
+        // If not found by alias, try by ID
+        if (is_numeric($segment)) {
+            return (int) $segment;
+        }
+
+        return false;
+    }
+
+    /**
+     * Method to get the segment(s) for a playlist
+     *
+     * @param   string  $id     ID of the playlist to retrieve the segments for
+     * @param   array   $query  The request that is built right now
+     *
+     * @return  array|string  The segments of this item
+     *
+     * @since   1.0.0
+     */
+    public function getPlaylistSegment($id, $query)
+    {
+        $db = $this->db;
+        $dbquery = $db->getQuery(true)
+            ->select($db->quoteName('alias'))
+            ->from($db->quoteName('#__youtubevideos_playlists'))
+            ->where($db->quoteName('id') . ' = :id')
+            ->bind(':id', $id, \Joomla\Database\ParameterType::INTEGER);
+
+        $db->setQuery($dbquery);
+
+        $alias = $db->loadResult();
+
+        if ($alias) {
+            return [(int) $id => $alias];
+        }
+
+        return [(int) $id => $id];
+    }
+
+    /**
+     * Method to get the id for a playlist
+     *
+     * @param   string  $segment  Segment to retrieve the ID for
+     * @param   array   $query    The request that is parsed right now
+     *
+     * @return  mixed   The id of this item or false
+     *
+     * @since   1.0.0
+     */
+    public function getPlaylistId($segment, $query)
+    {
+        // Try to find by alias first
+        $db = $this->db;
+        $dbquery = $db->getQuery(true)
+            ->select($db->quoteName('id'))
+            ->from($db->quoteName('#__youtubevideos_playlists'))
             ->where($db->quoteName('alias') . ' = :alias')
             ->bind(':alias', $segment);
 

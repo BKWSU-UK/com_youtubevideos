@@ -278,10 +278,12 @@ class VideosModel extends ListModel
             $video = new \stdClass();
 
             // Map database fields
+            $video->id = $item->id ?? 0;
             $video->videoId = $item->youtube_video_id ?? '';
             $video->title = $item->title ?? '';
             $video->description = $item->description ?? '';
             $video->publishedAt = $item->created ?? '';
+            $video->custom_thumbnail = $item->custom_thumbnail ?? null;
 
             // Create thumbnails object from YouTube video ID
             $video->thumbnails = new \stdClass();

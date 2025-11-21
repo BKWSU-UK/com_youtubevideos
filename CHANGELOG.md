@@ -5,6 +5,74 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.26] - 2025-11-21
+
+### Added
+- **Playlist View Layout:** New dedicated playlist view that displays the current video in the main player with a scrollable list of playlist videos in thumbnails on the right-hand side
+- **AJAX Video Switching:** Clicking on a video thumbnail in the playlist updates the player without page reload using JavaScript
+- **Playlist Routing:** SEO-friendly URLs for playlists using aliases
+- **Playlist Menu Item:** New menu item type for displaying playlists with configurable display options
+- **Video Player Controls:** Auto-play functionality when switching between videos in playlist view
+- **Browser History Integration:** URL and title update when switching videos (with back/forward button support)
+- **Responsive Design:** Playlist sidebar with custom scrollbar styling and Bootstrap 5 grid layout
+- **Active Video Indicator:** Visual highlighting of the currently playing video in the playlist
+- **Keyboard Accessibility:** Playlist video items are keyboard accessible (Enter and Space keys)
+- **Comprehensive SEO for Playlists:** JSON-LD structured data for VideoObject, ItemList, and BreadcrumbList schemas
+- **Enhanced Social Sharing:** OpenGraph tags with image dimensions, video URLs, and site name
+- **Rich Twitter Cards:** Player card with video embed and dimensions for enhanced social media previews
+
+### Fixed
+- **Parameter Respect:** Show Date and Show Views parameters now correctly apply when switching videos via AJAX
+- Playlist description moved below video player for better content hierarchy
+
+### Technical
+- Created `PlaylistController` in `site/src/Controller/` for handling playlist view requests
+- Created `PlaylistModel` in `site/src/Model/` for fetching playlist details and videos
+- Created `PlaylistHtmlView` in `site/src/View/Playlist/` for rendering playlist page with comprehensive SEO
+- Added `addStructuredData()` method to Playlist view for JSON-LD schema generation
+- Created `site/tmpl/playlist/default.php` template with two-column layout (video player + scrollable sidebar)
+- Created `media/js/playlist-player.js` for AJAX video switching with parameter-aware metadata updates
+- Updated `Router.php` to support playlist view with `getPlaylistSegment()` and `getPlaylistId()` methods
+- Created `site/tmpl/playlist/default.xml` for menu item configuration with display options
+- Added playlist-related language strings to both regular and system language files
+- Registered `playlist-player.js` asset in `media/joomla.asset.json`
+- Playlist view includes comprehensive meta tags (OpenGraph, Twitter Card, canonical URL)
+- JavaScript reads `data-show-date` and `data-show-views` attributes to respect menu parameters
+- Custom CSS for playlist sidebar with hover effects and active state styling
+- VideoObject schema includes interaction statistics (view count) when available
+- ItemList schema includes all playlist videos with complete metadata
+- BreadcrumbList schema shows navigation hierarchy (Home → Playlists → Current Playlist)
+
+## [1.0.25] - 2025-11-21
+
+### Fixed
+- **Critical Menu Error:** Fixed "Error loading form file" exception when creating or editing menu items
+- **XML Syntax:** Corrected malformed XML in `site/tmpl/video/default.xml` (line 22 had incorrect self-closing tag)
+- **Missing Translation:** Added `COM_YOUTUBEVIDEOS_FIELD_SELECT_VIDEO` translation string
+- **Asset Registry Error:** Fixed "There is no 'com_youtubevideos.site' asset of a 'script' type in the registry" error
+- Corrected asset references in video template to use proper registered asset names
+
+### Technical
+- Fixed field element in video menu item form that was incorrectly closed with `/>` instead of `</field>`
+- Added missing "- Select Video -" translation to `com_youtubevideos.sys.ini`
+- Removed non-existent `com_youtubevideos.site` script asset reference from video template
+- Fixed style asset reference from `com_youtubevideos.site` to correct name `com_youtubevideos.site.css`
+
+## [1.0.24] - 2025-11-21
+
+### Fixed
+- **Structured Data Warnings:** Fixed PHP warnings about undefined properties in Videos view structured data
+- Resolved "Undefined property: stdClass::$id" warnings appearing in error logs
+- Resolved "Undefined property: stdClass::$youtube_video_id" warnings appearing in error logs
+- Resolved "Undefined property: stdClass::$created" warnings appearing in error logs
+
+### Technical
+- Added missing `id` field to normalised video objects in `VideosModel::normalizeVideos()`
+- Added `custom_thumbnail` field to normalised video objects for proper thumbnail handling
+- Updated `HtmlView::addStructuredData()` to use correct property names from normalised structure (`videoId`, `publishedAt`, etc.)
+- Added validation to skip videos without required data in structured data generation
+- Added fallback date for videos missing publication date to prevent date conversion errors
+
 ## [1.0.23] - 2025-11-21
 
 ### Added
@@ -414,6 +482,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.26** (2025-11-21) - Playlist View Layout with AJAX Video Switching
+- **1.0.25** (2025-11-21) - Menu Form Loading Fix (XML Syntax & Translation)
+- **1.0.24** (2025-11-21) - Structured Data Warnings Fix (Videos View)
 - **1.0.23** (2025-11-21) - Import/Export Feature (Categories, Playlists, Videos)
 - **1.0.22** (2025-11-21) - SEO Enhancements (JSON+LD Structured Data & Meta Tags)
 - **1.0.21** (2025-11-17) - Pagination Navigation Fix (Itemid Preservation)

@@ -19,7 +19,7 @@
                 required="true"
                 >
                 <option value="">COM_YOUTUBEVIDEOS_FIELD_SELECT_VIDEO</option>
-            />
+            </field>
         </fieldset>
     </fields>
 

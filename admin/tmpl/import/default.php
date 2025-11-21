@@ -57,3 +57,5 @@ $typeLabel = Text::_('COM_YOUTUBEVIDEOS_' . strtoupper($this->type));
     <?php echo HTMLHelper::_('form.token'); ?>
 </form>
 
+
+
