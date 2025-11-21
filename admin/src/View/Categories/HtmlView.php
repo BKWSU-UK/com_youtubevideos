@@ -5,6 +5,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Toolbar\ToolbarHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Toolbar\Toolbar;
 
 class HtmlView extends BaseHtmlView
 {
@@ -70,6 +71,7 @@ class HtmlView extends BaseHtmlView
     protected function addToolbar()
     {
         $canDo = Factory::getApplication()->getIdentity()->authorise('core.create', 'com_youtubevideos');
+        $toolbar = Toolbar::getInstance();
 
         ToolbarHelper::title(Text::_('COM_YOUTUBEVIDEOS_CATEGORIES'), 'folder');
 
@@ -84,6 +86,17 @@ class HtmlView extends BaseHtmlView
         if (Factory::getApplication()->getIdentity()->authorise('core.delete', 'com_youtubevideos')) {
             ToolbarHelper::deleteList('', 'categories.delete');
         }
+
+        // Add Import/Export buttons
+        $toolbar->linkButton('import')
+            ->text('COM_YOUTUBEVIDEOS_IMPORT')
+            ->icon('icon-upload')
+            ->url('index.php?option=com_youtubevideos&view=import&type=categories');
+
+        $toolbar->linkButton('export')
+            ->text('COM_YOUTUBEVIDEOS_EXPORT')
+            ->icon('icon-download')
+            ->url('index.php?option=com_youtubevideos&task=export.export&type=categories');
 
         if (Factory::getApplication()->getIdentity()->authorise('core.admin', 'com_youtubevideos')) {
             ToolbarHelper::preferences('com_youtubevideos');

@@ -202,6 +202,17 @@ class HtmlView extends BaseHtmlView
             }
         }
 
+        // Add Import/Export buttons
+        $toolbar->linkButton('import')
+            ->text('COM_YOUTUBEVIDEOS_IMPORT')
+            ->icon('icon-upload')
+            ->url('index.php?option=com_youtubevideos&view=import&type=videos');
+
+        $toolbar->linkButton('export')
+            ->text('COM_YOUTUBEVIDEOS_EXPORT')
+            ->icon('icon-download')
+            ->url('index.php?option=com_youtubevideos&task=export.export&type=videos');
+
         if ($user->authorise('core.admin', 'com_youtubevideos') || $user->authorise('core.options', 'com_youtubevideos'))
         {
             $toolbar->preferences('com_youtubevideos');

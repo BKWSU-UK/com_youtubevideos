@@ -49,6 +49,7 @@ class HtmlView extends BaseHtmlView
     protected function addToolbar()
     {
         $canDo = Factory::getApplication()->getIdentity()->authorise('core.create', 'com_youtubevideos');
+        $toolbar = Toolbar::getInstance();
 
         ToolbarHelper::title(Text::_('COM_YOUTUBEVIDEOS_PLAYLISTS'), 'list');
 
@@ -63,6 +64,17 @@ class HtmlView extends BaseHtmlView
         if (Factory::getApplication()->getIdentity()->authorise('core.delete', 'com_youtubevideos')) {
             ToolbarHelper::deleteList('', 'playlists.delete');
         }
+
+        // Add Import/Export buttons
+        $toolbar->linkButton('import')
+            ->text('COM_YOUTUBEVIDEOS_IMPORT')
+            ->icon('icon-upload')
+            ->url('index.php?option=com_youtubevideos&view=import&type=playlists');
+
+        $toolbar->linkButton('export')
+            ->text('COM_YOUTUBEVIDEOS_EXPORT')
+            ->icon('icon-download')
+            ->url('index.php?option=com_youtubevideos&task=export.export&type=playlists');
 
         if (Factory::getApplication()->getIdentity()->authorise('core.admin', 'com_youtubevideos')) {
             ToolbarHelper::preferences('com_youtubevideos');

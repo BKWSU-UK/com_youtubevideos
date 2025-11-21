@@ -33,3 +33,5 @@ echo "Component packaged successfully: $OUTPUT_FILE"
 ls -lh "$OUTPUT_FILE"
 
 
+
+

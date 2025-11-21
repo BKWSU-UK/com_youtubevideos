@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fieldset name="import" label="COM_YOUTUBEVIDEOS_IMPORT_FIELDSET_LABEL">
+        <field
+            name="import_file"
+            type="file"
+            label="COM_YOUTUBEVIDEOS_IMPORT_FILE_LABEL"
+            description="COM_YOUTUBEVIDEOS_IMPORT_FILE_DESC"
+            required="true"
+            accept="text/xml,application/xml,.xml"
+        />
+        
+        <field
+            name="type"
+            type="hidden"
+            default="categories"
+        />
+    </fieldset>
+</form>

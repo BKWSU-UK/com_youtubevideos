@@ -5,6 +5,28 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.23] - 2025-11-21
+
+### Added
+- **Import/Export Feature:** Administrators can now export and import categories, playlists, and videos
+- **Export Functionality:** Export data to XML format from the toolbar in Categories, Playlists, and Videos list views
+- **Import Functionality:** Import XML files with automatic conflict resolution (existing records are skipped)
+- **Conflict Handling:** Import automatically skips existing records based on unique identifiers (alias for categories, YouTube playlist ID for playlists, YouTube video ID for videos)
+- **Import Statistics:** Detailed feedback showing number of records added and skipped during import
+- **XML Format:** Well-structured XML export format with metadata (export date, version, record counts)
+
+### Technical
+- Created `ExportService` class for generating XML exports with proper encoding and CDATA sections
+- Created `ImportService` class for parsing XML and handling imports with conflict detection
+- Added `ExportController` for handling export downloads with appropriate HTTP headers
+- Added `ImportController` for handling file uploads and import processing
+- Created Import view, model, and form for the import interface
+- Added Import and Export toolbar buttons to Categories, Playlists, and Videos list views
+- Added comprehensive language strings for import/export operations
+- Export files include timestamp in filename (e.g., `youtubevideos_categories_2025-11-21_14-30-00.xml`)
+- Import validates XML structure and provides detailed error messages
+- All imports are wrapped in database transactions for data integrity
+
 ## [1.0.22] - 2025-11-21
 
 ### Added
@@ -392,6 +414,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.23** (2025-11-21) - Import/Export Feature (Categories, Playlists, Videos)
 - **1.0.22** (2025-11-21) - SEO Enhancements (JSON+LD Structured Data & Meta Tags)
 - **1.0.21** (2025-11-17) - Pagination Navigation Fix (Itemid Preservation)
 - **1.0.20** (2025-11-15) - Filter Dropdowns Fix (Category/Playlist Names)
