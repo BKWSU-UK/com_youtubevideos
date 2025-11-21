@@ -38,11 +38,7 @@ $embedUrl = 'https://www.youtube.com/embed/' . $currentVideo->youtube_video_id .
     <?php if ($params->get('show_page_heading', 1)) : ?>
         <div class="page-header">
             <h1>
-                <?php echo $this->escape($playlist->title); ?>
-                <span class="badge bg-secondary ms-2">
-                    <?php echo count($videos); ?> 
-                    <?php echo Text::_('COM_YOUTUBEVIDEOS_VIDEOS'); ?>
-                </span>
+                <?php echo $this->escape($playlist->title); ?> 
             </h1>
         </div>
     <?php endif; ?>
@@ -112,7 +108,7 @@ $embedUrl = 'https://www.youtube.com/embed/' . $currentVideo->youtube_video_id .
             <div class="playlist-sidebar">
                 <div class="playlist-header mb-3">
                     <h3 class="h5">
-                        <?php echo Text::_('COM_YOUTUBEVIDEOS_PLAYLIST'); ?>
+                        <?php echo Text::_('COM_YOUTUBEVIDEOS_PLAYLIST'); ?> (<?php echo count($videos); ?> <?php echo Text::_('COM_YOUTUBEVIDEOS_VIDEOS'); ?>)
                     </h3>
                 </div>
 
