@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extension type="package" method="upgrade">
+    <name>YouTube Videos Package</name>
+    <packagename>youtubevideos</packagename>
+    <author>Allan Schweitz</author>
+    <creationDate>November 2025</creationDate>
+    <copyright>(C) 2025 Brahma Kumaris. All rights reserved.</copyright>
+    <license>GNU General Public License version 2 or later</license>
+    <authorEmail>allan@bkconnect.net</authorEmail>
+    <authorUrl>www.brahmakumaris.org</authorUrl>
+    <version>1.0.28</version>
+    <description>PKG_YOUTUBEVIDEOS_XML_DESCRIPTION</description>
+    
+    <scriptfile>pkg_script.php</scriptfile>
+    
+    <files folder="packages">
+        <file type="component" id="com_youtubevideos">com_youtubevideos.zip</file>
+        <file type="module" id="mod_youtubevideos" client="site">mod_youtubevideos.zip</file>
+        <file type="module" id="mod_youtube_single" client="site">mod_youtube_single.zip</file>
+    </files>
+    
+    <updateservers>
+        <!-- Add your update server URL here if you have one -->
+    </updateservers>
+    
+    <languages folder="language">
+        <language tag="en-GB">en-GB/pkg_youtubevideos.sys.ini</language>
+    </languages>
+</extension>

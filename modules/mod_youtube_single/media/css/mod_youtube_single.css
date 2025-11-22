@@ -1,0 +1,33 @@
+/**
+ * @package     Joomla.Site
+ * @subpackage  mod_youtube_single
+ *
+ * @copyright   Copyright (C) 2025 BKWSU. All rights reserved.
+ * @license     GNU General Public License version 2 or later
+ */
+
+.mod-youtube-single .video-thumbnail {
+    position: relative;
+    display: block;
+    overflow: hidden;
+}
+
+.mod-youtube-single .video-thumbnail:hover .play-icon {
+    transform: translate(-50%, -50%) scale(1.1);
+}
+
+.mod-youtube-single .play-icon {
+    transition: transform 0.3s ease;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.mod-youtube-single .card-img-top {
+    object-fit: cover;
+    aspect-ratio: 16 / 9;
+}
+
+.mod-youtube-single .video-description {
+    margin-top: 1rem;
+    color: var(--bs-secondary-color);
+}
+

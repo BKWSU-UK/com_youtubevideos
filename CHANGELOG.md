@@ -5,6 +5,47 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.28] - 2025-11-22
+
+### Added
+- **YouTube Single Video Module (mod_youtube_single):** New Joomla 5 module that displays a single selected YouTube video at any position
+- **Search-as-you-type Video Selector:** Administrator interface with AJAX-powered video search for easy video selection
+- **Multiple Display Modes:** Support for three display modes - Embedded Player, Card with Thumbnail, and Thumbnail Only
+- **Customisable Player Options:** Configurable player width, height, and autoplay settings for embedded mode
+- **Flexible Content Display:** Options to show/hide title, description, and link with configurable description length limit
+- **AJAX Video Search Endpoint:** New `searchVideos()` method in VideosController for searching videos via AJAX
+- **Custom Form Field:** New `YoutubevideoField` custom field with real-time search functionality
+- **Responsive Design:** Module uses Bootstrap 5 classes for responsive display across all device sizes
+- **Module Caching:** Built-in cache support with configurable cache time
+- **Multi-language Support:** Complete translation files (en-GB) for all module strings
+- **Joomla Package:** New package installer (`pkg_youtubevideos.zip`) that installs component and both modules in one go
+
+### Changed
+- **Build System:** Updated build script to create four separate packages:
+  - `com_youtubevideos.zip` - Standalone component (no modules)
+  - `mod_youtubevideos.zip` - YouTube Videos Grid module (displays playlist videos)
+  - `mod_youtube_single.zip` - YouTube Single Video module (displays one video)
+  - `pkg_youtubevideos.zip` - Complete package with component and all modules (recommended)
+
+### Technical
+- Created complete module structure in `modules/mod_youtube_single/`
+- Created `mod_youtube_single.xml` manifest file with comprehensive configuration options
+- Created `mod_youtube_single.php` entry point with video validation and parameter handling
+- Created `YoutubeSingleHelper` class for fetching video data with access level and language filtering
+- Created `YoutubevideoField` custom form field extending `ListField` for video selection
+- Created `video-selector.js` for AJAX search functionality with debouncing and XSS protection
+- Created responsive module template (`tmpl/default.php`) supporting three display modes
+- Created module stylesheet (`media/css/mod_youtube_single.css`) with hover effects and transitions
+- Added `searchVideos()` AJAX method to `VideosController` for real-time video search
+- Created `pkg_youtubevideos.xml` package manifest for combined installation
+- Created `pkg_script.php` with installation messages and version checking
+- Created package language file with installation instructions
+- Updated `build.sh` to create all three installation packages
+- Module respects Joomla access levels, language filtering, and published state
+- AJAX search includes CSRF token validation and proper error handling
+- JavaScript uses modern ES6+ syntax with proper event delegation and memory management
+- Module can be installed standalone or as part of the package
+
 ## [1.0.27] - 2025-11-21
 
 ### Fixed
@@ -491,6 +532,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.28** (2025-11-22) - YouTube Single Video Module with AJAX Video Search
+- **1.0.27** (2025-11-21) - Menu View Name Correction (videolist → videos)
 - **1.0.26** (2025-11-21) - Playlist View Layout with AJAX Video Switching
 - **1.0.25** (2025-11-21) - Menu Form Loading Fix (XML Syntax & Translation)
 - **1.0.24** (2025-11-21) - Structured Data Warnings Fix (Videos View)

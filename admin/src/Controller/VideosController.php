@@ -39,6 +39,70 @@ class VideosController extends AdminController
     }
 
     /**
+     * AJAX method to search for videos
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    public function searchVideos()
+    {
+        Session::checkToken() or jexit(Text::_('JINVALID_TOKEN'));
+
+        // Set JSON response
+        header('Content-Type: application/json');
+
+        try {
+            $search = $this->input->getString('search', '');
+            
+            if (empty($search)) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Search term is required',
+                    'data' => []
+                ]);
+                jexit();
+            }
+
+            $db = Factory::getContainer()->get('DatabaseDriver');
+            $query = $db->getQuery(true);
+
+            $search = '%' . $db->escape($search, true) . '%';
+
+            $query->select([
+                $db->quoteName('id'),
+                $db->quoteName('title'),
+                $db->quoteName('youtube_video_id'),
+            ])
+                ->from($db->quoteName('#__youtubevideos_featured'))
+                ->where($db->quoteName('published') . ' = 1')
+                ->where(
+                    '(' . $db->quoteName('title') . ' LIKE :search1 OR ' .
+                    $db->quoteName('youtube_video_id') . ' LIKE :search2)'
+                )
+                ->bind([':search1', ':search2'], $search)
+                ->order($db->quoteName('title') . ' ASC')
+                ->setLimit(20);
+
+            $db->setQuery($query);
+            $videos = $db->loadObjectList();
+
+            echo json_encode([
+                'success' => true,
+                'data' => $videos
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => []
+            ]);
+        }
+
+        jexit();
+    }
+
+    /**
      * Method to batch process videos
      *
      * @return  void

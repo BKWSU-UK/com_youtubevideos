@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <extension type="component" method="upgrade">
     <name>com_youtubevideos</name>
-    <author>Allan Schweitz</author>
+    <author>BKWSU</author>
     <creationDate>November 2024</creationDate>
     <copyright>(C) 2024 Brahma Kumaris. All rights reserved.</copyright>
     <license>GNU General Public License version 2 or later;</license>
     <authorEmail>allan@bkconnect.net</authorEmail>
     <authorUrl>www.brahmakumaris.org</authorUrl>
-    <version>1.0.27</version>
+    <version>1.0.28</version>
     <description>COM_YOUTUBEVIDEOS_XML_DESCRIPTION</description>
     <namespace path="src">BKWSU\Component\Youtubevideos</namespace>
     <scriptfile>script.php</scriptfile>

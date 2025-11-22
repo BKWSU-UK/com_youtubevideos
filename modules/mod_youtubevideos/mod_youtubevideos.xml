@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="module" client="site" method="upgrade">
+    <name>MOD_YOUTUBEVIDEOS</name>
+    <author>BKWSU</author>
+    <creationDate>November 2025</creationDate>
+    <copyright>Copyright (C) 2024 BKWSU. All rights reserved.</copyright>
+    <license>GNU General Public License version 2 or later</license>
+    <authorEmail></authorEmail>
+    <authorUrl></authorUrl>
+    <version>1.0.3</version>
+    <description>MOD_YOUTUBEVIDEOS_XML_DESCRIPTION</description>
+    
+    <namespace path="src">BKWSU\Module\Youtubevideos</namespace>
+    
+    <files>
+        <filename module="mod_youtubevideos">mod_youtubevideos.php</filename>
+        <folder>src</folder>
+        <folder>tmpl</folder>
+        <folder>language</folder>
+    </files>
+    
+    <media destination="mod_youtubevideos" folder="media">
+        <folder>css</folder>
+        <folder>js</folder>
+    </media>
+    
+    <config>
+        <fields name="params">
+            <fieldset name="basic" label="MOD_YOUTUBEVIDEOS_FIELDSET_BASIC">
+                <field
+                    name="playlist_id"
+                    type="sql"
+                    label="MOD_YOUTUBEVIDEOS_FIELD_PLAYLIST_LABEL"
+                    description="MOD_YOUTUBEVIDEOS_FIELD_PLAYLIST_DESC"
+                    query="SELECT id AS value, title AS text FROM #__youtubevideos_playlists WHERE published = 1 ORDER BY title"
+                    key_field="value"
+                    value_field="text"
+                    required="true"
+                    >
+                    <option value="">MOD_YOUTUBEVIDEOS_FIELD_SELECT_PLAYLIST</option>
+                </field>
+                
+                <field
+                    name="max_videos"
+                    type="number"
+                    label="MOD_YOUTUBEVIDEOS_FIELD_MAX_VIDEOS_LABEL"
+                    description="MOD_YOUTUBEVIDEOS_FIELD_MAX_VIDEOS_DESC"
+                    default="12"
+                    min="1"
+                    max="50"
+                    step="1"
+                    />
+                
+                <field
+                    name="videos_per_row"
+                    type="list"
+                    label="MOD_YOUTUBEVIDEOS_FIELD_VIDEOS_PER_ROW_LABEL"
+                    description="MOD_YOUTUBEVIDEOS_FIELD_VIDEOS_PER_ROW_DESC"
+                    default="3"
+                    >
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="6">6</option>
+                </field>
+                
+                <field
+                    name="ordering"
+                    type="list"
+                    label="MOD_YOUTUBEVIDEOS_FIELD_ORDERING_LABEL"
+                    description="MOD_YOUTUBEVIDEOS_FIELD_ORDERING_DESC"
+                    default="ordering_asc"
+                    >
+                    <option value="ordering_asc">MOD_YOUTUBEVIDEOS_ORDERING_ASC</option>
+                    <option value="ordering_desc">MOD_YOUTUBEVIDEOS_ORDERING_DESC</option>
+                    <option value="created_desc">MOD_YOUTUBEVIDEOS_NEWEST_FIRST</option>
+                    <option value="created_asc">MOD_YOUTUBEVIDEOS_OLDEST_FIRST</option>
+                    <option value="title_asc">MOD_YOUTUBEVIDEOS_TITLE_ASC</option>
+                    <option value="title_desc">MOD_YOUTUBEVIDEOS_TITLE_DESC</option>
+                </field>
+                
+                <field
+                    name="show_title"
+                    type="radio"
+                    label="MOD_YOUTUBEVIDEOS_FIELD_SHOW_TITLE_LABEL"
+                    description="MOD_YOUTUBEVIDEOS_FIELD_SHOW_TITLE_DESC"
+                    layout="joomla.form.field.radio.switcher"
+                    default="1"
+                    >
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                
+                <field
+                    name="show_description"
+                    type="radio"
+                    label="MOD_YOUTUBEVIDEOS_FIELD_SHOW_DESC_LABEL"
+                    description="MOD_YOUTUBEVIDEOS_FIELD_SHOW_DESC_DESC"
+                    layout="joomla.form.field.radio.switcher"
+                    default="1"
+                    >
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                
+                <field
+                    name="show_duration"
+                    type="radio"
+                    label="MOD_YOUTUBEVIDEOS_FIELD_SHOW_DURATION_LABEL"
+                    description="MOD_YOUTUBEVIDEOS_FIELD_SHOW_DURATION_DESC"
+                    layout="joomla.form.field.radio.switcher"
+                    default="1"
+                    >
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                
+                <field
+                    name="module_heading"
+                    type="text"
+                    label="MOD_YOUTUBEVIDEOS_FIELD_HEADING_LABEL"
+                    description="MOD_YOUTUBEVIDEOS_FIELD_HEADING_DESC"
+                    default=""
+                    />
+                
+                <field
+                    name="show_modal"
+                    type="radio"
+                    label="MOD_YOUTUBEVIDEOS_FIELD_SHOW_MODAL_LABEL"
+                    description="MOD_YOUTUBEVIDEOS_FIELD_SHOW_MODAL_DESC"
+                    layout="joomla.form.field.radio.switcher"
+                    default="1"
+                    >
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                
+                <field
+                    name="cache"
+                    type="radio"
+                    label="MOD_YOUTUBEVIDEOS_FIELD_CACHING_LABEL"
+                    description="MOD_YOUTUBEVIDEOS_FIELD_CACHING_DESC"
+                    layout="joomla.form.field.radio.switcher"
+                    default="1"
+                    >
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                
+                <field
+                    name="cache_time"
+                    type="number"
+                    label="MOD_YOUTUBEVIDEOS_FIELD_CACHE_TIME_LABEL"
+                    description="MOD_YOUTUBEVIDEOS_FIELD_CACHE_TIME_DESC"
+                    default="900"
+                    />
+            </fieldset>
+            
+            <fieldset name="advanced">
+                <field
+                    name="layout"
+                    type="modulelayout"
+                    label="JFIELD_ALT_LAYOUT_LABEL"
+                    description="JFIELD_ALT_MODULE_LAYOUT_DESC"
+                    />
+                
+                <field
+                    name="moduleclass_sfx"
+                    type="textarea"
+                    label="COM_MODULES_FIELD_MODULECLASS_SFX_LABEL"
+                    description="COM_MODULES_FIELD_MODULECLASS_SFX_DESC"
+                    rows="3"
+                    />
+                
+                <field
+                    name="owncache"
+                    type="hidden"
+                    default="1"
+                    />
+            </fieldset>
+        </fields>
+    </config>
+</extension>
