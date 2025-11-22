@@ -77,7 +77,7 @@ $itemIdParam = $itemId > 0 ? '&Itemid=' . $itemId : '';
                         aria-label="<?php echo $this->escape($video->title); ?>">
                         <div class="video-item__thumbnail thumbnail">
                             <?php
-                            $thumbnailUrl = $video->thumbnails->medium->url ?? $video->thumbnails->high->url ?? $video->thumbnails->default->url ?? '';
+                            $thumbnailUrl = $video->thumbnails->medium->url ?? $video->thumbnails->high->url ?? $video->thumbnails->default->url ?? 'https://img.youtube.com/vi/' . $video->videoId . '/maxresdefault.jpg';
                             ?>
                             <img src="<?php echo $this->escape($thumbnailUrl); ?>"
                                 alt="<?php echo $this->escape($video->title); ?>"

@@ -20,4 +20,4 @@ You are a highly skilled Joomla extension developer tasked with creating a new e
 
 2. Build and deployment:
   - After every code update automatically create a zip file of the component.
-  - Update the change log after the build of each new version.
+  - Update the change log before the build of each new version.
