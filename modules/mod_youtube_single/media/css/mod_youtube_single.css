@@ -6,28 +6,112 @@
  * @license     GNU General Public License version 2 or later
  */
 
+/* Thumbnail container */
 .mod-youtube-single .video-thumbnail {
     position: relative;
     display: block;
     overflow: hidden;
+    cursor: pointer;
 }
 
-.mod-youtube-single .video-thumbnail:hover .play-icon {
+/* Dark overlay on hover */
+.mod-youtube-single .video-thumbnail::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0);
+    transition: background 0.3s ease;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.mod-youtube-single .video-thumbnail:hover::before {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+/* YouTube-style play button */
+.mod-youtube-single .play-button {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    transition: all 0.3s ease;
+}
+
+.mod-youtube-single .play-button-bg {
+    width: 68px;
+    height: 48px;
+    background-color: rgba(33, 33, 33, 0.8);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease;
+}
+
+.mod-youtube-single .video-thumbnail:hover .play-button-bg {
+    background-color: rgba(230, 33, 23, 0.9);
+}
+
+/* Play triangle icon */
+.mod-youtube-single .play-triangle {
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 9px 0 9px 15px;
+    border-color: transparent transparent transparent #fff;
+    margin-left: 3px;
+}
+
+.mod-youtube-single .video-thumbnail:hover .play-button {
     transform: translate(-50%, -50%) scale(1.1);
 }
 
+/* Legacy support for icon-play */
 .mod-youtube-single .play-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
     transition: transform 0.3s ease;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
+.mod-youtube-single .video-thumbnail:hover .play-icon {
+    transform: translate(-50%, -50%) scale(1.15);
+}
+
+/* Card image */
 .mod-youtube-single .card-img-top {
     object-fit: cover;
     aspect-ratio: 16 / 9;
 }
 
+/* Video description */
 .mod-youtube-single .video-description {
     margin-top: 1rem;
     color: var(--bs-secondary-color);
+}
+
+/* Clickable links */
+.mod-youtube-single a[data-youtube-id] {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Player container */
+.mod-youtube-single .youtube-player-container {
+    overflow: hidden;
+}
+
+/* Transition when player loads */
+.mod-youtube-single.player-loaded .card,
+.mod-youtube-single.player-loaded .youtube-thumbnail {
+    transition: opacity 0.3s ease;
 }
 

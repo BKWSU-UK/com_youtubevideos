@@ -66,11 +66,37 @@ Choose how the video should be displayed:
   - Enable/disable autoplay
   
 - **Card with Thumbnail**: Displays a Bootstrap card with thumbnail
-  - Shows play icon overlay
+  - YouTube-style play button overlay (optional)
   - Card format with optional description
+  - Click thumbnail to play video in place
+  - Configurable thumbnail quality/resolution
   
 - **Thumbnail Only**: Simple thumbnail image
   - Minimal display with optional title
+  - YouTube-style play button overlay (optional)
+  - Click thumbnail to play video in place
+  - Configurable thumbnail quality/resolution
+
+#### Thumbnail Quality (Card and Thumbnail modes only)
+
+Choose the resolution of the thumbnail image:
+
+- **Default (120×90)**: Lowest quality, fastest loading
+- **Medium Quality (320×180)**: Good balance of quality and file size
+- **High Quality (480×360)**: High quality, recommended for most uses (default)
+- **Standard Definition (640×480)**: Very high quality, may not be available for all videos
+- **Maximum Resolution (1280×720)**: Highest quality, may not be available for older or lower-quality videos
+
+**Note**: If the selected quality is not available for a video, YouTube will automatically serve a lower resolution thumbnail.
+
+#### Play Button Overlay (Card and Thumbnail modes only)
+
+- **Show Play Button Overlay**: Display a YouTube-style play button on the thumbnail
+  - Dark semi-transparent rounded rectangle background
+  - White triangle play icon
+  - Changes to YouTube red (#E62117) on hover
+  - Scales up slightly on hover for visual feedback
+  - Can be disabled if you prefer a clean thumbnail look
 
 #### Content Options
 
@@ -174,7 +200,8 @@ mod_youtube_single/
 │   └── default.php               # Module template
 ├── media/
 │   ├── js/
-│   │   └── video-selector.js     # AJAX search functionality
+│   │   ├── video-selector.js     # AJAX search functionality
+│   │   └── player.js             # Click-to-play functionality
 │   └── css/
 │       └── mod_youtube_single.css # Module stylesheet
 └── language/
@@ -196,7 +223,8 @@ mod_youtube_single/
 2. **Video Fetching**: The helper class retrieves the selected video from the database
 3. **Access Control**: Only videos accessible to the current user are displayed
 4. **Language Filtering**: Videos are filtered by the current site language
-5. **Caching**: Module output can be cached for improved performance
+5. **Click-to-Play**: Card and thumbnail modes use JavaScript to replace the thumbnail with an embedded player when clicked
+6. **Caching**: Module output can be cached for improved performance
 
 ### AJAX Search
 

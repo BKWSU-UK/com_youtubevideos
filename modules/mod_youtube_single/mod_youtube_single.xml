@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail></authorEmail>
     <authorUrl></authorUrl>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <description>MOD_YOUTUBE_SINGLE_XML_DESCRIPTION</description>
     
     <namespace path="src">BKWSU\Module\YoutubeSingle</namespace>
@@ -70,6 +70,34 @@
                 </field>
                 
                 <field
+                    name="thumbnail_quality"
+                    type="list"
+                    label="MOD_YOUTUBE_SINGLE_FIELD_THUMBNAIL_QUALITY_LABEL"
+                    description="MOD_YOUTUBE_SINGLE_FIELD_THUMBNAIL_QUALITY_DESC"
+                    default="hqdefault"
+                    showon="display_mode:card,thumbnail"
+                >
+                    <option value="default">MOD_YOUTUBE_SINGLE_THUMBNAIL_QUALITY_DEFAULT</option>
+                    <option value="mqdefault">MOD_YOUTUBE_SINGLE_THUMBNAIL_QUALITY_MEDIUM</option>
+                    <option value="hqdefault">MOD_YOUTUBE_SINGLE_THUMBNAIL_QUALITY_HIGH</option>
+                    <option value="sddefault">MOD_YOUTUBE_SINGLE_THUMBNAIL_QUALITY_STANDARD</option>
+                    <option value="maxresdefault">MOD_YOUTUBE_SINGLE_THUMBNAIL_QUALITY_MAXRES</option>
+                </field>
+                
+                <field
+                    name="show_play_button"
+                    type="radio"
+                    label="MOD_YOUTUBE_SINGLE_FIELD_SHOW_PLAY_BUTTON_LABEL"
+                    description="MOD_YOUTUBE_SINGLE_FIELD_SHOW_PLAY_BUTTON_DESC"
+                    class="btn-group btn-group-yesno"
+                    default="1"
+                    showon="display_mode:card,thumbnail"
+                >
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                
+                <field
                     name="player_width"
                     type="text"
                     label="MOD_YOUTUBE_SINGLE_FIELD_PLAYER_WIDTH_LABEL"
@@ -99,6 +127,15 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
+                
+                <field
+                    name="custom_params"
+                    type="text"
+                    label="MOD_YOUTUBE_SINGLE_FIELD_CUSTOM_PARAMS_LABEL"
+                    description="MOD_YOUTUBE_SINGLE_FIELD_CUSTOM_PARAMS_DESC"
+                    hint="controls=0&amp;fs=0"
+                    showon="display_mode:embed"
+                />
                 
                 <field
                     name="show_title"
