@@ -10,6 +10,7 @@ cd "$SCRIPT_DIR"
 COMPONENT_FILE="com_youtubevideos.zip"
 MODULE_VIDEOS_FILE="mod_youtubevideos.zip"
 MODULE_SINGLE_FILE="mod_youtube_single.zip"
+PLUGIN_SYSTEM_FILE="plg_system_youtubevideos.zip"
 PACKAGE_FILE="pkg_youtubevideos.zip"
 
 echo "========================================="
@@ -82,9 +83,31 @@ else
     exit 1
 fi
 
-# Step 4: Create package structure
+# Step 4: Build plg_system_youtubevideos
 echo ""
-echo "Step 4: Creating Package..."
+echo "Step 4: Building System Plugin..."
+if [ -d "plugins/system/youtubevideos" ]; then
+    if [ -f "$PLUGIN_SYSTEM_FILE" ]; then
+        rm "$PLUGIN_SYSTEM_FILE"
+    fi
+    
+    cd plugins/system/youtubevideos
+    zip -r "../../../$PLUGIN_SYSTEM_FILE" \
+        . \
+        -x "*.git*" "*.DS_Store" "*__MACOSX*" "*/.*" \
+        > /dev/null
+    cd "$SCRIPT_DIR"
+    
+    echo "✓ Plugin packaged: $PLUGIN_SYSTEM_FILE"
+    ls -lh "$PLUGIN_SYSTEM_FILE"
+else
+    echo "✗ Plugin directory not found: plugins/system/youtubevideos"
+    exit 1
+fi
+
+# Step 5: Create package structure
+echo ""
+echo "Step 5: Creating Package..."
 
 # Create temporary packages directory
 PACKAGES_DIR="packages"
@@ -97,6 +120,7 @@ mkdir -p "$PACKAGES_DIR"
 cp "$COMPONENT_FILE" "$PACKAGES_DIR/"
 cp "$MODULE_VIDEOS_FILE" "$PACKAGES_DIR/"
 cp "$MODULE_SINGLE_FILE" "$PACKAGES_DIR/"
+cp "$PLUGIN_SYSTEM_FILE" "$PACKAGES_DIR/"
 
 # Remove old package if exists
 if [ -f "$PACKAGE_FILE" ]; then
@@ -128,7 +152,8 @@ echo "Files created:"
 echo "  1. $COMPONENT_FILE - Standalone component"
 echo "  2. $MODULE_VIDEOS_FILE - YouTube Videos Grid module"
 echo "  3. $MODULE_SINGLE_FILE - YouTube Single Video module"
-echo "  4. $PACKAGE_FILE - Complete package (component + all modules)"
+echo "  4. $PLUGIN_SYSTEM_FILE - System Plugin"
+echo "  5. $PACKAGE_FILE - Complete package (component + all modules + plugin)"
 echo ""
 echo "Recommended installation: Use $PACKAGE_FILE"
 echo ""

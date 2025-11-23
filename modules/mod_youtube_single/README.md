@@ -4,7 +4,9 @@ A Joomla 5 module that displays a single selected YouTube video with search-as-y
 
 ## Features
 
+- **Dynamic Video Selection**: Choose between static video selection or dynamic retrieval from menu item parameters
 - **Search-as-you-type Video Selector**: Easily find and select videos in the admin interface
+- **Menu Item Integration**: Display different videos on different menu items using a single module instance
 - **Multiple Display Modes**: 
   - Embedded Player - Full YouTube player with controls
   - Card with Thumbnail - Bootstrap card layout with video thumbnail
@@ -36,11 +38,24 @@ You can also install the module separately:
 2. Click **New** and select **YouTube Single Video**
 3. Configure the following settings:
 
-#### Select Video
+#### Video Source
+Choose how the module should determine which video to display:
+
+- **Module Configuration**: Select a specific video in the module settings (default)
+- **Menu Item Parameter**: Retrieve the video ID from the active menu item's parameters
+
+##### Module Configuration Option
 - Type to search for videos by title or video ID
 - The search updates in real-time as you type
 - Click on a video from the search results to select it
 - Use the **Clear** button to remove the selection
+
+##### Menu Item Parameter Option
+- Specify the parameter name that contains the video ID (default: `id`)
+- For YouTube Videos component menu items (Single Video view), use `id`
+- For custom menu item parameters, specify the parameter name as defined in the menu item configuration
+- The module will read this parameter from the active menu item
+- This allows different menu items to display different videos using the same module instance
 
 #### Display Mode
 Choose how the video should be displayed:
@@ -115,6 +130,31 @@ Display just a video thumbnail with a link:
 4. Show Description: **No**
 5. Show Link: **Yes**
 6. Position: **footer**
+
+### Example 4: Dynamic Video from Menu Item
+
+Display different videos on different pages using a single module:
+
+**Method A: Using YouTube Videos Component Menu Items**
+1. Create menu items of type **YouTube Videos → Single Video**
+2. Select a different video in each menu item
+3. In the module settings:
+   - Video Source: **Menu Item Parameter**
+   - Menu Parameter Name: **id** (default)
+   - Display Mode: **Embedded Player**
+   - Show Title: **Yes**
+4. Assign the module to **All Pages** or **Selected Pages**
+5. Each page will display the video selected in its menu item
+
+**Method B: Using Custom Menu Parameters**
+1. Create menu items and add a custom parameter (e.g., `featured_video`) to each menu item
+2. In the module settings:
+   - Video Source: **Menu Item Parameter**
+   - Menu Parameter Name: **featured_video**
+   - Display Mode: **Card with Thumbnail**
+   - Show Title: **Yes**
+3. Assign the module to specific pages
+4. Each page will display the video specified in its custom parameter
 
 ## Technical Details
 
@@ -204,4 +244,5 @@ Copyright © 2025 BKWSU. All rights reserved.
 ## License
 
 GNU General Public License version 2 or later
+
 

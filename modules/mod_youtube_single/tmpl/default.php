@@ -13,17 +13,26 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 
+// Helper function for escaping output in module context
+$escape = function($text) {
+    return htmlspecialchars($text, ENT_COMPAT, 'UTF-8');
+};
+
 /** @var Joomla\Registry\Registry $params */
 /** @var object $video */
 /** @var string $displayMode */
 /** @var string $moduleclass_sfx */
 
 $showTitle = $params->get('show_title', 1);
+$titlePosition = $params->get('title_position', 'above');
 $showDescription = $params->get('show_description', 0);
 $descriptionLimit = (int) $params->get('description_limit', 200);
 $showLink = $params->get('show_link', 1);
 $videoLink = Route::_('index.php?option=com_youtubevideos&view=video&id=' . $video->id);
-$thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $video->youtube_video_id . '/maxresdefault.jpg';
+
+// Use custom thumbnail if available, otherwise use hqdefault (more reliable than maxresdefault)
+// maxresdefault doesn't exist for all videos and shows grey placeholder when missing
+$thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $video->youtube_video_id . '/hqdefault.jpg';
 
 ?>
 
@@ -40,34 +49,52 @@ $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $vid
         $heightAttr = is_numeric($height) ? $height . 'px' : $height;
         ?>
         
-        <?php if ($showTitle) : ?>
-            <h3 class="mb-3"><?php echo $this->escape($video->title); ?></h3>
+        <?php if ($showTitle && $titlePosition === 'above') : ?>
+            <h3 class="mb-3"><?php echo $escape($video->title); ?></h3>
+            <?php if ($showDescription && $video->description) : ?>
+                <div class="video-description mb-3 text-muted">
+                    <?php echo HTMLHelper::_('string.truncate', strip_tags($video->description), $descriptionLimit); ?>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
         
-        <div class="ratio ratio-16x9 mb-3">
+        <?php
+        // Calculate aspect ratio for responsive container
+        $aspectRatioPercent = $video->aspect_ratio_percent ?? 56.25; // Default to 16:9 (9/16 * 100 = 56.25%)
+        ?>
+        <div class="mb-3 overflow-hidden rounded" style="position: relative; width: <?php echo $widthAttr; ?>; padding-bottom: <?php echo $aspectRatioPercent; ?>%;">
             <iframe 
-                src="https://www.youtube.com/embed/<?php echo $this->escape($video->youtube_video_id); ?>?rel=0<?php echo $autoplay; ?>" 
-                title="<?php echo $this->escape($video->title); ?>"
+                src="https://www.youtube.com/embed/<?php echo $escape($video->youtube_video_id); ?>?rel=0<?php echo $autoplay; ?>" 
+                title="<?php echo $escape($video->title); ?>"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                 allowfullscreen
-                style="width: <?php echo $widthAttr; ?>; height: <?php echo $heightAttr; ?>;">
+                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
             </iframe>
         </div>
         
-        <?php if ($showDescription && $video->description) : ?>
-            <div class="video-description">
+        <?php if ($showTitle && $titlePosition === 'below') : ?>
+            <h3 class="mb-3"><?php echo $escape($video->title); ?></h3>
+            <?php if ($showDescription && $video->description) : ?>
+                <div class="video-description text-muted">
+                    <?php echo HTMLHelper::_('string.truncate', strip_tags($video->description), $descriptionLimit); ?>
+                </div>
+            <?php endif; ?>
+        <?php elseif ($showDescription && $video->description && $titlePosition === 'above') : ?>
+            <?php // Description already shown above ?>
+        <?php elseif ($showDescription && $video->description && !$showTitle) : ?>
+            <div class="video-description text-muted">
                 <?php echo HTMLHelper::_('string.truncate', strip_tags($video->description), $descriptionLimit); ?>
             </div>
         <?php endif; ?>
         
     <?php elseif ($displayMode === 'card') : ?>
         <?php // Card display mode ?>
-        <div class="card h-100">
+        <div class="card h-100 rounded">
             <?php if ($showLink) : ?>
-                <a href="<?php echo $videoLink; ?>" class="video-thumbnail">
+                <a href="<?php echo $videoLink; ?>" class="video-thumbnail position-relative d-block">
                     <img src="<?php echo $thumbnailUrl; ?>" 
-                         class="card-img-top" 
-                         alt="<?php echo $this->escape($video->title); ?>"
+                         class="card-img-top rounded-top" 
+                         alt="<?php echo $escape($video->title); ?>"
                          loading="lazy">
                     <span class="play-icon position-absolute top-50 start-50 translate-middle">
                         <span class="icon-play display-3 text-white" aria-hidden="true"></span>
@@ -75,8 +102,8 @@ $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $vid
                 </a>
             <?php else : ?>
                 <img src="<?php echo $thumbnailUrl; ?>" 
-                     class="card-img-top" 
-                     alt="<?php echo $this->escape($video->title); ?>"
+                     class="card-img-top rounded-top" 
+                     alt="<?php echo $escape($video->title); ?>"
                      loading="lazy">
             <?php endif; ?>
             
@@ -86,10 +113,10 @@ $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $vid
                         <h5 class="card-title">
                             <?php if ($showLink) : ?>
                                 <a href="<?php echo $videoLink; ?>">
-                                    <?php echo $this->escape($video->title); ?>
+                                    <?php echo $escape($video->title); ?>
                                 </a>
                             <?php else : ?>
-                                <?php echo $this->escape($video->title); ?>
+                                <?php echo $escape($video->title); ?>
                             <?php endif; ?>
                         </h5>
                     <?php endif; ?>
@@ -107,10 +134,10 @@ $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $vid
         <?php // Thumbnail only mode ?>
         <div class="youtube-thumbnail">
             <?php if ($showLink) : ?>
-                <a href="<?php echo $videoLink; ?>" class="d-block position-relative">
+                <a href="<?php echo $videoLink; ?>" class="d-block position-relative overflow-hidden rounded">
                     <img src="<?php echo $thumbnailUrl; ?>" 
                          class="img-fluid w-100" 
-                         alt="<?php echo $this->escape($video->title); ?>"
+                         alt="<?php echo $escape($video->title); ?>"
                          loading="lazy">
                     <span class="play-icon position-absolute top-50 start-50 translate-middle">
                         <span class="icon-play display-3 text-white" aria-hidden="true"></span>
@@ -118,8 +145,8 @@ $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $vid
                 </a>
             <?php else : ?>
                 <img src="<?php echo $thumbnailUrl; ?>" 
-                     class="img-fluid w-100" 
-                     alt="<?php echo $this->escape($video->title); ?>"
+                     class="img-fluid w-100 rounded" 
+                     alt="<?php echo $escape($video->title); ?>"
                      loading="lazy">
             <?php endif; ?>
             
@@ -127,10 +154,10 @@ $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $vid
                 <h5 class="mt-2">
                     <?php if ($showLink) : ?>
                         <a href="<?php echo $videoLink; ?>">
-                            <?php echo $this->escape($video->title); ?>
+                            <?php echo $escape($video->title); ?>
                         </a>
                     <?php else : ?>
-                        <?php echo $this->escape($video->title); ?>
+                        <?php echo $escape($video->title); ?>
                     <?php endif; ?>
                 </h5>
             <?php endif; ?>
@@ -143,4 +170,5 @@ $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $vid
         </div>
     <?php endif; ?>
 </div>
+
 

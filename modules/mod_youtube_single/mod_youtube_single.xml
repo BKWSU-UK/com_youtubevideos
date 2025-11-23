@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail></authorEmail>
     <authorUrl></authorUrl>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <description>MOD_YOUTUBE_SINGLE_XML_DESCRIPTION</description>
     
     <namespace path="src">BKWSU\Module\YoutubeSingle</namespace>
@@ -28,11 +28,33 @@
         <fields name="params">
             <fieldset name="basic">
                 <field
+                    name="video_source"
+                    type="radio"
+                    label="MOD_YOUTUBE_SINGLE_FIELD_VIDEO_SOURCE_LABEL"
+                    description="MOD_YOUTUBE_SINGLE_FIELD_VIDEO_SOURCE_DESC"
+                    class="btn-group"
+                    default="module"
+                >
+                    <option value="module">MOD_YOUTUBE_SINGLE_VIDEO_SOURCE_MODULE</option>
+                    <option value="menu">MOD_YOUTUBE_SINGLE_VIDEO_SOURCE_MENU</option>
+                </field>
+                
+                <field
                     name="video_id"
                     type="youtubevideo"
                     label="MOD_YOUTUBE_SINGLE_FIELD_VIDEO_LABEL"
                     description="MOD_YOUTUBE_SINGLE_FIELD_VIDEO_DESC"
-                    required="true"
+                    showon="video_source:module"
+                />
+                
+                <field
+                    name="menu_param_name"
+                    type="text"
+                    label="MOD_YOUTUBE_SINGLE_FIELD_MENU_PARAM_LABEL"
+                    description="MOD_YOUTUBE_SINGLE_FIELD_MENU_PARAM_DESC"
+                    default="youtube_video_id"
+                    hint="youtube_video_id or youtube-video-id"
+                    showon="video_source:menu"
                 />
                 
                 <field
@@ -88,6 +110,18 @@
                 >
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
+                </field>
+                
+                <field
+                    name="title_position"
+                    type="list"
+                    label="MOD_YOUTUBE_SINGLE_FIELD_TITLE_POSITION_LABEL"
+                    description="MOD_YOUTUBE_SINGLE_FIELD_TITLE_POSITION_DESC"
+                    default="above"
+                    showon="show_title:1"
+                >
+                    <option value="above">MOD_YOUTUBE_SINGLE_TITLE_POSITION_ABOVE</option>
+                    <option value="below">MOD_YOUTUBE_SINGLE_TITLE_POSITION_BELOW</option>
                 </field>
                 
                 <field
