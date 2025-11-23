@@ -35,7 +35,11 @@ class JsonView extends BaseJsonView
             ];
         }
 
-        echo json_encode($data);
+        // Set the data for the JsonView to handle proper JSON output
+        $this->setData($data);
+
+        // Render and output the JSON response
+        echo $this->render();
 
         return true;
     }

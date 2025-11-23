@@ -19,11 +19,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const autoplay = this.dataset.autoplay || '1';
             const aspectRatioPercent = parseFloat(this.dataset.aspectRatio) || 56.25; // Default to 16:9 if not set
             
-            // Find the container to replace
-            let container = this.closest('.card, .youtube-thumbnail');
-            if (!container) {
-                container = this.parentElement;
-            }
+            // Get the module wrapper before replacing the element
+            const moduleWrapper = this.closest('.mod-youtube-single');
             
             // Build YouTube URL parameters
             const youtubeParams = 'rel=0&autoplay=' + autoplay;
@@ -42,11 +39,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
             
-            // Replace the container content with the iframe
-            container.innerHTML = iframeHtml;
+            // Replace only the thumbnail link (this element) with the iframe
+            this.outerHTML = iframeHtml;
             
             // Add a loaded class to the module wrapper
-            const moduleWrapper = container.closest('.mod-youtube-single');
             if (moduleWrapper) {
                 moduleWrapper.classList.add('player-loaded');
             }

@@ -107,6 +107,11 @@
 /* Player container */
 .mod-youtube-single .youtube-player-container {
     overflow: hidden;
+    border-radius: 0.375rem 0.375rem 0 0; /* Match card-img-top rounded-top */
+}
+
+.mod-youtube-single .youtube-thumbnail .youtube-player-container {
+    border-radius: 0.375rem; /* Full rounded for thumbnail mode */
 }
 
 /* Transition when player loads */

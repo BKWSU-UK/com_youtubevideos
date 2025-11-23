@@ -53,6 +53,7 @@ class YoutubeSingleHelper
                 $db->quoteName('a.created'),
                 $db->quoteName('a.category_id'),
                 $db->quoteName('a.playlist_id'),
+                $db->quoteName('a.params'),
             ])
                 ->from($db->quoteName('#__youtubevideos_featured', 'a'))
                 ->where($db->quoteName('a.id') . ' = :id')
@@ -75,6 +76,22 @@ class YoutubeSingleHelper
 
             $db->setQuery($query);
             $video = $db->loadObject();
+
+            if ($video) {
+                // Parse params if available
+                if (!empty($video->params)) {
+                    $registry = new \Joomla\Registry\Registry($video->params);
+                    $video->aspect_width = $registry->get('aspect_width', 16);
+                    $video->aspect_height = $registry->get('aspect_height', 9);
+                } else {
+                    // Default to 16:9 aspect ratio
+                    $video->aspect_width = 16;
+                    $video->aspect_height = 9;
+                }
+                
+                // Calculate aspect ratio percentage for CSS
+                $video->aspect_ratio_percent = ($video->aspect_height / $video->aspect_width) * 100;
+            }
 
             return $video ?: null;
         } catch (\Exception $e) {

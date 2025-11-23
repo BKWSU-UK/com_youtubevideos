@@ -103,7 +103,7 @@ if ($displayMode !== 'embed') {
                     <?php echo HTMLHelper::_('string.truncate', strip_tags($video->description), $descriptionLimit); ?>
                 </div>
             <?php endif; ?>
-        <?php elseif ($showDescription && $video->description && $titlePosition === 'above') : ?>
+        <?php elseif ($showDescription && $video->description && $titlePosition === 'above' && $showTitle) : ?>
             <?php // Description already shown above ?>
         <?php elseif ($showDescription && $video->description && !$showTitle) : ?>
             <div class="video-description text-muted">
