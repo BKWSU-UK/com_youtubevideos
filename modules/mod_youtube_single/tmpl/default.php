@@ -26,6 +26,10 @@ $escape = function($text) {
 /** @var object $video */
 /** @var string $displayMode */
 /** @var string $moduleclass_sfx */
+/** @var object $module */
+
+// Generate unique ID for this module instance
+$moduleId = 'mod-youtube-single-' . $module->id;
 
 $showTitle = $params->get('show_title', 1);
 $titlePosition = $params->get('title_position', 'above');
@@ -45,17 +49,36 @@ $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $vid
 // Calculate aspect ratio for responsive container
 $aspectRatioPercent = $video->aspect_ratio_percent ?? 56.25; // Default to 16:9 (9/16 * 100 = 56.25%)
 
-// Load module CSS
-$document->addStyleSheet(Uri::root(true) . '/media/mod_youtube_single/css/mod_youtube_single.css');
+// Load module CSS with version parameter to prevent caching issues
+$cssVersion = '1.2.10';
+$document->addStyleSheet(Uri::root(true) . '/media/mod_youtube_single/css/mod_youtube_single.css', ['version' => $cssVersion]);
 
 // For card and thumbnail modes, load the player JavaScript
-if ($displayMode !== 'embed') {
-    $document->addScript(Uri::root(true) . '/media/mod_youtube_single/js/player.js', [], ['defer' => true]);
+// Use a static variable to ensure script is loaded only once per page
+static $scriptLoaded = false;
+if (($displayMode !== 'embed') && !$scriptLoaded) {
+    $document->addScript(Uri::root(true) . '/media/mod_youtube_single/js/player.js', ['version' => $cssVersion], ['defer' => true]);
+    $scriptLoaded = true;
+}
+
+// Add inline script to trigger initialization after page load (ensures all module instances are caught)
+// This runs after the deferred script loads
+static $initScriptAdded = false;
+if (($displayMode !== 'embed') && !$initScriptAdded) {
+    $inlineJs = "
+        window.addEventListener('load', function() {
+            if (window.ModYoutubeSinglePlayer && typeof window.ModYoutubeSinglePlayer.init === 'function') {
+                window.ModYoutubeSinglePlayer.init();
+            }
+        });
+    ";
+    $document->addScriptDeclaration($inlineJs);
+    $initScriptAdded = true;
 }
 
 ?>
 
-<div class="mod-youtube-single<?php echo $moduleclass_sfx; ?>">
+<div id="<?php echo $escape($moduleId); ?>" class="mod-youtube-single<?php echo $moduleclass_sfx; ?>" data-module-id="<?php echo (int) $module->id; ?>" data-display-mode="<?php echo $escape($displayMode); ?>" data-show-link="<?php echo $showLink ? 'true' : 'false'; ?>" data-video-id="<?php echo $escape($video->youtube_video_id); ?>">
     <?php if ($displayMode === 'embed') : ?>
         <?php // Embedded player mode ?>
         <?php 

@@ -6,13 +6,35 @@
  * @license     GNU General Public License version 2 or later
  */
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Find all clickable thumbnails that should open a player
-    const thumbnails = document.querySelectorAll('.mod-youtube-single [data-youtube-id]');
+(function(window) {
+    'use strict';
     
-    thumbnails.forEach(function(thumbnail) {
+    // Prevent multiple executions
+    if (window.ModYoutubeSinglePlayer) {
+        return;
+    }
+    
+    /**
+     * Escape HTML to prevent XSS
+     */
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    /**
+     * Initialize YouTube player for a thumbnail
+     */
+    function initializePlayer(thumbnail) {
+        // Check if already initialized to prevent double-binding
+        if (thumbnail.dataset.playerInitialized === 'true') {
+            return;
+        }
+        
         thumbnail.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             
             const youtubeId = this.dataset.youtubeId;
             const title = this.dataset.videoTitle || 'YouTube Video';
@@ -22,14 +44,17 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get the module wrapper before replacing the element
             const moduleWrapper = this.closest('.mod-youtube-single');
             
+            // Sanitize autoplay parameter (must be 0 or 1)
+            const sanitizedAutoplay = (autoplay === '1' || autoplay === 1) ? '1' : '0';
+            
             // Build YouTube URL parameters
-            const youtubeParams = 'rel=0&autoplay=' + autoplay;
+            const youtubeParams = 'rel=0&autoplay=' + sanitizedAutoplay;
             
             // Create the iframe HTML with the video's aspect ratio
             const iframeHtml = `
                 <div class="youtube-player-container" style="position: relative; width: 100%; padding-bottom: ${aspectRatioPercent}%;">
                     <iframe 
-                        src="https://www.youtube.com/embed/${youtubeId}?${youtubeParams}" 
+                        src="https://www.youtube.com/embed/${escapeHtml(youtubeId)}?${youtubeParams}" 
                         title="${escapeHtml(title)}"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                         allowfullscreen
@@ -47,15 +72,66 @@ document.addEventListener('DOMContentLoaded', function() {
                 moduleWrapper.classList.add('player-loaded');
             }
         });
-    });
+        
+        // Mark as initialized
+        thumbnail.dataset.playerInitialized = 'true';
+    }
     
     /**
-     * Escape HTML to prevent XSS
+     * Initialize all YouTube players on the page
      */
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+    function initializeAllPlayers() {
+        // Find all clickable thumbnails that should open a player
+        const thumbnails = document.querySelectorAll('.mod-youtube-single [data-youtube-id]');
+        
+        thumbnails.forEach(function(thumbnail) {
+            initializePlayer(thumbnail);
+        });
     }
-});
+    
+    // Expose initialization function globally
+    window.ModYoutubeSinglePlayer = {
+        init: initializeAllPlayers,
+        version: '1.2.10'
+    };
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeAllPlayers);
+    } else {
+        // DOM already loaded (script loaded dynamically)
+        initializeAllPlayers();
+    }
+    
+    // Re-initialize if new modules are added dynamically
+    if (window.MutationObserver) {
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.addedNodes.length) {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.nodeType === 1) { // Element node
+                            // Check if the added node or its children contain YouTube thumbnails
+                            const thumbnails = node.querySelectorAll ? 
+                                node.querySelectorAll('.mod-youtube-single [data-youtube-id]') : [];
+                            
+                            // Also check if the node itself is a thumbnail
+                            if (node.matches && node.matches('.mod-youtube-single [data-youtube-id]')) {
+                                initializePlayer(node);
+                            }
+                            
+                            thumbnails.forEach(function(thumbnail) {
+                                initializePlayer(thumbnail);
+                            });
+                        }
+                    });
+                }
+            });
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+})(window);
 
