@@ -284,6 +284,8 @@ class VideosModel extends ListModel
             $video->description = $item->description ?? '';
             $video->publishedAt = $item->created ?? '';
             $video->custom_thumbnail = $item->custom_thumbnail ?? null;
+            $video->recipe_type = (int) ($item->recipe_type ?? 0);
+            $video->isRecipe = $video->recipe_type === 1 && !empty($item->recipe_data);
 
             // Create thumbnails object from YouTube video ID
             $video->thumbnails = new \stdClass();

@@ -67,6 +67,8 @@ class VideoModel extends ItemModel
                 $query = $db->getQuery(true);
 
                 $query->select('v.*')
+                    ->select($db->quoteName('v.recipe_type'))
+                    ->select($db->quoteName('v.recipe_data'))
                     ->from($db->quoteName('#__youtubevideos_featured', 'v'))
                     ->where($db->quoteName('v.id') . ' = :id')
                     ->bind(':id', $pk, \Joomla\Database\ParameterType::INTEGER);
@@ -100,6 +102,10 @@ class VideoModel extends ItemModel
 
                 if (empty($data)) {
                     throw new \Exception(\Joomla\CMS\Language\Text::_('COM_YOUTUBEVIDEOS_ERROR_VIDEO_NOT_FOUND'), 404);
+                }
+
+                if (!empty($data->recipe_data)) {
+                    $data->recipe = json_decode($data->recipe_data, true);
                 }
 
                 $this->_item[$pk] = $data;

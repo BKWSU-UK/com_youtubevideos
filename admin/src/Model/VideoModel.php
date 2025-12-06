@@ -83,6 +83,8 @@ class VideoModel extends AdminModel
 
         if ($item) {
             $item->tags = $this->getVideoTagsAsString($item->youtube_video_id ?? '');
+            $this->normaliseRecipeDataForForm($item);
+            $this->normaliseParamsForForm($item);
         }
 
         return $item;
@@ -105,9 +107,135 @@ class VideoModel extends AdminModel
             $data = $this->getItem();
         }
 
+        if ($data) {
+            $this->normaliseRecipeDataForForm($data);
+            $this->normaliseParamsForForm($data);
+        }
+
         $this->preprocessData('com_youtubevideos.video', $data);
 
         return $data;
+    }
+
+    /**
+     * Ensure recipe arrays exist for form usage.
+     *
+     * @param   mixed  $item  Item or data object/array.
+     *
+     * @return  void
+     */
+    private function normaliseRecipeDataForForm(&$item): void
+    {
+        if (!$item) {
+            return;
+        }
+
+        if (is_array($item)) {
+            $recipeData = $item['recipe_data'] ?? null;
+        } else {
+            $recipeData = $item->recipe_data ?? null;
+        }
+
+        if (!empty($recipeData) && is_string($recipeData)) {
+            $decoded = json_decode($recipeData, true);
+
+            if (is_array($decoded)) {
+                if (is_array($item)) {
+                    $item['recipe_ingredients'] = $decoded['ingredients'] ?? [];
+                    $item['recipe_method'] = $decoded['method'] ?? [];
+                } else {
+                    $item->recipe_ingredients = $decoded['ingredients'] ?? [];
+                    $item->recipe_method = $decoded['method'] ?? [];
+                }
+            }
+        }
+
+        if (is_array($item)) {
+            $item['recipe_ingredients'] = $item['recipe_ingredients'] ?? [];
+            $item['recipe_method'] = $item['recipe_method'] ?? [];
+        } else {
+            $item->recipe_ingredients = $item->recipe_ingredients ?? [];
+            $item->recipe_method = $item->recipe_method ?? [];
+        }
+    }
+
+    /**
+     * Convert params to string for textarea display.
+     *
+     * @param   mixed  $item  Item or data object/array.
+     *
+     * @return  void
+     */
+    private function normaliseParamsForForm(&$item): void
+    {
+        if (!$item) {
+            return;
+        }
+
+        $params = is_array($item) ? ($item['params'] ?? null) : ($item->params ?? null);
+
+        if ($params instanceof \Joomla\Registry\Registry) {
+            $params = $params->toArray();
+        }
+
+        if (is_array($params) || is_object($params)) {
+            $formatted = json_encode($params, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        } elseif (is_string($params)) {
+            $trimmed = trim($params);
+
+            if ($trimmed === '') {
+                $formatted = '';
+            } else {
+                $decoded = json_decode($trimmed, true);
+                $formatted = json_last_error() === JSON_ERROR_NONE
+                    ? json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+                    : $params;
+            }
+        } else {
+            $formatted = '';
+        }
+
+        if (is_array($item)) {
+            $item['params'] = $formatted;
+        } else {
+            $item->params = $formatted;
+        }
+    }
+
+    /**
+     * Normalise params data for saving.
+     *
+     * @param   mixed  $params  Params data from form.
+     *
+     * @return  ?string
+     */
+    private function normaliseParamsForSave($params): ?string
+    {
+        if ($params instanceof \Joomla\Registry\Registry) {
+            $params = $params->toArray();
+        }
+
+        if (is_array($params) || is_object($params)) {
+            return json_encode($params, JSON_UNESCAPED_UNICODE);
+        }
+
+        if (is_string($params)) {
+            $paramsString = trim($params);
+
+            if ($paramsString === '') {
+                return null;
+            }
+
+            $decoded = json_decode($paramsString, true);
+
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return json_encode($decoded, JSON_UNESCAPED_UNICODE);
+            }
+
+            return json_encode(['value' => $paramsString], JSON_UNESCAPED_UNICODE);
+        }
+
+        return null;
     }
 
     /**
@@ -123,6 +251,50 @@ class VideoModel extends AdminModel
     {
         $tagsInput = $data['tags'] ?? '';
         unset($data['tags']);
+
+        $recipeIngredients = $data['recipe_ingredients'] ?? null;
+        $recipeMethod = $data['recipe_method'] ?? null;
+        unset($data['recipe_ingredients']);
+        unset($data['recipe_method']);
+
+        $data['params'] = $this->normaliseParamsForSave($data['params'] ?? null);
+
+        if (!empty($data['recipe_type']) && ($recipeIngredients || $recipeMethod)) {
+            $recipeData = [];
+            
+            if (is_array($recipeIngredients)) {
+                $ingredients = [];
+                foreach ($recipeIngredients as $index => $ingredient) {
+                    if (!empty($ingredient['item'])) {
+                        $ingredients[] = [
+                            'quantity' => $ingredient['quantity'] ?? '',
+                            'unit' => $ingredient['unit'] ?? '',
+                            'item' => $ingredient['item'],
+                            'group' => $ingredient['group'] ?? ''
+                        ];
+                    }
+                }
+                $recipeData['ingredients'] = $ingredients;
+            }
+            
+            if (is_array($recipeMethod)) {
+                $method = [];
+                $stepNum = 1;
+                foreach ($recipeMethod as $index => $step) {
+                    if (!empty($step['directions'])) {
+                        $method[] = [
+                            'step' => $stepNum++,
+                            'directions' => $step['directions']
+                        ];
+                    }
+                }
+                $recipeData['method'] = $method;
+            }
+            
+            $data['recipe_data'] = !empty($recipeData) ? json_encode($recipeData, JSON_UNESCAPED_UNICODE) : null;
+        } else {
+            $data['recipe_data'] = null;
+        }
 
         $existingVideoId = null;
 

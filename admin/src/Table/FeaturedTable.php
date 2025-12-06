@@ -80,6 +80,19 @@ class FeaturedTable extends Table implements VersionableTableInterface
             $this->publish_down = null;
         }
 
+        // Validate recipe data if recipe type is set
+        if (!empty($this->recipe_type)) {
+            if (!empty($this->recipe_data)) {
+                $recipeData = json_decode($this->recipe_data, true);
+                if ($recipeData === null && json_last_error() !== JSON_ERROR_NONE) {
+                    $this->setError(Text::_('COM_YOUTUBEVIDEOS_ERROR_INVALID_RECIPE_DATA'));
+                    return false;
+                }
+            }
+        } else {
+            $this->recipe_data = null;
+        }
+
         // Generate alias if empty
         if (empty($this->alias)) {
             $this->alias = $this->title;

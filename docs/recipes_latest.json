@@ -1,0 +1,456 @@
+{
+  "metadata": {
+    "total_recipes": 106,
+    "successful_details": 106,
+    "failed_details": 0,
+    "with_youtube_id": 82,
+    "timestamp": "2025-12-01T12:37:38.405530",
+    "source_api": "https://www.brahmakumaris.org/alfresco/service/media/recipelist"
+  },
+  "recipes": [
+    {
+      "nodeRef": "workspace://SpacesStore/9a5c3967-1f6f-4fe7-887b-277417be7d8f",
+      "id": "9a5c3967-1f6f-4fe7-887b-277417be7d8f",
+      "name": "Thai Green Curry Vegan.mp4",
+      "qnamePath": "/app:company_home/st:sites/cm:iwebsite/cm:documentLibrary/cm:Recipes/cm:Thai_x0020_Green_x0020_Curry_x0020_Vegan.mp4",
+      "mimetype": "video/mp4",
+      "title": "Thai Green Curry Vegan",
+      "author": "",
+      "created": "06-Mar-2016 00:54:58",
+      "creator": "helen_hall",
+      "description": "This demonstration includes a recipe for a vegan thai green curry paste and the green curry. It is healthy, delicious, and gluten-free. The burst of flavor in your mouth feels like the taste buds are having a party!",
+      "overlayImage": "/d/a/workspace/SpacesStore/f008c697-c867-4ab0-9173-f4dc38a54d32/doclib.jpg",
+      "overlayThumbnail": "/d/a/workspace/SpacesStore/830d7de3-1673-4356-8d21-07ca568b257a/doclib",
+      "size": "23,888,712",
+      "commentCount": "0",
+      "apprvdCommentCnt": "1",
+      "avgRating": 0.9,
+      "publishDate": "21-May-2016 05:30:05",
+      "totalRatingCount": 64,
+      "totalViews": "2,761",
+      "totalDownloads": "5",
+      "length": "0",
+      "relatedFiles": [],
+      "downloadUrl": "/d/a/workspace/SpacesStore/9a5c3967-1f6f-4fe7-887b-277417be7d8f/Thai%20Green%20Curry%20Vegan.mp4",
+      "list": [
+        {
+          "nodeRef": "workspace://SpacesStore/9a5c3967-1f6f-4fe7-887b-277417be7d8f",
+          "id": "9a5c3967-1f6f-4fe7-887b-277417be7d8f",
+          "name": "Thai Green Curry Vegan.mp4",
+          "qnamePath": "/app:company_home/st:sites/cm:iwebsite/cm:documentLibrary/cm:Recipes/cm:Thai_x0020_Green_x0020_Curry_x0020_Vegan.mp4",
+          "mimetype": "video/mp4",
+          "title": "Thai Green Curry Vegan",
+          "author": "",
+          "created": "Mar 6, 2016 12:54:58 AM",
+          "creator": "helen_hall",
+          "description": "This demonstration includes a recipe for a vegan thai green curry paste and the green curry. It is healthy, delicious, and gluten-free. The burst of flavor in your mouth feels like the taste buds are having a party!",
+          "overlayImage": "/d/a/workspace/SpacesStore/f008c697-c867-4ab0-9173-f4dc38a54d32/doclib.jpg",
+          "overlayThumbnail": "/d/a/workspace/SpacesStore/830d7de3-1673-4356-8d21-07ca568b257a/doclib",
+          "size": "23,888,712",
+          "commentCount": "",
+          "apprvdCommentCnt": "1",
+          "avgRating": 0.9,
+          "recipe": {
+            "ingr": [
+              {
+                "Rownum": 0,
+                "Qty": "½",
+                "Unit": "cup",
+                "Item": "{For Thai Green Paste}fresh coriander leaves and stems",
+                "id": "jqg1"
+              },
+              {
+                "Rownum": 1,
+                "Qty": "4-6",
+                "Unit": "",
+                "Item": "{For Thai Green Paste}kefir lime leaves",
+                "id": "jqg2"
+              },
+              {
+                "Rownum": 2,
+                "Qty": "10",
+                "Unit": "",
+                "Item": "{For Thai Green Paste}thai green chillies",
+                "id": "jqg3"
+              },
+              {
+                "Rownum": 3,
+                "Qty": "1",
+                "Unit": "tablespoon",
+                "Item": "{For Thai Green Paste}galangal powder",
+                "id": "jqg4"
+              },
+              {
+                "Rownum": 4,
+                "Qty": "2",
+                "Unit": "tablespoon",
+                "Item": "{For Thai Green Paste}lemon grass powder",
+                "id": "jqg5"
+              },
+              {
+                "Rownum": 5,
+                "Qty": "1",
+                "Unit": "teaspoon",
+                "Item": "{For Thai Green Paste}ginger paste",
+                "id": "jqg6"
+              },
+              {
+                "Rownum": 6,
+                "Qty": "1",
+                "Unit": "teaspoon",
+                "Item": "{For Thai Green Paste}ground coriander powder",
+                "id": "jqg7"
+              },
+              {
+                "Rownum": 7,
+                "Qty": "½",
+                "Unit": "",
+                "Item": "{For Thai Green Paste}fresh blanched basil leaves",
+                "id": "jqg12"
+              },
+              {
+                "Rownum": 8,
+                "Qty": "½",
+                "Unit": "teaspoon",
+                "Item": "{For Thai Green Paste}salt",
+                "id": "jqg8"
+              },
+              {
+                "Rownum": 9,
+                "Qty": "½",
+                "Unit": "teaspoon",
+                "Item": "{For Thai Green Paste}ground cumin powder",
+                "id": "jqg9"
+              },
+              {
+                "Rownum": 10,
+                "Qty": "1/3",
+                "Unit": "cup",
+                "Item": "{For Thai Green Paste}coconut milk",
+                "id": "jqg10"
+              },
+              {
+                "Rownum": 11,
+                "Qty": "1",
+                "Unit": "teaspoon",
+                "Item": "{For Thai Green Paste}palm sugar",
+                "id": "jqg11"
+              },
+              {
+                "Rownum": 12,
+                "Qty": "2",
+                "Unit": "",
+                "Item": "{For Thai Curry}small carrots cut lengthwise",
+                "id": "jqg14"
+              },
+              {
+                "Rownum": 13,
+                "Qty": "1 1/2",
+                "Unit": "cups",
+                "Item": "{For Thai Curry}green beans cut lengthwise",
+                "id": "jqg15"
+              },
+              {
+                "Rownum": 14,
+                "Qty": "1",
+                "Unit": "",
+                "Item": "{For Thai Curry} diced red bell pepper ",
+                "id": "jqg16"
+              },
+              {
+                "Rownum": 15,
+                "Qty": "8",
+                "Unit": "",
+                "Item": "{For Thai Curry}small diced asian aubergines (eggplants)",
+                "id": "jqg17"
+              },
+              {
+                "Rownum": 16,
+                "Qty": "",
+                "Unit": "",
+                "Item": "{For Thai Curry}6oz diced extra firm tofu",
+                "id": "jqg18"
+              },
+              {
+                "Rownum": 17,
+                "Qty": "",
+                "Unit": "",
+                "Item": "{For Thai Curry}14oz can coconut milk",
+                "id": "jqg19"
+              },
+              {
+                "Rownum": 18,
+                "Qty": "2",
+                "Unit": "cups",
+                "Item": "{For Thai Curry}water",
+                "id": "jqg20"
+              },
+              {
+                "Rownum": 19,
+                "Qty": "1",
+                "Unit": "teaspoon",
+                "Item": "{For Thai Curry}miso paste",
+                "id": "jqg21"
+              },
+              {
+                "Rownum": 20,
+                "Qty": "2",
+                "Unit": "teaspoon",
+                "Item": "{For Thai Curry}mirin",
+                "id": "jqg22"
+              },
+              {
+                "Rownum": 21,
+                "Qty": "1",
+                "Unit": "tablespoon",
+                "Item": "{For Thai Curry}palm sugar",
+                "id": "jqg23"
+              },
+              {
+                "Rownum": 22,
+                "Qty": "",
+                "Unit": "",
+                "Item": "{For Thai Curry}salt to taste",
+                "id": "jqg24"
+              },
+              {
+                "Rownum": 23,
+                "Qty": "",
+                "Unit": "",
+                "Item": "{For Thai Curry}juice of 1 lime",
+                "id": "jqg25"
+              }
+            ],
+            "method": [
+              {
+                "Rownum": 0,
+                "Directions": "{For Thai Green Paste}In a liquidiser / blender add all the Thai green paste ingredients and blend to a smooth thick consistency.",
+                "id": "jqg13"
+              },
+              {
+                "Rownum": 1,
+                "Directions": "{For Thai Curry}Heat a heavy bottom pan on medium high flame, add ¼ cup coconut milk, ¼ cup thai green paste. Saute for a 1 min.",
+                "id": "jqg26"
+              },
+              {
+                "Rownum": 2,
+                "Directions": "{For Thai Curry}Add green beans, red bell pepper, carrots, tofu, asian eggplant / aubergines, sauté for a few 4 to 5 mins.",
+                "id": "jqg27"
+              },
+              {
+                "Rownum": 3,
+                "Directions": "{For Thai Curry}Add remaining of the coconut milk and 2 cups of water.",
+                "id": "jqg28"
+              },
+              {
+                "Rownum": 4,
+                "Directions": "{For Thai Curry}Cover pan and on a gentle heat, simmer for 5 to 7 mins or until vegetable are tender.",
+                "id": "jqg29"
+              },
+              {
+                "Rownum": 5,
+                "Directions": "{For Thai Curry}Blend miso paste and mirin together and add.",
+                "id": "jqg30"
+              },
+              {
+                "Rownum": 6,
+                "Directions": "{For Thai Curry}Add palm sugar, salt, lime juice.",
+                "id": "jqg31"
+              },
+              {
+                "Rownum": 7,
+                "Directions": "{For Thai Curry}Serve hot with thai or black rice.",
+                "id": "jqg32"
+              }
+            ]
+          },
+          "publishDate": "May 21, 2016 5:30:05 AM",
+          "totalRatingCount": 64,
+          "totalViews": "2,761",
+          "totalDownloads": "5",
+          "length": "0",
+          "relatedFiles": [],
+          "audioDownloadUrl": "/d/a/workspace/SpacesStore/b6c44d17-720f-428c-aec0-cb917997c3b3/Thai%20Green%20Curry%20Vegan.mp3",
+          "downloadUrl": "/d/a/workspace/SpacesStore/9a5c3967-1f6f-4fe7-887b-277417be7d8f/Thai%20Green%20Curry%20Vegan.mp4"
+        }
+      ],
+      "total": 1,
+      "youtubeId": "3fwXtOaZb0o"
+    },
+    {
+      "nodeRef": "workspace://SpacesStore/10e08ff1-c1ea-4888-8e93-e2532bf283c2",
+      "id": "10e08ff1-c1ea-4888-8e93-e2532bf283c2",
+      "name": "Pasta Sauce.mp4",
+      "qnamePath": "/app:company_home/st:sites/cm:iwebsite/cm:documentLibrary/cm:Recipes/cm:Pasta_x0020_Sauce.mp4",
+      "mimetype": "video/mp4",
+      "title": "Pasta Sauce",
+      "author": "",
+      "created": "06-Mar-2016 00:59:31",
+      "creator": "helen_hall",
+      "description": "Lickabily good pasta sauce. Made with tomatoes and red bell peppers. This sauce does not need any sugar as the sweetness comes from the peppers.",
+      "overlayImage": "/d/a/workspace/SpacesStore/f36db335-aee6-40a9-b2a6-17af62592560/doclib.jpg",
+      "overlayThumbnail": "/d/a/workspace/SpacesStore/72aee496-71d5-4ecb-91f3-59c5aed1c2dc/doclib",
+      "size": "19,617,605",
+      "commentCount": "0",
+      "apprvdCommentCnt": "1",
+      "avgRating": 3.4,
+      "publishDate": "21-May-2016 05:29:56",
+      "totalRatingCount": 4,
+      "totalViews": "3,274",
+      "totalDownloads": "3",
+      "length": "0",
+      "relatedFiles": [],
+      "downloadUrl": "/d/a/workspace/SpacesStore/10e08ff1-c1ea-4888-8e93-e2532bf283c2/Pasta%20Sauce.mp4",
+      "list": [
+        {
+          "nodeRef": "workspace://SpacesStore/10e08ff1-c1ea-4888-8e93-e2532bf283c2",
+          "id": "10e08ff1-c1ea-4888-8e93-e2532bf283c2",
+          "name": "Pasta Sauce.mp4",
+          "qnamePath": "/app:company_home/st:sites/cm:iwebsite/cm:documentLibrary/cm:Recipes/cm:Pasta_x0020_Sauce.mp4",
+          "mimetype": "video/mp4",
+          "title": "Pasta Sauce",
+          "author": "",
+          "created": "Mar 6, 2016 12:59:31 AM",
+          "creator": "helen_hall",
+          "description": "Lickabily good pasta sauce. Made with tomatoes and red bell peppers. This sauce does not need any sugar as the sweetness comes from the peppers.",
+          "overlayImage": "/d/a/workspace/SpacesStore/f36db335-aee6-40a9-b2a6-17af62592560/doclib.jpg",
+          "overlayThumbnail": "/d/a/workspace/SpacesStore/72aee496-71d5-4ecb-91f3-59c5aed1c2dc/doclib",
+          "size": "19,617,605",
+          "commentCount": "",
+          "apprvdCommentCnt": "1",
+          "avgRating": 3.4,
+          "recipe": {
+            "ingr": [
+              {
+                "Rownum": 0,
+                "Qty": "2",
+                "Unit": "tablespoon",
+                "Item": "olive oil",
+                "id": "jqg1"
+              },
+              {
+                "Rownum": 1,
+                "Qty": "",
+                "Unit": "",
+                "Item": "red chilli flakes to taste",
+                "id": "jqg2"
+              },
+              {
+                "Rownum": 2,
+                "Qty": "",
+                "Unit": "",
+                "Item": "salt to taste",
+                "id": "jqg3"
+              },
+              {
+                "Rownum": 3,
+                "Qty": "2",
+                "Unit": "cups",
+                "Item": "fresh or can tomatoes",
+                "id": "jqg4"
+              },
+              {
+                "Rownum": 4,
+                "Qty": "2",
+                "Unit": "cups",
+                "Item": "diced red bell pepper",
+                "id": "jqg5"
+              },
+              {
+                "Rownum": 5,
+                "Qty": "½",
+                "Unit": "cup",
+                "Item": "water",
+                "id": "jqg6"
+              },
+              {
+                "Rownum": 6,
+                "Qty": "1 ½",
+                "Unit": "cups",
+                "Item": "tomato juice (drained from can tomatoes)",
+                "id": "jqg7"
+              },
+              {
+                "Rownum": 7,
+                "Qty": "½",
+                "Unit": "cup",
+                "Item": "soya granules",
+                "id": "jqg8"
+              },
+              {
+                "Rownum": 8,
+                "Qty": "1/3",
+                "Unit": "cup",
+                "Item": "chopped fresh parsley",
+                "id": "jqg9"
+              },
+              {
+                "Rownum": 9,
+                "Qty": "1/3",
+                "Unit": "cup",
+                "Item": "chopped fresh basil",
+                "id": "jqg10"
+              },
+              {
+                "Rownum": 10,
+                "Qty": "2",
+                "Unit": "tablespoon",
+                "Item": "fresh oregano",
+                "id": "jqg11"
+              },
+              {
+                "Rownum": 11,
+                "Qty": "1",
+                "Unit": "teaspoon",
+                "Item": "dried oregano",
+                "id": "jqg12"
+              }
+            ],
+            "method": [
+              {
+                "Rownum": 0,
+                "Directions": "Heat a frying pan, add oil, chili flakes, dried oregano. Sauté for a few seconds.",
+                "id": "jqg13"
+              },
+              {
+                "Rownum": 1,
+                "Directions": "On medium high flame add tomatoes, diced red bell peppers, fresh oregano, salt and water.",
+                "id": "jqg14"
+              },
+              {
+                "Rownum": 2,
+                "Directions": "Cover pan and cook for 20 mins, stirring gently occasionally, finally add the reserved tomato juice.",
+                "id": "jqg15"
+              },
+              {
+                "Rownum": 3,
+                "Directions": "Use an electric blender to grind. Continue cooking to a thick consistency.",
+                "id": "jqg16"
+              },
+              {
+                "Rownum": 4,
+                "Directions": "Add soya granule, finish with fresh parsley and basil.",
+                "id": "jqg17"
+              },
+              {
+                "Rownum": 5,
+                "Directions": "Serve sauce with your favourite pasta.",
+                "id": "jqg18"
+              }
+            ]
+          },
+          "publishDate": "May 21, 2016 5:29:56 AM",
+          "totalRatingCount": 4,
+          "totalViews": "3,274",
+          "totalDownloads": "3",
+          "length": "0",
+          "relatedFiles": [],
+          "audioDownloadUrl": "/d/a/workspace/SpacesStore/eb1513a6-83e8-451c-8898-af92045dbc73/Pasta%20Sauce.mp3",
+          "downloadUrl": "/d/a/workspace/SpacesStore/10e08ff1-c1ea-4888-8e93-e2532bf283c2/Pasta%20Sauce.mp4"
+        }
+      ],
+      "total": 1,
+      "youtubeId": "Xcn88xggB8w"
+    }
+  ]
+}

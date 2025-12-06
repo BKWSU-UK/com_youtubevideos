@@ -208,6 +208,11 @@ class HtmlView extends BaseHtmlView
             ->icon('icon-upload')
             ->url('index.php?option=com_youtubevideos&view=import&type=videos');
 
+        $toolbar->linkButton('import-recipes')
+            ->text('COM_YOUTUBEVIDEOS_IMPORT_RECIPES')
+            ->icon('icon-upload')
+            ->url('index.php?option=com_youtubevideos&view=import&type=recipes');
+
         $toolbar->linkButton('export')
             ->text('COM_YOUTUBEVIDEOS_EXPORT')
             ->icon('icon-download')

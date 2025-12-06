@@ -33,7 +33,9 @@ class FeaturedModel extends ListModel
                 'created', 'a.created',
                 'created_by', 'a.created_by',
                 'category_id', 'a.category_id',
+                'category_title', 'c.title',
                 'playlist_id', 'a.playlist_id',
+                'playlist_title', 'p.title',
                 'access', 'a.access',
                 'language', 'a.language',
             ];

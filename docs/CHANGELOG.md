@@ -5,6 +5,43 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.30] - 2025-12-06
+
+### Added
+- **Recipe Feature:** Videos can now be marked as recipe videos with structured cooking instructions
+- **Recipe Data Structure:** Added `recipe_type` and `recipe_data` fields to videos table
+- **Recipe Admin Form:** New Recipe tab in video edit form with subforms for ingredients and method
+- **Ingredient Management:** Repeatable subform for managing recipe ingredients with quantity, unit, item, and optional group/section
+- **Method Management:** Repeatable subform for managing recipe method steps with numbered directions
+- **Recipe Data Validation:** JSON validation for recipe data structure in FeaturedTable
+- **Recipe Frontend Display:** Attractive Bootstrap 5 card-based layout for displaying recipes on the frontend
+- **Grouped Ingredients:** Support for ingredient grouping with section headings (e.g., "For Thai Green Paste")
+- **Numbered Method Steps:** Styled numbered list with circular step indicators for recipe method
+- **JSON Recipe Import:** Support for importing recipes from JSON files with fuzzy matching to existing videos
+- **Fuzzy Matching Algorithm:** Intelligent matching of imported recipes to existing videos by title and description
+- **Recipe Import Statistics:** Detailed import reporting showing matched, skipped, and error counts
+- **Recipe CSS Styling:** Custom responsive styles for recipe display with hover effects and transitions
+
+### Changed
+- **Import Controller:** Extended to handle both XML and JSON file imports
+- **Import Service:** Added JSON parsing, recipe import, and fuzzy matching methods
+- **Import Form:** Updated to accept both XML and JSON file types
+- **Video Model (Admin):** Enhanced to encode/decode recipe data during save/load operations
+- **Video Model (Site):** Updated to load and decode recipe data for frontend display
+- **Component Version:** Updated to 1.0.30
+
+### Technical
+- Created database migration file `1.0.30.sql` with schema updates
+- Created recipe ingredient subform (`admin/forms/recipe_ingredient.xml`)
+- Created recipe method subform (`admin/forms/recipe_method.xml`)
+- Added recipe tab to admin video edit template
+- Implemented recipe display section in frontend video template
+- Added comprehensive language strings for recipe functionality in both admin and site language files
+- Recipe data stored as JSON in TEXT field for flexibility and performance
+- Fuzzy matching uses PHP's `similar_text()` function with 70% threshold
+- Import process extracts relevant fields from JSON recipe files and matches by youtubeId, title, or description
+- Recipe display supports responsive layout with mobile-optimised styling
+
 ## [1.0.29] - 2025-11-22
 
 ### Fixed

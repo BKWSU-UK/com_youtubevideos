@@ -103,6 +103,28 @@ $this->useCoreUI = true;
         </div>
         <?php echo HTMLHelper::_('uitab.endTab'); ?>
 
+        <?php echo HTMLHelper::_('uitab.addTab', 'myTab', 'recipe', Text::_('COM_YOUTUBEVIDEOS_FIELDSET_RECIPE')); ?>
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <?php echo $this->form->renderField('recipe_type'); ?>
+                    </div>
+                </div>
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <?php echo $this->form->renderField('recipe_ingredients'); ?>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <?php echo $this->form->renderField('recipe_method'); ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php echo HTMLHelper::_('uitab.endTab'); ?>
+
         <?php echo HTMLHelper::_('uitab.endTabSet'); ?>
     </div>
 

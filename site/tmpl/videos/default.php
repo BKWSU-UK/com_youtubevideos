@@ -65,38 +65,73 @@ $itemIdParam = $itemId > 0 ? '&Itemid=' . $itemId : '';
             $gridClass = 'video-grid video-grid--' . $videosPerRow . '-cols';
             ?>
             <div class="com-youtubevideos-videos__items <?php echo $gridClass; ?>">
-                <?php foreach ($this->items as $video) : ?>
-                    <div class="video-item"
-                        data-video-id="<?php echo $this->escape($video->videoId); ?>"
-                        data-video-title="<?php echo htmlspecialchars($video->title, ENT_QUOTES, 'UTF-8'); ?>"
-                        data-video-description="<?php echo htmlspecialchars($video->description ?? '', ENT_QUOTES, 'UTF-8'); ?>"
-                        data-bs-toggle="modal"
-                        data-bs-target="#videoModal"
-                        role="button"
-                        tabindex="0"
-                        aria-label="<?php echo $this->escape($video->title); ?>">
-                        <div class="video-item__thumbnail thumbnail">
-                            <?php
-                            $thumbnailUrl = $video->thumbnails->medium->url ?? $video->thumbnails->high->url ?? $video->thumbnails->default->url ?? 'https://img.youtube.com/vi/' . $video->videoId . '/maxresdefault.jpg';
-                            ?>
-                            <img src="<?php echo $this->escape($thumbnailUrl); ?>"
-                                alt="<?php echo $this->escape($video->title); ?>"
-                                loading="lazy">
-                            <?php if (isset($video->duration)) : ?>
-                                <span class="video-item__duration duration">
-                                    <?php echo $this->escape($video->duration); ?>
-                                </span>
+                <?php foreach ($this->items as $video) :
+                    $isRecipe = !empty($video->isRecipe);
+                    $videoLink = $isRecipe
+                        ? Route::_('index.php?option=com_youtubevideos&view=video&id=' . (int) $video->id . $itemIdParam)
+                        : '';
+                    $thumbnailUrl = $video->thumbnails->medium->url
+                        ?? $video->thumbnails->high->url
+                        ?? $video->thumbnails->default->url
+                        ?? 'https://img.youtube.com/vi/' . $video->videoId . '/maxresdefault.jpg';
+                ?>
+                    <?php if ($isRecipe) : ?>
+                        <a href="<?php echo $videoLink; ?>"
+                           class="video-item video-item--recipe text-decoration-none"
+                           aria-label="<?php echo $this->escape($video->title); ?>">
+                            <div class="video-item__thumbnail thumbnail">
+                                <img src="<?php echo $this->escape($thumbnailUrl); ?>"
+                                    alt="<?php echo $this->escape($video->title); ?>"
+                                    loading="lazy">
+                                <span class="badge bg-success recipe-badge"><?php echo Text::_('COM_YOUTUBEVIDEOS_RECIPE'); ?></span>
+                                <?php if (isset($video->duration)) : ?>
+                                    <span class="video-item__duration duration">
+                                        <?php echo $this->escape($video->duration); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                            <h3 class="video-item__title">
+                                <?php echo $this->escape($video->title); ?>
+                            </h3>
+                            <?php if ($this->params->get('show_description', 1) && !empty($video->description)) : ?>
+                                <p class="video-item__description">
+                                    <?php echo HTMLHelper::_('string.truncate', strip_tags($video->description), 100); ?>
+                                </p>
+                            <?php endif; ?>
+                            <span class="recipe-link text-success fw-semibold">
+                                <?php echo Text::_('COM_YOUTUBEVIDEOS_VIEW_RECIPE'); ?>
+                            </span>
+                        </a>
+                    <?php else : ?>
+                        <div class="video-item"
+                            data-video-id="<?php echo $this->escape($video->videoId); ?>"
+                            data-video-title="<?php echo htmlspecialchars($video->title, ENT_QUOTES, 'UTF-8'); ?>"
+                            data-video-description="<?php echo htmlspecialchars($video->description ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                            data-bs-toggle="modal"
+                            data-bs-target="#videoModal"
+                            role="button"
+                            tabindex="0"
+                            aria-label="<?php echo $this->escape($video->title); ?>">
+                            <div class="video-item__thumbnail thumbnail">
+                                <img src="<?php echo $this->escape($thumbnailUrl); ?>"
+                                    alt="<?php echo $this->escape($video->title); ?>"
+                                    loading="lazy">
+                                <?php if (isset($video->duration)) : ?>
+                                    <span class="video-item__duration duration">
+                                        <?php echo $this->escape($video->duration); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                            <h3 class="video-item__title">
+                                <?php echo $this->escape($video->title); ?>
+                            </h3>
+                            <?php if ($this->params->get('show_description', 1) && !empty($video->description)) : ?>
+                                <p class="video-item__description">
+                                    <?php echo HTMLHelper::_('string.truncate', strip_tags($video->description), 100); ?>
+                                </p>
                             <?php endif; ?>
                         </div>
-                        <h3 class="video-item__title">
-                            <?php echo $this->escape($video->title); ?>
-                        </h3>
-                        <?php if ($this->params->get('show_description', 1) && !empty($video->description)) : ?>
-                            <p class="video-item__description">
-                                <?php echo HTMLHelper::_('string.truncate', strip_tags($video->description), 100); ?>
-                            </p>
-                        <?php endif; ?>
-                    </div>
+                    <?php endif; ?>
                 <?php endforeach; ?>
             </div>
 

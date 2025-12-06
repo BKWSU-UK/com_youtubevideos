@@ -7,7 +7,7 @@
             label="COM_YOUTUBEVIDEOS_IMPORT_FILE_LABEL"
             description="COM_YOUTUBEVIDEOS_IMPORT_FILE_DESC"
             required="true"
-            accept="text/xml,application/xml,.xml"
+            accept="text/xml,application/xml,.xml,application/json,.json"
         />
         
         <field

@@ -53,43 +53,62 @@ class ImportController extends FormController
 
             $file = $files['import_file'];
 
-            // Validate file type
-            if ($file['type'] !== 'text/xml' && $file['type'] !== 'application/xml') {
-                throw new \Exception(Text::_('COM_YOUTUBEVIDEOS_IMPORT_INVALID_FILE_TYPE'));
-            }
-
             // Read file content
-            $xmlContent = file_get_contents($file['tmp_name']);
+            $fileContent = file_get_contents($file['tmp_name']);
 
-            if ($xmlContent === false) {
+            if ($fileContent === false) {
                 throw new \Exception(Text::_('COM_YOUTUBEVIDEOS_IMPORT_FILE_READ_ERROR'));
             }
 
             // Import data
             $importService = new ImportService();
-            $xml = $importService->parseXML($xmlContent);
+            $stats = [];
 
-            if ($xml === false) {
-                $stats = $importService->getStats();
-                throw new \Exception(implode('; ', $stats['errors']));
-            }
+            // Handle different import types
+            if ($type === 'recipes') {
+                // Validate JSON file type
+                if ($file['type'] !== 'application/json' && !str_ends_with($file['name'], '.json')) {
+                    throw new \Exception(Text::_('COM_YOUTUBEVIDEOS_IMPORT_INVALID_FILE_TYPE_JSON'));
+                }
 
-            // Perform import based on type
-            switch ($type) {
-                case 'categories':
-                    $stats = $importService->importCategories($xml);
-                    break;
-                
-                case 'playlists':
-                    $stats = $importService->importPlaylists($xml);
-                    break;
-                
-                case 'videos':
-                    $stats = $importService->importVideos($xml);
-                    break;
-                
-                default:
-                    throw new \Exception(Text::sprintf('COM_YOUTUBEVIDEOS_IMPORT_INVALID_TYPE', $type));
+                $jsonData = $importService->parseJSON($fileContent);
+
+                if ($jsonData === false) {
+                    $stats = $importService->getStats();
+                    throw new \Exception(implode('; ', $stats['errors']));
+                }
+
+                $stats = $importService->importRecipes($jsonData);
+            } else {
+                // Validate XML file type
+                if ($file['type'] !== 'text/xml' && $file['type'] !== 'application/xml') {
+                    throw new \Exception(Text::_('COM_YOUTUBEVIDEOS_IMPORT_INVALID_FILE_TYPE'));
+                }
+
+                $xml = $importService->parseXML($fileContent);
+
+                if ($xml === false) {
+                    $stats = $importService->getStats();
+                    throw new \Exception(implode('; ', $stats['errors']));
+                }
+
+                // Perform import based on type
+                switch ($type) {
+                    case 'categories':
+                        $stats = $importService->importCategories($xml);
+                        break;
+                    
+                    case 'playlists':
+                        $stats = $importService->importPlaylists($xml);
+                        break;
+                    
+                    case 'videos':
+                        $stats = $importService->importVideos($xml);
+                        break;
+                    
+                    default:
+                        throw new \Exception(Text::sprintf('COM_YOUTUBEVIDEOS_IMPORT_INVALID_TYPE', $type));
+                }
             }
 
             // Check for errors

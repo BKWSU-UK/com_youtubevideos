@@ -52,6 +52,18 @@
             />
 
         <field
+            name="recipe_type"
+            type="list"
+            label="COM_YOUTUBEVIDEOS_FIELD_RECIPE_TYPE_LABEL"
+            description="COM_YOUTUBEVIDEOS_FIELD_RECIPE_TYPE_DESC"
+            class="custom-select"
+            default="0"
+            >
+            <option value="0">COM_YOUTUBEVIDEOS_RECIPE_TYPE_NONE</option>
+            <option value="1">COM_YOUTUBEVIDEOS_RECIPE_TYPE_RECIPE</option>
+        </field>
+
+        <field
             name="custom_thumbnail"
             type="media"
             label="COM_YOUTUBEVIDEOS_FIELD_CUSTOM_THUMBNAIL_LABEL"
@@ -212,10 +224,40 @@
         >
         <field
             name="params"
-            type="subform"
+            type="textarea"
             label="COM_YOUTUBEVIDEOS_FIELD_PARAMS_LABEL"
             description="COM_YOUTUBEVIDEOS_FIELD_PARAMS_DESC"
-            multiple="false"
+            rows="5"
+            cols="40"
+            />
+    </fieldset>
+
+    <fieldset
+        name="recipe"
+        label="COM_YOUTUBEVIDEOS_FIELDSET_RECIPE"
+        >
+        <field
+            name="recipe_ingredients"
+            type="subform"
+            label="COM_YOUTUBEVIDEOS_FIELD_RECIPE_INGREDIENTS_LABEL"
+            description="COM_YOUTUBEVIDEOS_FIELD_RECIPE_INGREDIENTS_DESC"
+            multiple="true"
+            formsource="administrator/components/com_youtubevideos/forms/recipe_ingredient.xml"
+            min="0"
+            max="100"
+            showon="recipe_type:1"
+            />
+
+        <field
+            name="recipe_method"
+            type="subform"
+            label="COM_YOUTUBEVIDEOS_FIELD_RECIPE_METHOD_LABEL"
+            description="COM_YOUTUBEVIDEOS_FIELD_RECIPE_METHOD_DESC"
+            multiple="true"
+            formsource="administrator/components/com_youtubevideos/forms/recipe_method.xml"
+            min="0"
+            max="50"
+            showon="recipe_type:1"
             />
     </fieldset>
 </form>
