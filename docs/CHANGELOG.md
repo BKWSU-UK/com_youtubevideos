@@ -5,6 +5,14 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.31] - 2025-12-07
+
+### Fixed
+- **Default Category Preselection:** The configured "Default Category" in menu item parameters is now correctly preselected in the category dropdown when users first visit the videos page
+
+### Technical
+- Added `loadFormData()` method to `VideosModel` to bind filter state values (including default category) to the filter form
+
 ## [1.0.30] - 2025-12-06
 
 ### Added

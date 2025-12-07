@@ -46,6 +46,27 @@ class HtmlView extends BaseHtmlView
     protected $params;
 
     /**
+     * Filter form for playlist search
+     *
+     * @var    \Joomla\CMS\Form\Form|null
+     */
+    public $filterForm;
+
+    /**
+     * Active filters
+     *
+     * @var    array
+     */
+    public $activeFilters = [];
+
+    /**
+     * View state
+     *
+     * @var    \Joomla\CMS\Object\CMSObject|null
+     */
+    protected $state;
+
+    /**
      * Execute and display a template script.
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -59,17 +80,22 @@ class HtmlView extends BaseHtmlView
     {
         $app = Factory::getApplication();
         $this->params = $app->getParams();
+        $this->state = $this->get('State');
         $this->playlist = $this->get('Item');
         $this->videos = $this->get('Videos');
         $this->currentVideo = $this->get('CurrentVideo');
+        $this->filterForm = $this->get('FilterForm');
+        $this->activeFilters = $this->get('ActiveFilters');
 
         // Check for errors
         if (count($errors = $this->get('Errors'))) {
             throw new \Exception(implode("\n", $errors), 500);
         }
 
+        $searchTerm = trim((string) $this->state->get('filter.search'));
+
         // Check if we have videos
-        if (empty($this->videos)) {
+        if (empty($this->videos) && $searchTerm === '') {
             throw new \Exception(Text::_('COM_YOUTUBEVIDEOS_ERROR_NO_VIDEOS_IN_PLAYLIST'), 404);
         }
 

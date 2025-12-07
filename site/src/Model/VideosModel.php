@@ -3,6 +3,7 @@
 namespace BKWSU\Component\Youtubevideos\Site\Model;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\ListModel;
 
 /**
@@ -21,6 +22,13 @@ class VideosModel extends ListModel
     protected $context = 'com_youtubevideos.videos';
 
     /**
+     * Cached category options for the filter dropdown.
+     *
+     * @var    array|null
+     */
+    protected ?array $categoryOptions = null;
+
+    /**
      * Constructor.
      *
      * @param   array  $config  An optional associative array of configuration settings.
@@ -33,6 +41,7 @@ class VideosModel extends ListModel
             $config['filter_fields'] = [
                 'search',
                 'tag',
+                'category_id',
             ];
         }
 
@@ -71,15 +80,33 @@ class VideosModel extends ListModel
 
         $filtersInput = $app->input->get('filter', null, 'array');
 
+        $categorySubmitted = false;
+
         if ($filtersInput !== null) {
             $tagFilter = (int) ($filtersInput['tag'] ?? 0);
             $app->setUserState($this->context . '.filter.tag', $tagFilter);
+            $categoryFilter = (int) ($filtersInput['category_id'] ?? 0);
+            $app->setUserState($this->context . '.filter.category_id', $categoryFilter);
+            $app->setUserState($this->context . '.filter.category_submitted', true);
+            $categorySubmitted = true;
         } else {
             $tagFilter = (int) $app->getUserState($this->context . '.filter.tag', 0);
+            $categoryFilter = (int) $app->getUserState($this->context . '.filter.category_id', 0);
+            $categorySubmitted = (bool) $app->getUserState($this->context . '.filter.category_submitted', false);
         }
 
-
         $this->setState('filter.tag', $tagFilter);
+
+        if ($categorySubmitted) {
+            $this->setState('filter.category_id', $categoryFilter);
+        } elseif ($categoryId > 0) {
+            $this->setState('filter.category_id', $categoryId);
+        } else {
+            // Use default category from params if category filter is shown and no filter submitted
+            $showCategoryFilter = (int) $params->get('show_category_filter', 1);
+            $defaultCategoryId = $showCategoryFilter ? (int) $params->get('default_category_id', 0) : 0;
+            $this->setState('filter.category_id', $defaultCategoryId);
+        }
 
         // Call parent to set up basic pagination state first
         parent::populateState($ordering, $direction);
@@ -114,6 +141,27 @@ class VideosModel extends ListModel
             $limitstart = max(0, $limitstart);
         }
         $this->setState('list.start', $limitstart);
+    }
+
+    /**
+     * Method to get the data that should be injected in the form.
+     *
+     * @return  array  The data for the form.
+     *
+     * @since   1.0.0
+     */
+    protected function loadFormData(): array
+    {
+        return [
+            'filter' => [
+                'search'      => $this->getState('filter.search', ''),
+                'category_id' => $this->getState('filter.category_id', 0),
+                'tag'         => $this->getState('filter.tag', 0),
+            ],
+            'list' => [
+                'limit' => $this->getState('list.limit', 12),
+            ],
+        ];
     }
 
     /**
@@ -170,6 +218,45 @@ class VideosModel extends ListModel
         
         $form->setField(new \SimpleXMLElement($limitFieldXml), 'list');
 
+        $showCategoryFilter = (int) $params->get('show_category_filter', 1);
+
+        if (!$showCategoryFilter) {
+            $form->removeField('category_id', 'filter');
+
+            return $form;
+        }
+
+        $categories = $this->getCategoryOptions();
+
+        if (empty($categories)) {
+            $form->removeField('category_id', 'filter');
+
+            return $form;
+        }
+
+        $optionsXml = '<option value="">' . Text::_('COM_YOUTUBEVIDEOS_FILTER_CATEGORY_OPTION_ALL') . '</option>';
+
+        foreach ($categories as $category) {
+            $title = htmlspecialchars($category->title ?? '', ENT_QUOTES, 'UTF-8');
+            $optionsXml .= '<option value="' . (int) $category->id . '">' . $title . '</option>';
+        }
+
+        $categoryFieldXml = '
+            <field
+                name="category_id"
+                type="list"
+                label="COM_YOUTUBEVIDEOS_FILTER_CATEGORY_LABEL"
+                description="COM_YOUTUBEVIDEOS_FILTER_CATEGORY_DESC"
+                translate_label="true"
+                translate_description="true"
+                class="form-select"
+                onchange="this.form.submit();"
+            >
+                ' . $optionsXml . '
+            </field>';
+
+        $form->setField(new \SimpleXMLElement($categoryFieldXml), 'filter');
+
         return $form;
     }
 
@@ -192,10 +279,15 @@ class VideosModel extends ListModel
         // Filter by published state
         $query->where($db->quoteName('v.published') . ' = 1');
 
-        // Filter by category if set in menu item
-        $categoryId = $this->getState('category_id', 0);
-        if ($categoryId > 0) {
-            $query->where($db->quoteName('v.category_id') . ' = ' . (int) $categoryId);
+        // Filter by category (filter selection overrides request parameter)
+        $selectedCategoryId = (int) $this->getState('filter.category_id', 0);
+
+        if (!$selectedCategoryId) {
+            $selectedCategoryId = (int) $this->getState('category_id', 0);
+        }
+
+        if ($selectedCategoryId > 0) {
+            $query->where($db->quoteName('v.category_id') . ' = ' . (int) $selectedCategoryId);
         }
 
         // Filter by playlist if set in menu item
@@ -321,6 +413,37 @@ class VideosModel extends ListModel
         }
 
         return $normalized;
+    }
+
+    /**
+     * Retrieve published categories available to the current user.
+     *
+     * @return  array
+     */
+    protected function getCategoryOptions(): array
+    {
+        if ($this->categoryOptions !== null) {
+            return $this->categoryOptions;
+        }
+
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select([$db->quoteName('id'), $db->quoteName('title')])
+            ->from($db->quoteName('#__youtubevideos_categories'))
+            ->where($db->quoteName('published') . ' = 1');
+
+        $language = Factory::getLanguage()->getTag();
+        $query->whereIn($db->quoteName('language'), [$db->quote($language), $db->quote('*')]);
+
+        $user = Factory::getApplication()->getIdentity();
+        $query->whereIn($db->quoteName('access'), $user->getAuthorisedViewLevels());
+
+        $query->order($db->quoteName('ordering') . ' ASC')
+            ->order($db->quoteName('title') . ' ASC');
+
+        $this->categoryOptions = $db->setQuery($query)->loadObjectList() ?? [];
+
+        return $this->categoryOptions;
     }
 }
  

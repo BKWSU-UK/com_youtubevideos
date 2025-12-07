@@ -46,6 +46,27 @@ class HtmlView extends BaseHtmlView
     protected $params;
 
     /**
+     * The model state
+     *
+     * @var    \Joomla\CMS\Object\CMSObject
+     */
+    protected $state;
+
+    /**
+     * Filter form for search tools
+     *
+     * @var    \Joomla\CMS\Form\Form|null
+     */
+    public $filterForm;
+
+    /**
+     * Active filters
+     *
+     * @var    array
+     */
+    public $activeFilters = [];
+
+    /**
      * Execute and display a template script.
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -62,6 +83,9 @@ class HtmlView extends BaseHtmlView
         $this->category = $this->get('Category');
         $this->items = $this->get('Items');
         $this->pagination = $this->get('Pagination');
+        $this->state = $this->get('State');
+        $this->filterForm = $this->get('FilterForm');
+        $this->activeFilters = $this->get('ActiveFilters');
 
         // Check for errors
         if (count($errors = $this->get('Errors'))) {
@@ -152,7 +176,8 @@ class HtmlView extends BaseHtmlView
 
         // Add the component's media files
         $wa = $this->document->getWebAssetManager();
-        $wa->useStyle('com_youtubevideos.site.css');
+        $wa->useStyle('com_youtubevideos.site.css')
+            ->useScript('com_youtubevideos.youtube-player');
     }
 
     /**

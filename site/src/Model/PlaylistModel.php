@@ -3,8 +3,8 @@
 namespace BKWSU\Component\Youtubevideos\Site\Model;
 
 use Joomla\CMS\Factory;
-use Joomla\CMS\MVC\Model\ItemModel;
 use Joomla\CMS\Language\Multilanguage;
+use Joomla\CMS\MVC\Model\ItemModel;
 
 /**
  * Playlist Model
@@ -46,6 +46,18 @@ class PlaylistModel extends ItemModel
 
         $this->setState('filter.published', 1);
         $this->setState('filter.language', Multilanguage::isEnabled());
+
+        // Handle search filter
+        $filtersInput = $app->input->get('filter', null, 'array');
+
+        if ($filtersInput !== null) {
+            $search = trim((string) ($filtersInput['search'] ?? ''));
+            $app->setUserState($this->context . '.filter.search', $search);
+        } else {
+            $search = $app->getUserState($this->context . '.filter.search', '');
+        }
+
+        $this->setState('filter.search', $search);
     }
 
     /**
@@ -143,6 +155,19 @@ class PlaylistModel extends ItemModel
         // Order by ordering and created date
         $query->order($db->quoteName('v.ordering') . ' ASC, ' . $db->quoteName('v.created') . ' DESC');
 
+        // Apply search filter
+        $search = trim((string) $this->getState('filter.search'));
+
+        if ($search !== '') {
+            $token = '%' . $db->escape($search, true) . '%';
+            $query->where(
+                '(' . $db->quoteName('v.title') . ' LIKE :playlistSearchTitle OR ' .
+                $db->quoteName('v.description') . ' LIKE :playlistSearchDesc)'
+            )
+                ->bind(':playlistSearchTitle', $token)
+                ->bind(':playlistSearchDesc', $token);
+        }
+
         $db->setQuery($query);
 
         try {
@@ -184,6 +209,40 @@ class PlaylistModel extends ItemModel
     }
 
     /**
+     * Retrieve the filter form.
+     *
+     * @param   array    $data      Data to bind.
+     * @param   boolean  $loadData  Load own data.
+     *
+     * @return  \Joomla\CMS\Form\Form|false
+     */
+    public function getFilterForm($data = [], $loadData = true)
+    {
+        $form = $this->loadForm(
+            $this->context . '.filter',
+            'filter_playlist',
+            [
+                'control'   => '',
+                'load_data' => $loadData,
+            ]
+        );
+
+        return $form ?: false;
+    }
+
+    /**
+     * Get active filters for the playlist view.
+     *
+     * @return  array
+     */
+    public function getActiveFilters(): array
+    {
+        return [
+            'filter.search' => $this->getState('filter.search'),
+        ];
+    }
+
+    /**
      * Increment the hit counter for the playlist.
      *
      * @param   integer  $pk  Primary key of the playlist to increment.
@@ -222,4 +281,6 @@ class PlaylistModel extends ItemModel
         return false;
     }
 }
+
+
 
