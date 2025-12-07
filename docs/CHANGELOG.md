@@ -5,6 +5,16 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.32] - 2025-12-07
+
+### Fixed
+- **Playlist View Error:** Fixed "Call to undefined method PlaylistModel::loadForm()" error when accessing playlist view on frontend
+
+### Technical
+- Added `loadForm()` method implementation to `PlaylistModel` since `ItemModel` does not provide this method (unlike `ListModel`)
+- Added `loadFormData()` method to provide filter data binding support when forms are loaded with `load_data => true`
+- Form data is properly bound to filter forms for search functionality in playlist view
+
 ## [1.0.31] - 2025-12-07
 
 ### Fixed

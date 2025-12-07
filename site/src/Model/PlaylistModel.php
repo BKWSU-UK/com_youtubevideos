@@ -3,6 +3,7 @@
 namespace BKWSU\Component\Youtubevideos\Site\Model;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Form\Form;
 use Joomla\CMS\Language\Multilanguage;
 use Joomla\CMS\MVC\Model\ItemModel;
 
@@ -13,6 +14,7 @@ use Joomla\CMS\MVC\Model\ItemModel;
  */
 class PlaylistModel extends ItemModel
 {
+    protected $forms = [];
     /**
      * Model context string.
      *
@@ -209,12 +211,65 @@ class PlaylistModel extends ItemModel
     }
 
     /**
+     * Method to get the data that should be injected in the form.
+     *
+     * @return  array  The data for the form.
+     *
+     * @since   1.0.0
+     */
+    protected function loadFormData(): array
+    {
+        return [
+            'filter' => [
+                'search' => $this->getState('filter.search', ''),
+            ],
+        ];
+    }
+
+    /**
+     * Load a form.
+     *
+     * @param   string   $name     The name of the form.
+     * @param   string   $source   The form source (XML file name without path/extension).
+     * @param   array    $options  Optional array of options for the form.
+     * @param   boolean  $clear    Clear the form if already exists.
+     * @param   string   $xpath    Optional xpath to filter the form.
+     *
+     * @return  Form|false
+     */
+    protected function loadForm(string $name, string $source, array $options = [], bool $clear = false, string $xpath = ''): Form|false
+    {
+        $hash = md5($source . serialize($options));
+
+        if (isset($this->forms[$hash]) && !$clear) {
+            return $this->forms[$hash];
+        }
+
+        Form::addFormPath(JPATH_SITE . '/components/com_youtubevideos/forms');
+
+        try {
+            $form = Form::getInstance($name, $source, $options, false, $xpath);
+            
+            if ($form && !empty($options['load_data'])) {
+                $data = $this->loadFormData();
+                $form->bind($data);
+            }
+        } catch (\Exception $e) {
+            return false;
+        }
+
+        $this->forms[$hash] = $form;
+
+        return $form;
+    }
+
+    /**
      * Retrieve the filter form.
      *
      * @param   array    $data      Data to bind.
      * @param   boolean  $loadData  Load own data.
      *
-     * @return  \Joomla\CMS\Form\Form|false
+     * @return  Form|false
      */
     public function getFilterForm($data = [], $loadData = true)
     {
