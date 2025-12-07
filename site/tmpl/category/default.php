@@ -12,7 +12,6 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
-use Joomla\CMS\Layout\LayoutHelper;
 use Joomla\CMS\Router\Route;
 
 /** @var \BKWSU\Component\Youtubevideos\Site\View\Category\HtmlView $this */
@@ -60,8 +59,47 @@ $wa->useStyle('com_youtubevideos.site.css');
             </div>
         <?php endif; ?>
 
-        <?php if ($params->get('show_search_bar', 1)) : ?>
-            <?php echo LayoutHelper::render('joomla.searchtools.default', ['view' => $this]); ?>
+        <?php
+        $showSearchBar = (int) $params->get('show_search_bar', 1);
+        if ($showSearchBar) :
+            $filterForm = $this->filterForm;
+            $searchValue = $this->state->get('filter.search', '');
+            $limitField = $filterForm ? $filterForm->getField('limit', 'list') : null;
+        ?>
+            <div class="com-youtubevideos-videos__filters mb-4">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <div class="input-group">
+                            <input type="text" 
+                                   name="filter[search]" 
+                                   id="filter_search" 
+                                   value="<?php echo $this->escape($searchValue); ?>" 
+                                   class="form-control" 
+                                   placeholder="<?php echo Text::_('JSEARCH_FILTER'); ?>">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search" aria-hidden="true"></i>
+                                <span class="visually-hidden"><?php echo Text::_('JSEARCH_FILTER_SUBMIT'); ?></span>
+                            </button>
+                            <?php if (!empty($searchValue)) : ?>
+                                <a href="<?php echo Route::_($categoryRouteBase . '&filter[search]=&limitstart=0' . $itemIdParam); ?>" 
+                                   class="btn btn-secondary" 
+                                   title="<?php echo Text::_('JSEARCH_FILTER_CLEAR'); ?>">
+                                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    
+                    <?php if ($limitField) : ?>
+                        <div class="col-auto ms-auto">
+                            <div class="d-flex align-items-center gap-2">
+                                <label for="list_limit" class="form-label mb-0 text-nowrap small"><?php echo Text::_('JGLOBAL_DISPLAY_NUM'); ?></label>
+                                <?php echo $limitField->input; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
         <?php endif; ?>
 
         <?php if (empty($videos)) : ?>
