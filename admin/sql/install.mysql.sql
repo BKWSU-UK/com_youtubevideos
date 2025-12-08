@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS `#__youtubevideos_statistics` (
     `youtube_video_id` varchar(100) NOT NULL,
     `views` int unsigned NOT NULL DEFAULT '0',
     `likes` int unsigned NOT NULL DEFAULT '0',
+    `comments` int unsigned NOT NULL DEFAULT '0',
     `last_updated` datetime NOT NULL,
     `params` text,
     PRIMARY KEY (`id`),
