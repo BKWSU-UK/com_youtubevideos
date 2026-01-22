@@ -27,7 +27,7 @@ $wa->useStyle('com_youtubevideos.site.css');
 // Prepare YouTube embed parameters
 $embedParams = [
     'autoplay' => $params->get('autoplay', 0),
-    'rel' => $params->get('show_related', 1),
+    'rel' => 0,
     'showinfo' => $params->get('show_info', 1),
 ];
 $embedUrl = 'https://www.youtube.com/embed/' . $video->youtube_video_id . '?' . http_build_query($embedParams);
