@@ -17,15 +17,16 @@ use Joomla\CMS\Language\Text;
 
 $moduleclass_sfx = htmlspecialchars($params->get('moduleclass_sfx', ''), ENT_COMPAT, 'UTF-8');
 $videosPerRow = (int) $params->get('videos_per_row', 3);
-$showTitle = (int) $params->get('show_title', 1);
+$showTitle = (int) $params->get('show_video_title', 1);
 $showDescription = (int) $params->get('show_description', 1);
 $showDuration = (int) $params->get('show_duration', 1);
 $showModal = (int) $params->get('show_modal', 1);
 $moduleHeading = $params->get('module_heading', '');
 $gridClass = 'video-grid video-grid--' . $videosPerRow . '-cols';
+$moduleId = $module->id;
 ?>
 
-<div class="mod-youtubevideos<?php echo $moduleclass_sfx; ?>">
+<div class="mod-youtubevideos<?php echo $moduleclass_sfx; ?>" id="mod-youtubevideos-<?php echo $moduleId; ?>">
     <?php if ($moduleHeading) : ?>
         <h3 class="mod-youtubevideos__heading">
             <?php echo htmlspecialchars($moduleHeading, ENT_QUOTES, 'UTF-8'); ?>
@@ -40,7 +41,7 @@ $gridClass = 'video-grid video-grid--' . $videosPerRow . '-cols';
                  data-video-description="<?php echo htmlspecialchars($video->description ?? '', ENT_QUOTES, 'UTF-8'); ?>"
                  <?php if ($showModal) : ?>
                  data-bs-toggle="modal"
-                 data-bs-target="#videoModal"
+                 data-bs-target="#videoModal<?php echo $moduleId; ?>"
                  role="button"
                  tabindex="0"
                  <?php endif; ?>
@@ -52,6 +53,11 @@ $gridClass = 'video-grid video-grid--' . $videosPerRow . '-cols';
                     <img src="<?php echo htmlspecialchars($thumbnailUrl, ENT_QUOTES, 'UTF-8'); ?>" 
                          alt="<?php echo htmlspecialchars($video->title, ENT_QUOTES, 'UTF-8'); ?>"
                          loading="lazy">
+                    <div class="play-button">
+                        <div class="play-button-bg">
+                            <div class="play-triangle"></div>
+                        </div>
+                    </div>
                     <?php if ($showDuration && isset($video->duration) && !empty($video->duration)) : ?>
                         <span class="video-item__duration duration">
                             <?php echo htmlspecialchars($video->duration, ENT_QUOTES, 'UTF-8'); ?>
@@ -75,18 +81,20 @@ $gridClass = 'video-grid video-grid--' . $videosPerRow . '-cols';
 
 <?php if ($showModal) : ?>
 <!-- Video Modal -->
-<div class="modal fade" id="videoModal" tabindex="-1" aria-labelledby="videoModalLabel" aria-hidden="true">
+<div class="modal fade" id="videoModal<?php echo $moduleId; ?>" tabindex="-1" aria-labelledby="videoModalLabel<?php echo $moduleId; ?>" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="videoModalLabel"><?php echo Text::_('MOD_YOUTUBEVIDEOS_VIDEO_PLAYER'); ?></h5>
+                <h5 class="modal-title" id="videoModalLabel<?php echo $moduleId; ?>"><?php echo Text::_('MOD_YOUTUBEVIDEOS_VIDEO_PLAYER'); ?></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo Text::_('JCLOSE'); ?>"></button>
             </div>
             <div class="modal-body">
-                <div id="youtube-player"></div>
-                <div id="video-description-container" class="video-description-modal" style="display: none;">
+                <div class="ratio ratio-16x9">
+                    <div id="youtube-player<?php echo $moduleId; ?>"></div>
+                </div>
+                <div id="video-description-container<?php echo $moduleId; ?>" class="video-description-modal" style="display: none;">
                     <h6 class="video-description-title"><?php echo Text::_('MOD_YOUTUBEVIDEOS_DESCRIPTION'); ?></h6>
-                    <div id="video-description-content" class="video-description-content"></div>
+                    <div id="video-description-content<?php echo $moduleId; ?>" class="video-description-content"></div>
                 </div>
             </div>
         </div>

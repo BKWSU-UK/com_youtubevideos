@@ -144,6 +144,21 @@
                 <option value="0">JNO</option>
                 <option value="1">JYES</option>
             </field>
+
+            <field
+                name="video_order"
+                type="list"
+                label="COM_YOUTUBEVIDEOS_FIELD_VIDEO_ORDER_LABEL"
+                description="COM_YOUTUBEVIDEOS_FIELD_VIDEO_ORDER_DESC"
+                default="ordering"
+                >
+                <option value="ordering">COM_YOUTUBEVIDEOS_OPTION_ORDERING</option>
+                <option value="title_asc">COM_YOUTUBEVIDEOS_OPTION_TITLE_ASC</option>
+                <option value="title_desc">COM_YOUTUBEVIDEOS_OPTION_TITLE_DESC</option>
+                <option value="created_asc">COM_YOUTUBEVIDEOS_OPTION_CREATED_ASC</option>
+                <option value="created_desc">COM_YOUTUBEVIDEOS_OPTION_CREATED_DESC</option>
+                <option value="views_desc">COM_YOUTUBEVIDEOS_OPTION_VIEWS_DESC</option>
+            </field>
         </fieldset>
     </fields>
 </metadata>

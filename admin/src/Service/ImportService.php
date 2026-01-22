@@ -32,6 +32,13 @@ class ImportService
     ];
 
     /**
+     * Cache for table columns
+     *
+     * @var array
+     */
+    private $columnsCache = [];
+
+    /**
      * Constructor
      *
      * @param   DatabaseDriver  $db  Database driver
@@ -39,6 +46,22 @@ class ImportService
     public function __construct(DatabaseDriver $db = null)
     {
         $this->db = $db ?: Factory::getContainer()->get(DatabaseDriver::class);
+    }
+
+    /**
+     * Get columns for a table from cache or database
+     *
+     * @param   string  $table  Table name
+     *
+     * @return  array
+     */
+    private function getTableColumns(string $table): array
+    {
+        if (!isset($this->columnsCache[$table])) {
+            $this->columnsCache[$table] = array_keys($this->db->getTableColumns($table));
+        }
+
+        return $this->columnsCache[$table];
     }
 
     /**
@@ -142,6 +165,8 @@ class ImportService
             $this->stats['skipped']++;
             return;
         }
+
+        $tableColumns = $this->getTableColumns('#__youtubevideos_categories');
         
         // Insert new category
         $columns = [];
@@ -152,8 +177,8 @@ class ImportService
             $strKey = (string) $key;
             $strValue = (string) $value;
             
-            // Skip id and auto-generated fields
-            if (in_array($strKey, ['id', 'checked_out', 'checked_out_time'])) {
+            // Skip id and auto-generated fields, and check if column exists
+            if (in_array($strKey, ['id', 'checked_out', 'checked_out_time']) || !in_array($strKey, $tableColumns)) {
                 continue;
             }
             
@@ -238,6 +263,8 @@ class ImportService
             $this->stats['skipped']++;
             return;
         }
+
+        $tableColumns = $this->getTableColumns('#__youtubevideos_playlists');
         
         // Insert new playlist
         $columns = [];
@@ -248,8 +275,8 @@ class ImportService
             $strKey = (string) $key;
             $strValue = (string) $value;
             
-            // Skip id and auto-generated fields
-            if (in_array($strKey, ['id', 'checked_out', 'checked_out_time'])) {
+            // Skip id and auto-generated fields, and check if column exists
+            if (in_array($strKey, ['id', 'checked_out', 'checked_out_time']) || !in_array($strKey, $tableColumns)) {
                 continue;
             }
             
@@ -334,6 +361,8 @@ class ImportService
             $this->stats['skipped']++;
             return;
         }
+
+        $tableColumns = $this->getTableColumns('#__youtubevideos_featured');
         
         // Insert new video
         $columns = [];
@@ -344,8 +373,8 @@ class ImportService
             $strKey = (string) $key;
             $strValue = (string) $value;
             
-            // Skip id and auto-generated fields
-            if (in_array($strKey, ['id', 'checked_out', 'checked_out_time'])) {
+            // Skip id and auto-generated fields, and check if column exists
+            if (in_array($strKey, ['id', 'checked_out', 'checked_out_time']) || !in_array($strKey, $tableColumns)) {
                 continue;
             }
             

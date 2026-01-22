@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail></authorEmail>
     <authorUrl></authorUrl>
-    <version>1.2.10</version>
+    <version>1.2.11</version>
     <description>MOD_YOUTUBE_SINGLE_XML_DESCRIPTION</description>
     
     <namespace path="src">BKWSU\Module\YoutubeSingle</namespace>
@@ -138,7 +138,7 @@
                 />
                 
                 <field
-                    name="show_title"
+                    name="show_video_title"
                     type="radio"
                     label="MOD_YOUTUBE_SINGLE_FIELD_SHOW_TITLE_LABEL"
                     description="MOD_YOUTUBE_SINGLE_FIELD_SHOW_TITLE_DESC"
@@ -155,7 +155,7 @@
                     label="MOD_YOUTUBE_SINGLE_FIELD_TITLE_POSITION_LABEL"
                     description="MOD_YOUTUBE_SINGLE_FIELD_TITLE_POSITION_DESC"
                     default="above"
-                    showon="show_title:1"
+                    showon="show_video_title:1"
                 >
                     <option value="above">MOD_YOUTUBE_SINGLE_TITLE_POSITION_ABOVE</option>
                     <option value="below">MOD_YOUTUBE_SINGLE_TITLE_POSITION_BELOW</option>

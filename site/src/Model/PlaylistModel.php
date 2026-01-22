@@ -154,8 +154,31 @@ class PlaylistModel extends ItemModel
             ->select($db->quoteName('s.likes', 'likes'))
             ->leftJoin($db->quoteName('#__youtubevideos_statistics', 's') . ' ON ' . $db->quoteName('s.youtube_video_id') . ' = ' . $db->quoteName('v.youtube_video_id'));
 
-        // Order by ordering and created date
-        $query->order($db->quoteName('v.ordering') . ' ASC, ' . $db->quoteName('v.created') . ' DESC');
+        // Order by
+        $params = $this->getState('params');
+        $videoOrder = $params ? $params->get('video_order', 'ordering') : 'ordering';
+
+        switch ($videoOrder) {
+            case 'title_asc':
+                $query->order($db->quoteName('v.title') . ' ASC');
+                break;
+            case 'title_desc':
+                $query->order($db->quoteName('v.title') . ' DESC');
+                break;
+            case 'created_asc':
+                $query->order($db->quoteName('v.created') . ' ASC');
+                break;
+            case 'created_desc':
+                $query->order($db->quoteName('v.created') . ' DESC');
+                break;
+            case 'views_desc':
+                $query->order($db->quoteName('views') . ' DESC');
+                break;
+            case 'ordering':
+            default:
+                $query->order($db->quoteName('v.ordering') . ' ASC, ' . $db->quoteName('v.created') . ' DESC');
+                break;
+        }
 
         // Apply search filter
         $search = trim((string) $this->getState('filter.search'));

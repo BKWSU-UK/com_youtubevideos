@@ -31,12 +31,12 @@ $escape = function($text) {
 // Generate unique ID for this module instance
 $moduleId = 'mod-youtube-single-' . $module->id;
 
-$showTitle = $params->get('show_title', 1);
+$showTitle = (int) $params->get('show_video_title', 1);
 $titlePosition = $params->get('title_position', 'above');
-$showDescription = $params->get('show_description', 0);
+$showDescription = (int) $params->get('show_description', 0);
 $descriptionLimit = (int) $params->get('description_limit', 200);
-$showLink = $params->get('show_link', 1);
-$showPlayButton = $params->get('show_play_button', 1);
+$showLink = (int) $params->get('show_link', 1);
+$showPlayButton = (int) $params->get('show_play_button', 1);
 $videoLink = Route::_('index.php?option=com_youtubevideos&view=video&id=' . $video->id);
 
 // Get thumbnail quality setting (default, mqdefault, hqdefault, sddefault, maxresdefault)

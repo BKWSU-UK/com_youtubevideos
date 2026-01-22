@@ -5,10 +5,46 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.33] - 2026-01-22
+## [1.0.40] - 2026-01-01
 
 ### Changed
 - **YouTube Embeds:** Added `rel=0` to all YouTube iframe embed URLs. This limits related videos to the same channel (effective since 2018 YouTube API change).
+
+### Fixed
+- **Structured Data Validation:** Fixed a "mutually exclusive" error in the `ListItem` schema by moving the `url` property inside the `item` (VideoObject) instead of having it on the `ListItem` itself.
+
+## [1.0.39] - 2026-01-01
+
+### Fixed
+- **Structured Data Fallback:** Switched from null coalescing (`??`) to Elvis operator (`?:`) for thumbnail fallback logic to ensure empty strings in the database correctly trigger the YouTube fallback.
+- **Video View Bug Fix:** Fixed a logic error in the single video view where it was missing a guard clause and using an incorrect property for interaction statistics.
+
+## [1.0.38] - 2026-01-01
+
+### Fixed
+- **JavaScript Versioning:** Explicitly included minified version of the YouTube player script to ensure updates are applied on production sites that load `.min.js` files by default.
+
+## [1.0.37] - 2026-01-01
+
+## [1.0.35] - 2025-12-29
+
+### Fixed
+- **Video Import:** Fixed "Unknown column 'recipe_type' in 'field list'" error during video import.
+- **Import Robustness:** Enhanced `ImportService` to automatically skip XML fields that do not exist as columns in the database table.
+- **Database Schema:** Added missing `recipe_type` and `recipe_data` columns to the base `install.mysql.sql` schema to ensure consistency for new installations.
+
+## [1.0.34] - 2025-12-23
+
+### Fixed
+- **Module Title Parameter:** Renamed `show_title` parameter to `show_video_title` in both `mod_youtube_single` and `mod_youtubevideos` to avoid collision with Joomla's core module title parameter.
+- **Parameter Casting:** Explicitly cast boolean-like parameters to integer in module templates for more robust conditional rendering.
+
+## [1.0.33] - 2025-12-23
+
+### Fixed
+- **Multi-instance Support:** Fixed conflict when multiple instances of the YouTube Videos module are present on the same page.
+- **Unique IDs:** Implemented unique IDs for video modals and players using module instance IDs.
+- **JavaScript Refactoring:** Updated `youtube-player.js` to correctly manage multiple player instances and modals.
 
 ## [1.0.32] - 2025-12-07
 

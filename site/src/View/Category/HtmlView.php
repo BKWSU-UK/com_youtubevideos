@@ -236,15 +236,20 @@ class HtmlView extends BaseHtmlView
 
             $position = 1;
             foreach ($this->items as $video) {
+                // Skip if no video ID
+                if (empty($video->youtube_video_id)) {
+                    continue;
+                }
+
                 $videoUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=video&id=' . $video->id);
-                $thumbnailUrl = $video->custom_thumbnail ?? 'https://img.youtube.com/vi/' . $video->youtube_video_id . '/maxresdefault.jpg';
+                $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $video->youtube_video_id . '/hqdefault.jpg';
 
                 $itemListSchema['itemListElement'][] = [
                     '@type' => 'ListItem',
                     'position' => $position++,
-                    'url' => $videoUrl,
                     'item' => [
                         '@type' => 'VideoObject',
+                        'url' => $videoUrl,
                         'name' => $video->title,
                         'description' => strip_tags($video->description ?? ''),
                         'thumbnailUrl' => $thumbnailUrl,

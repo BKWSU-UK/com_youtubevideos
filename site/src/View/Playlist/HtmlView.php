@@ -221,8 +221,8 @@ class HtmlView extends BaseHtmlView
         $playlistUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=playlist&id=' . $this->playlist->id);
 
         // VideoObject schema for the current video
-        if ($this->currentVideo) {
-            $thumbnailUrl = $this->currentVideo->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $this->currentVideo->youtube_video_id . '/maxresdefault.jpg';
+        if ($this->currentVideo && !empty($this->currentVideo->youtube_video_id)) {
+            $thumbnailUrl = $this->currentVideo->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $this->currentVideo->youtube_video_id . '/hqdefault.jpg';
             
             $videoSchema = [
                 '@context' => 'https://schema.org',
@@ -259,15 +259,20 @@ class HtmlView extends BaseHtmlView
 
         $position = 1;
         foreach ($this->videos as $video) {
+            // Skip if no video ID
+            if (empty($video->youtube_video_id)) {
+                continue;
+            }
+
             $videoUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=video&id=' . $video->id);
-            $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $video->youtube_video_id . '/maxresdefault.jpg';
+            $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $video->youtube_video_id . '/hqdefault.jpg';
 
             $itemListSchema['itemListElement'][] = [
                 '@type' => 'ListItem',
                 'position' => $position++,
-                'url' => $videoUrl,
                 'item' => [
                     '@type' => 'VideoObject',
+                    'url' => $videoUrl,
                     'name' => $video->title,
                     'description' => strip_tags($video->description ?? ''),
                     'thumbnailUrl' => $thumbnailUrl,

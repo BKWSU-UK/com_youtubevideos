@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail></authorEmail>
     <authorUrl></authorUrl>
-    <version>1.0.3</version>
+    <version>1.0.5</version>
     <description>MOD_YOUTUBEVIDEOS_XML_DESCRIPTION</description>
     
     <namespace path="src">BKWSU\Module\Youtubevideos</namespace>
@@ -80,7 +80,7 @@
                 </field>
                 
                 <field
-                    name="show_title"
+                    name="show_video_title"
                     type="radio"
                     label="MOD_YOUTUBEVIDEOS_FIELD_SHOW_TITLE_LABEL"
                     description="MOD_YOUTUBEVIDEOS_FIELD_SHOW_TITLE_DESC"

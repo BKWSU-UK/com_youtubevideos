@@ -140,6 +140,81 @@ class HtmlView extends BaseHtmlView
         $wa = $this->document->getWebAssetManager();
         $wa->useStyle('com_youtubevideos.site.css')
            ->useScript('com_youtubevideos.youtube-player');
+
+        // Add JSON+LD structured data
+        $this->addStructuredData();
+    }
+
+    /**
+     * Add structured data (JSON-LD) for SEO
+     *
+     * @return  void
+     *
+     * @since   1.0.0
+     */
+    protected function addStructuredData(): void
+    {
+        // Skip if no video ID
+        if (empty($this->item->youtube_video_id)) {
+            return;
+        }
+
+        $baseUrl = \Joomla\CMS\Uri\Uri::getInstance()->toString(['scheme', 'host', 'port']);
+        $videoUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=video&id=' . $this->item->id);
+        
+        // Use custom thumbnail or fallback to YouTube's hqdefault (more reliable than maxresdefault)
+        $thumbnailUrl = $this->item->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $this->item->youtube_video_id . '/hqdefault.jpg';
+
+        $videoSchema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'VideoObject',
+            'name' => $this->item->title,
+            'description' => strip_tags($this->item->description ?? ''),
+            'thumbnailUrl' => $thumbnailUrl,
+            'uploadDate' => !empty($this->item->created) ? date('c', strtotime($this->item->created)) : date('c'),
+            'contentUrl' => 'https://www.youtube.com/watch?v=' . $this->item->youtube_video_id,
+            'embedUrl' => 'https://www.youtube.com/embed/' . $this->item->youtube_video_id,
+            'url' => $videoUrl
+        ];
+
+        // Add interaction statistics if available
+        if (!empty($this->item->views)) {
+            $videoSchema['interactionStatistic'] = [
+                '@type' => 'InteractionCounter',
+                'interactionType' => 'https://schema.org/WatchAction',
+                'userInteractionCount' => (int)$this->item->views
+            ];
+        }
+
+        $this->document->addScriptDeclaration(json_encode($videoSchema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), 'application/ld+json');
+
+        // BreadcrumbList schema
+        $breadcrumbSchema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => [
+                [
+                    '@type' => 'ListItem',
+                    'position' => 1,
+                    'name' => 'Home',
+                    'item' => $baseUrl . '/'
+                ],
+                [
+                    '@type' => 'ListItem',
+                    'position' => 2,
+                    'name' => 'Videos',
+                    'item' => $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=videos')
+                ],
+                [
+                    '@type' => 'ListItem',
+                    'position' => 3,
+                    'name' => $this->item->title,
+                    'item' => $videoUrl
+                ]
+            ]
+        ];
+
+        $this->document->addScriptDeclaration(json_encode($breadcrumbSchema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), 'application/ld+json');
     }
 }
 

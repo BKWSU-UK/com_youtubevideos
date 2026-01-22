@@ -76,6 +76,8 @@ CREATE TABLE IF NOT EXISTS `#__youtubevideos_featured` (
     `title` varchar(255) NOT NULL,
     `alias` varchar(400) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '',
     `description` mediumtext,
+    `recipe_type` tinyint(1) NOT NULL DEFAULT '0',
+    `recipe_data` text,
     `custom_thumbnail` varchar(255) DEFAULT NULL,
     `category_id` int unsigned DEFAULT NULL,
     `playlist_id` int unsigned DEFAULT NULL,

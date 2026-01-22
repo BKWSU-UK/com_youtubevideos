@@ -1,114 +1,137 @@
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
+    // Global players storage to avoid conflicts if script is loaded multiple times
+    window.com_youtubevideos_players = window.com_youtubevideos_players || {};
+    var players = window.com_youtubevideos_players;
+    var apiReady = false;
+
     // Load YouTube IFrame API
-    var tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    var firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
-    var player;
-    var modal = document.getElementById('videoModal');
-
-    if (!modal) {
-        console.error('Video modal element not found');
-        return;
+    if (!window.YT) {
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
     }
 
-    // Initialize player when API is ready
-    window.onYouTubeIframeAPIReady = function() {
-        var playerElement = document.getElementById('youtube-player');
+    // Initialize players when API is ready
+    window.onYouTubeIframeAPIReady = (function(oldCallback) {
+        return function() {
+            if (oldCallback) oldCallback();
+            apiReady = true;
+            initAllPlayers();
+        };
+    })(window.onYouTubeIframeAPIReady);
+
+    function initAllPlayers() {
+        if (!apiReady || !window.YT || !window.YT.Player) return;
         
-        if (!playerElement) {
-            console.error('YouTube player element not found');
-            return;
-        }
-
-        player = new YT.Player('youtube-player', {
-            height: '390',
-            width: '640',
-            playerVars: {
-                'autoplay': 1,
-                'rel': 0,
-                'modestbranding': 1
-            }
-        });
-    };
-
-    // Add click handlers to video items
-    document.querySelectorAll('.video-item').forEach(function(item) {
-        item.addEventListener('click', function() {
-            var videoId = this.dataset.videoId;
-            var videoTitle = this.dataset.videoTitle || 'Video Player';
-            var videoDescription = this.dataset.videoDescription || '';
+        document.querySelectorAll('[id^="youtube-player"]').forEach(function(playerElement) {
+            var playerId = playerElement.id;
+            var moduleId = playerId.replace('youtube-player', '');
             
-            if (!videoId) {
-                console.error('No video ID found for this item');
-                return;
-            }
-
-            // Update modal title
-            var modalTitle = document.getElementById('videoModalLabel');
-            if (modalTitle) {
-                modalTitle.textContent = videoTitle;
-            }
-
-            // Update video description
-            var descriptionContainer = document.getElementById('video-description-container');
-            var descriptionContent = document.getElementById('video-description-content');
-            
-            if (descriptionContainer && descriptionContent) {
-                if (videoDescription && videoDescription.trim() !== '') {
-                    // Convert line breaks to <br> tags and preserve formatting
-                    var formattedDescription = videoDescription
-                        .replace(/\n/g, '<br>')
-                        .replace(/\r/g, '');
-                    
-                    descriptionContent.innerHTML = formattedDescription;
-                    descriptionContainer.style.display = 'block';
-                } else {
-                    descriptionContainer.style.display = 'none';
+            if (!players[moduleId] || typeof players[moduleId].loadVideoById !== 'function') {
+                try {
+                    players[moduleId] = new YT.Player(playerId, {
+                        height: '100%',
+                        width: '100%',
+                        playerVars: {
+                            'autoplay': 1,
+                            'rel': 0,
+                            'modestbranding': 1,
+                            'origin': window.location.origin
+                        }
+                    });
+                } catch (e) {
+                    console.error('Failed to initialize YouTube player for module ' + moduleId, e);
                 }
             }
-
-            // Initialize player if not already done
-            if (typeof YT !== 'undefined' && YT.Player && player) {
-                player.loadVideoById(videoId);
-            } else {
-                console.warn('YouTube player not ready yet');
-            }
-
-            // Show modal
-            var modalInstance = bootstrap.Modal.getOrCreateInstance(modal);
-            modalInstance.show();
         });
+    }
+
+    // If API is already loaded
+    if (window.YT && window.YT.Player) {
+        apiReady = true;
+        initAllPlayers();
+    }
+
+    // Use Bootstrap modal events for cleaner logic
+    document.addEventListener('show.bs.modal', function(event) {
+        var modal = event.target;
+        if (!modal || !modal.id || !modal.id.startsWith('videoModal')) return;
+
+        var moduleId = modal.id.replace('videoModal', '');
+        var trigger = event.relatedTarget;
+        
+        // If triggered via JS without relatedTarget, we might need to find the data elsewhere
+        // But in our component/module, it's always from a click on .video-item
+        if (!trigger) return;
+
+        var videoId = trigger.dataset.videoId;
+        var videoTitle = trigger.dataset.videoTitle || 'Video Player';
+        var videoDescription = trigger.dataset.videoDescription || '';
+
+        if (!videoId) return;
+
+        // Update modal title
+        var modalTitle = document.getElementById('videoModalLabel' + moduleId);
+        if (modalTitle) {
+            modalTitle.textContent = videoTitle;
+        }
+
+        // Update video description
+        var descriptionContainer = document.getElementById('video-description-container' + moduleId);
+        var descriptionContent = document.getElementById('video-description-content' + moduleId);
+        
+        if (descriptionContainer && descriptionContent) {
+            if (videoDescription && videoDescription.trim() !== '') {
+                descriptionContent.innerHTML = videoDescription
+                    .replace(/\n/g, '<br>')
+                    .replace(/\r/g, '');
+                descriptionContainer.style.display = 'block';
+            } else {
+                descriptionContainer.style.display = 'none';
+            }
+        }
+
+        // Play video
+        if (apiReady && players[moduleId] && typeof players[moduleId].loadVideoById === 'function') {
+            players[moduleId].loadVideoById(videoId);
+        } else {
+            // Re-initialize if missing and try again
+            initAllPlayers();
+            setTimeout(function() {
+                if (players[moduleId] && typeof players[moduleId].loadVideoById === 'function') {
+                    players[moduleId].loadVideoById(videoId);
+                }
+            }, 500);
+        }
     });
 
-    // Stop video when modal is closed
-    modal.addEventListener('hidden.bs.modal', function() {
-        if (player && typeof player.stopVideo === 'function') {
-            player.stopVideo();
+    // Stop video when modals are closed
+    document.addEventListener('hidden.bs.modal', function(event) {
+        var modal = event.target;
+        if (!modal || !modal.id || !modal.id.startsWith('videoModal')) return;
+
+        var moduleId = modal.id.replace('videoModal', '');
+        if (players[moduleId] && typeof players[moduleId].stopVideo === 'function') {
+            players[moduleId].stopVideo();
         }
     });
 
     // Handle Clear button functionality
-    var clearButton = document.querySelector('.filter-search-actions .btn, .filter-search-actions button, .btn-clear');
-    if (clearButton) {
-        clearButton.addEventListener('click', function(e) {
+    document.addEventListener('click', function(e) {
+        var clearBtn = e.target.closest('.filter-search-actions .btn, .filter-search-actions button, .btn-clear');
+        if (clearBtn) {
             e.preventDefault();
-            
-            // Clear the search input
-            var searchInput = document.querySelector('.filter-search, input[name="filter[search]"]');
-            if (searchInput) {
-                searchInput.value = '';
-            }
-            
-            // Submit the form to reload without search
-            var form = document.querySelector('.com-youtubevideos-videos__form, form[name="adminForm"]');
+            var form = clearBtn.closest('form');
             if (form) {
+                var searchInput = form.querySelector('.filter-search, input[name="filter[search]"]');
+                if (searchInput) {
+                    searchInput.value = '';
+                }
                 form.submit();
             } else {
-                // Fallback: reload the page
                 window.location.href = window.location.pathname;
             }
-        });
-    }
-}); 
+        }
+    });
+})();
