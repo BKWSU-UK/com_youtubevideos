@@ -7,8 +7,8 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>allan@bkconnect.net</authorEmail>
     <authorUrl>www.brahmakumaris.org</authorUrl>
-    <version>1.0.0</version>
-    <description>Adds iWeb Fields tab to Menu Item edit form</description>
+    <version>1.0.2</version>
+    <description>Adds iWeb Fields tab to Menu Item edit form and fixes component canonical URLs</description>
     <namespace>BKWSU\Plugin\System\YoutubeVideos</namespace>
     <files>
         <folder plugin="youtubevideos">services</folder>

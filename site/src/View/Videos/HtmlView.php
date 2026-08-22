@@ -1,6 +1,8 @@
 <?php
 namespace BKWSU\Component\Youtubevideos\Site\View\Videos;
 
+use BKWSU\Component\Youtubevideos\Site\Helper\RouteHelper;
+use BKWSU\Component\Youtubevideos\Site\Helper\SeoHelper;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
@@ -80,39 +82,27 @@ class HtmlView extends BaseHtmlView
             $title = $this->params->get('page_title', '');
         }
 
+        $title = SeoHelper::appendPaginationTitle($title, $this->pagination);
+
         $this->document->setTitle($title);
 
-        if ($this->params->get('menu-meta_description')) {
-            $this->document->setDescription($this->params->get('menu-meta_description'));
-        }
+        $description = SeoHelper::appendPaginationSuffix(
+            SeoHelper::buildPageDescription($title, $this->params->get('menu-meta_description') ?: null),
+            $this->pagination
+        );
+        $this->document->setDescription($description);
 
         if ($this->params->get('robots')) {
             $this->document->setMetaData('robots', $this->params->get('robots'));
         }
 
-        // Get current URL
-        $currentUrl = \Joomla\CMS\Uri\Uri::getInstance()->toString(['scheme', 'host', 'port']) . 
-                     \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=videos');
+        $videosRoute = 'index.php?option=com_youtubevideos&view=videos';
+        $currentUrl = RouteHelper::getAbsoluteUrl($videosRoute);
 
-        // OpenGraph meta tags
-        $this->document->setMetaData('og:title', $title);
-        $this->document->setMetaData('og:type', 'website');
-        $this->document->setMetaData('og:url', $currentUrl);
-        $this->document->setMetaData('og:site_name', $app->get('sitename'));
-        
-        if ($this->params->get('menu-meta_description')) {
-            $this->document->setMetaData('og:description', $this->params->get('menu-meta_description'));
-        }
+        $this->document->setMetaData('og:url', $currentUrl, 'property');
+        $this->document->setMetaData('og:site_name', $app->get('sitename'), 'property');
 
-        // Twitter Card
-        $this->document->setMetaData('twitter:card', 'summary');
-        $this->document->setMetaData('twitter:title', $title);
-        if ($this->params->get('menu-meta_description')) {
-            $this->document->setMetaData('twitter:description', $this->params->get('menu-meta_description'));
-        }
-
-        // Add canonical URL
-        $this->document->addHeadLink($currentUrl, 'canonical');
+        RouteHelper::setCanonicalUrl($this->document, $videosRoute);
 
         // Add pagination meta tags (prev/next)
         $this->addPaginationLinks();

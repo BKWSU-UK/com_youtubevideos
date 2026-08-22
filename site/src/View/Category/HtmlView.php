@@ -2,6 +2,8 @@
 
 namespace BKWSU\Component\Youtubevideos\Site\View\Category;
 
+use BKWSU\Component\Youtubevideos\Site\Helper\RouteHelper;
+use BKWSU\Component\Youtubevideos\Site\Helper\SeoHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
@@ -121,18 +123,19 @@ class HtmlView extends BaseHtmlView
             $title = $this->category->title;
         }
 
+        $title = SeoHelper::appendPaginationTitle($title, $this->pagination);
+
         $this->document->setTitle($title);
 
-        // Set meta description
-        $description = '';
-        if ($this->category->description) {
-            $description = strip_tags($this->category->description);
-            $description = mb_substr($description, 0, 160);
-            $this->document->setDescription($description);
-        } elseif ($this->params->get('menu-meta_description')) {
-            $description = $this->params->get('menu-meta_description');
-            $this->document->setDescription($description);
-        }
+        $body = $this->category->description
+            ? strip_tags($this->category->description)
+            : ($this->params->get('menu-meta_description') ?: '');
+
+        $description = SeoHelper::appendPaginationSuffix(
+            SeoHelper::buildPageDescription($title, $body),
+            $this->pagination
+        );
+        $this->document->setDescription($description);
 
         // Set meta keywords
         if ($this->category->metakey) {
@@ -144,29 +147,16 @@ class HtmlView extends BaseHtmlView
             $this->document->setMetaData('robots', $this->params->get('robots'));
         }
 
-        // Get current URL
-        $baseUrl = \Joomla\CMS\Uri\Uri::getInstance()->toString(['scheme', 'host', 'port']);
-        $categoryUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=category&id=' . $this->category->id);
+        $categoryRoute = 'index.php?option=com_youtubevideos&view=category&id=' . (int) $this->category->id;
+        $categoryUrl = RouteHelper::getAbsoluteUrl($categoryRoute);
 
         // OpenGraph meta tags
-        $this->document->setMetaData('og:title', $title);
-        $this->document->setMetaData('og:type', 'website');
-        $this->document->setMetaData('og:url', $categoryUrl);
-        $this->document->setMetaData('og:site_name', $app->get('sitename'));
+        $this->document->setMetaData('og:url', $categoryUrl, 'property');
+        $this->document->setMetaData('og:site_name', $app->get('sitename'), 'property');
         
-        if ($description) {
-            $this->document->setMetaData('og:description', $description);
-        }
-
-        // Twitter Card
         $this->document->setMetaData('twitter:card', 'summary');
-        $this->document->setMetaData('twitter:title', $title);
-        if ($description) {
-            $this->document->setMetaData('twitter:description', $description);
-        }
 
-        // Add canonical URL
-        $this->document->addHeadLink($categoryUrl, 'canonical');
+        RouteHelper::setCanonicalUrl($this->document, $categoryRoute);
 
         // Add pagination meta tags (prev/next)
         $this->addPaginationLinks();

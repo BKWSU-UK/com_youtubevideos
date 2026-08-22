@@ -2,6 +2,8 @@
 
 namespace BKWSU\Component\Youtubevideos\Site\View\Video;
 
+use BKWSU\Component\Youtubevideos\Site\Helper\RouteHelper;
+use BKWSU\Component\Youtubevideos\Site\Helper\SeoHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
@@ -90,14 +92,8 @@ class HtmlView extends BaseHtmlView
 
         $this->document->setTitle($title);
 
-        // Set meta description
-        if ($this->item->description) {
-            $description = strip_tags($this->item->description);
-            $description = mb_substr($description, 0, 160);
-            $this->document->setDescription($description);
-        } elseif ($this->params->get('menu-meta_description')) {
-            $this->document->setDescription($this->params->get('menu-meta_description'));
-        }
+        $description = SeoHelper::buildPageDescription($title, $this->item->description ?? null);
+        $this->document->setDescription($description);
 
         // Set meta keywords
         if ($this->item->metakey) {
@@ -109,32 +105,17 @@ class HtmlView extends BaseHtmlView
             $this->document->setMetaData('robots', $this->params->get('robots'));
         }
 
-        // OpenGraph meta tags for social sharing
-        $this->document->setMetaData('og:title', $title);
-        $this->document->setMetaData('og:type', 'video.other');
-        $this->document->setMetaData('og:url', \Joomla\CMS\Uri\Uri::current());
-        
-        if ($this->item->description) {
-            $this->document->setMetaData('og:description', mb_substr(strip_tags($this->item->description), 0, 200));
-        }
-
-        // Set video thumbnail
+        // Video-specific social tags that the template cannot infer.
+        $videoRoute = 'index.php?option=com_youtubevideos&view=video&id=' . (int) $this->item->id;
+        $videoUrl = RouteHelper::getAbsoluteUrl($videoRoute);
         $thumbnailUrl = $this->item->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $this->item->youtube_video_id . '/maxresdefault.jpg';
-        $this->document->setMetaData('og:image', $thumbnailUrl);
 
-        // Twitter Card
+        $this->document->setMetaData('og:url', $videoUrl, 'property');
+        $this->document->setMetaData('og:image', $thumbnailUrl, 'property');
         $this->document->setMetaData('twitter:card', 'player');
-        $this->document->setMetaData('twitter:title', $title);
-        if ($this->item->description) {
-            $this->document->setMetaData('twitter:description', mb_substr(strip_tags($this->item->description), 0, 200));
-        }
         $this->document->setMetaData('twitter:image', $thumbnailUrl);
 
-        // Add canonical URL
-        $this->document->addHeadLink(
-            \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=video&id=' . $this->item->id),
-            'canonical'
-        );
+        RouteHelper::setCanonicalUrl($this->document, $videoRoute);
 
         // Add the component's media files
         $wa = $this->document->getWebAssetManager();
@@ -160,7 +141,7 @@ class HtmlView extends BaseHtmlView
         }
 
         $baseUrl = \Joomla\CMS\Uri\Uri::getInstance()->toString(['scheme', 'host', 'port']);
-        $videoUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=video&id=' . $this->item->id);
+        $videoUrl = RouteHelper::getAbsoluteUrl('index.php?option=com_youtubevideos&view=video&id=' . (int) $this->item->id);
         
         // Use custom thumbnail or fallback to YouTube's hqdefault (more reliable than maxresdefault)
         $thumbnailUrl = $this->item->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $this->item->youtube_video_id . '/hqdefault.jpg';

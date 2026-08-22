@@ -2,6 +2,8 @@
 
 namespace BKWSU\Component\Youtubevideos\Site\View\Playlist;
 
+use BKWSU\Component\Youtubevideos\Site\Helper\RouteHelper;
+use BKWSU\Component\Youtubevideos\Site\Helper\SeoHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
@@ -128,16 +130,27 @@ class HtmlView extends BaseHtmlView
             $title = $this->playlist->title;
         }
 
+        $videoId = $app->input->getInt('video_id', 0);
+
+        if ($this->currentVideo && $videoId > 0) {
+            $title = $this->currentVideo->title;
+        }
+
         $this->document->setTitle($title);
 
-        // Set meta description
-        if ($this->playlist->description) {
-            $description = strip_tags($this->playlist->description);
-            $description = mb_substr($description, 0, 160);
-            $this->document->setDescription($description);
-        } elseif ($this->params->get('menu-meta_description')) {
-            $this->document->setDescription($this->params->get('menu-meta_description'));
+        if ($this->currentVideo && $videoId > 0) {
+            $description = SeoHelper::buildPageDescription(
+                $this->currentVideo->title,
+                $this->currentVideo->description ?? null
+            );
+        } else {
+            $description = SeoHelper::buildPageDescription(
+                $title,
+                $this->playlist->description ?? ($this->params->get('menu-meta_description') ?: null)
+            );
         }
+
+        $this->document->setDescription($description);
 
         // Set meta keywords
         if ($this->playlist->metakey) {
@@ -149,54 +162,38 @@ class HtmlView extends BaseHtmlView
             $this->document->setMetaData('robots', $this->params->get('robots'));
         }
 
-        // Get site name
         $siteName = $app->get('sitename');
+        $playlistRoute = 'index.php?option=com_youtubevideos&view=playlist&id=' . (int) $this->playlist->id;
 
-        // OpenGraph meta tags for social sharing
-        $this->document->setMetaData('og:site_name', $siteName);
-        $this->document->setMetaData('og:title', $title);
-        $this->document->setMetaData('og:type', 'video.other');
-        $this->document->setMetaData('og:url', \Joomla\CMS\Uri\Uri::current());
-        
-        if ($this->playlist->description) {
-            $this->document->setMetaData('og:description', mb_substr(strip_tags($this->playlist->description), 0, 200));
+        if ($videoId > 0) {
+            $playlistRoute .= '&video_id=' . $videoId;
         }
 
-        // Set playlist thumbnail (use first video's thumbnail) with dimensions
+        $playlistUrl = RouteHelper::getAbsoluteUrl($playlistRoute);
+
+        $this->document->setMetaData('og:site_name', $siteName, 'property');
+        $this->document->setMetaData('og:url', $playlistUrl, 'property');
+
         if ($this->currentVideo) {
             $thumbnailUrl = $this->currentVideo->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $this->currentVideo->youtube_video_id . '/maxresdefault.jpg';
-            $this->document->setMetaData('og:image', $thumbnailUrl);
-            $this->document->setMetaData('og:image:width', '1280');
-            $this->document->setMetaData('og:image:height', '720');
-            $this->document->setMetaData('og:image:type', 'image/jpeg');
-            
-            // Video player URL for rich previews
-            $videoUrl = 'https://www.youtube.com/watch?v=' . $this->currentVideo->youtube_video_id;
-            $this->document->setMetaData('og:video', $videoUrl);
-            $this->document->setMetaData('og:video:url', $videoUrl);
-            $this->document->setMetaData('og:video:type', 'text/html');
-        }
+            $this->document->setMetaData('og:image', $thumbnailUrl, 'property');
+            $this->document->setMetaData('og:image:width', '1280', 'property');
+            $this->document->setMetaData('og:image:height', '720', 'property');
+            $this->document->setMetaData('og:image:type', 'image/jpeg', 'property');
 
-        // Twitter Card with player
-        $this->document->setMetaData('twitter:card', 'player');
-        $this->document->setMetaData('twitter:site', $siteName);
-        $this->document->setMetaData('twitter:title', $title);
-        if ($this->playlist->description) {
-            $this->document->setMetaData('twitter:description', mb_substr(strip_tags($this->playlist->description), 0, 200));
-        }
-        if ($this->currentVideo) {
-            $thumbnailUrl = $this->currentVideo->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $this->currentVideo->youtube_video_id . '/maxresdefault.jpg';
+            $youtubeUrl = 'https://www.youtube.com/watch?v=' . $this->currentVideo->youtube_video_id;
+            $this->document->setMetaData('og:video', $youtubeUrl, 'property');
+            $this->document->setMetaData('og:video:url', $youtubeUrl, 'property');
+            $this->document->setMetaData('og:video:type', 'text/html', 'property');
+
+            $this->document->setMetaData('twitter:card', 'player');
             $this->document->setMetaData('twitter:image', $thumbnailUrl);
             $this->document->setMetaData('twitter:player', 'https://www.youtube.com/embed/' . $this->currentVideo->youtube_video_id);
             $this->document->setMetaData('twitter:player:width', '1280');
             $this->document->setMetaData('twitter:player:height', '720');
         }
 
-        // Add canonical URL
-        $this->document->addHeadLink(
-            \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=playlist&id=' . $this->playlist->id),
-            'canonical'
-        );
+        RouteHelper::setCanonicalUrl($this->document, $playlistRoute);
 
         // Add JSON+LD structured data
         $this->addStructuredData();

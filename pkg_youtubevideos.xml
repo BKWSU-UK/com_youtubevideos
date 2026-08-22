@@ -8,7 +8,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>allan@bkconnect.net</authorEmail>
     <authorUrl>www.brahmakumaris.org</authorUrl>
-    <version>1.0.40</version>
+    <version>1.0.43</version>
     <description>PKG_YOUTUBEVIDEOS_XML_DESCRIPTION</description>
     
     <scriptfile>pkg_script.php</scriptfile>

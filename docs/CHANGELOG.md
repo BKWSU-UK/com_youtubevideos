@@ -5,6 +5,21 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.43] - 2026-08-22
+
+### Fixed
+- **Page Titles:** Ensured unique document titles for paginated category and video listing pages, and for individual videos viewed within a playlist.
+
+## [1.0.42] - 2026-08-22
+
+### Fixed
+- **Meta Descriptions:** Ensured each component page outputs a unique meta description by prefixing the page title, appending pagination suffixes to listing pages, and removing duplicate social description tags that conflicted with the site template.
+
+## [1.0.41] - 2026-08-22
+
+### Fixed
+- **Canonical URLs:** Fixed duplicate and incorrect canonical URLs on component pages. Individual video, playlist, category, and listing pages now output a single absolute canonical URL that reflects the current page, including video ID where applicable. The system plugin removes conflicting canonical tags added by Joomla's SEF plugin.
+
 ## [1.0.40] - 2026-01-01
 
 ### Changed
