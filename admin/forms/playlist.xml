@@ -47,7 +47,7 @@
             type="editor"
             label="JGLOBAL_DESCRIPTION"
             description="COM_YOUTUBEVIDEOS_FIELD_DESCRIPTION_DESC"
-            filter="JComponentHelper::filterText"
+            filter="\Joomla\CMS\Component\ComponentHelper::filterText"
             buttons="true"
             />
 

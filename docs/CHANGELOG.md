@@ -5,6 +5,11 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.44] - 2026-10-16
+
+### Fixed
+- **Deprecated Form Filter:** Replaced the deprecated `JComponentHelper::filterText` filter reference in the `description` editor field of the playlist, video and category forms with the namespaced `\Joomla\CMS\Component\ComponentHelper::filterText` to remove the Joomla 5 deprecation warning.
+
 ## [1.0.43] - 2026-08-22
 
 ### Fixed
