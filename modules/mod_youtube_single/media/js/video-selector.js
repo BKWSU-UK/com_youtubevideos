@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="d-flex w-100 justify-content-between">
                         <h6 class="mb-1">${escapeHtml(video.title)}</h6>
                     </div>
-                    <small class="text-muted">${escapeHtml(video.youtube_video_id)}</small>
+                    <small class="text-body-secondary">${escapeHtml(video.youtube_video_id)}</small>
                 `;
                 
                 item.addEventListener('click', function() {
@@ -122,13 +122,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Display no results message
         function displayNoResults() {
-            resultsContainer.innerHTML = '<div class="list-group-item text-muted">No videos found</div>';
+            resultsContainer.innerHTML = '<div class="list-group-item text-body-secondary">' + escapeHtml(t('MOD_YOUTUBE_SINGLE_NO_VIDEOS_FOUND', 'No videos found')) + '</div>';
             resultsContainer.style.display = 'block';
         }
         
         // Display error message
         function displayError() {
-            resultsContainer.innerHTML = '<div class="list-group-item text-danger">Error searching videos</div>';
+            resultsContainer.innerHTML = '<div class="list-group-item text-danger">' + escapeHtml(t('MOD_YOUTUBE_SINGLE_SEARCH_ERROR', 'Error searching videos')) + '</div>';
             resultsContainer.style.display = 'block';
         }
         
@@ -138,8 +138,8 @@ document.addEventListener('DOMContentLoaded', function() {
             searchInput.value = '';
             
             currentSelection.innerHTML = `
-                <strong>Selected Video:</strong> ${escapeHtml(video.title)}
-                <small class="text-muted">(${escapeHtml(video.youtube_video_id)})</small>
+                <strong>${escapeHtml(t('MOD_YOUTUBE_SINGLE_SELECTED_VIDEO', 'Selected Video'))}:</strong> ${escapeHtml(video.title)}
+                <small class="text-body-secondary">(${escapeHtml(video.youtube_video_id)})</small>
             `;
             currentSelection.className = 'alert alert-info current-selection';
             currentSelection.style.display = 'block';
@@ -151,6 +151,11 @@ document.addEventListener('DOMContentLoaded', function() {
             hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
         }
         
+        // Translated strings (registered with Text::script by the field)
+        function t(key, fallback) {
+            return (window.Joomla && Joomla.Text) ? Joomla.Text._(key, fallback) : fallback;
+        }
+
         // Escape HTML to prevent XSS
         function escapeHtml(text) {
             const div = document.createElement('div');

@@ -18,7 +18,7 @@ class CategoriesModel extends ListModel
      *
      * @since   1.0.0
      */
-    public function __construct($config = array())
+    public function __construct($config = [])
     {
         if (empty($config['filter_fields']))
         {
@@ -92,7 +92,7 @@ class CategoriesModel extends ListModel
      */
     protected function getListQuery()
     {
-        $db = $this->getDbo();
+        $db = $this->getDatabase();
         $query = $db->getQuery(true);
 
         // Select the required fields from the table.
@@ -108,16 +108,20 @@ class CategoriesModel extends ListModel
         $query->from($db->quoteName('#__youtubevideos_categories', 'a'));
 
         // Join over the users for the checked out user.
-        $query->select('uc.name AS editor')
-            ->join('LEFT', '#__users AS uc ON uc.id = a.checked_out');
+        $query->select($db->quoteName('uc.name', 'editor'))
+            ->join('LEFT', $db->quoteName('#__users', 'uc'), $db->quoteName('uc.id') . ' = ' . $db->quoteName('a.checked_out'));
 
         // Join over the asset groups.
-        $query->select('ag.title AS access_level')
-            ->join('LEFT', '#__viewlevels AS ag ON ag.id = a.access');
+        $query->select($db->quoteName('ag.title', 'access_level'))
+            ->join('LEFT', $db->quoteName('#__viewlevels', 'ag'), $db->quoteName('ag.id') . ' = ' . $db->quoteName('a.access'));
+
+        // Join over the language, for the language flag in the list.
+        $query->select([$db->quoteName('l.title', 'language_title'), $db->quoteName('l.image', 'language_image')])
+            ->join('LEFT', $db->quoteName('#__languages', 'l'), $db->quoteName('l.lang_code') . ' = ' . $db->quoteName('a.language'));
 
         // Join over the users for the author.
-        $query->select('ua.name AS author_name')
-            ->join('LEFT', '#__users AS ua ON ua.id = a.created_by');
+        $query->select($db->quoteName('ua.name', 'author_name'))
+            ->join('LEFT', $db->quoteName('#__users', 'ua'), $db->quoteName('ua.id') . ' = ' . $db->quoteName('a.created_by'));
 
         // Filter by published state
         $published = (string) $this->getState('filter.published');
@@ -157,15 +161,16 @@ class CategoriesModel extends ListModel
                 $query->where($db->quoteName('a.id') . ' = :search')
                     ->bind(':search', $search, ParameterType::INTEGER);
             } else {
-                $search = '%' . str_replace(' ', '%', $db->escape(trim($search), true) . '%');
+                // The value is bound, so it must not be escaped as well.
+                $search = '%' . str_replace(' ', '%', trim($search)) . '%';
                 $query->where('(' . $db->quoteName('a.title') . ' LIKE :search1 OR ' . $db->quoteName('a.alias') . ' LIKE :search2)')
                     ->bind([':search1', ':search2'], $search);
             }
         }
 
         // Add the list ordering clause.
-        $orderCol = $this->state->get('list.ordering', 'a.ordering');
-        $orderDirn = $this->state->get('list.direction', 'ASC');
+        $orderCol = $this->getState('list.ordering', 'a.ordering');
+        $orderDirn = $this->getState('list.direction', 'ASC');
 
         $query->order($db->escape($orderCol) . ' ' . $db->escape($orderDirn));
 

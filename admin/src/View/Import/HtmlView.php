@@ -1,8 +1,11 @@
 <?php
 namespace BKWSU\Component\Youtubevideos\Administrator\View\Import;
 
+use BKWSU\Component\Youtubevideos\Administrator\Model\ImportModel;
+use Joomla\CMS\Access\Exception\NotAllowed;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\MVC\View\GenericDataException;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Toolbar\ToolbarHelper;
 
@@ -42,9 +45,13 @@ class HtmlView extends BaseHtmlView
         $this->form = $model->getForm();
         $this->type = $model->getType();
 
+        if (!ImportModel::canImport($this->type)) {
+            throw new NotAllowed(Text::_('JERROR_ALERTNOAUTHOR'), 403);
+        }
+
         // Check for errors
-        if (count($errors = $this->get('Errors'))) {
-            throw new \Exception(implode("\n", $errors), 500);
+        if (\count($errors = $model->getErrors())) {
+            throw new GenericDataException(implode("\n", $errors), 500);
         }
 
         $this->addToolbar();
@@ -59,7 +66,7 @@ class HtmlView extends BaseHtmlView
      */
     protected function addToolbar()
     {
-        Factory::getApplication()->input->set('hidemainmenu', true);
+        Factory::getApplication()->getInput()->set('hidemainmenu', true);
 
         $typeLabel = Text::_('COM_YOUTUBEVIDEOS_' . strtoupper($this->type));
         ToolbarHelper::title(Text::sprintf('COM_YOUTUBEVIDEOS_IMPORT_TITLE', $typeLabel), 'upload');

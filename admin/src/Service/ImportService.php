@@ -3,20 +3,38 @@ namespace BKWSU\Component\Youtubevideos\Administrator\Service;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
-use Joomla\Database\DatabaseDriver;
+use Joomla\Database\DatabaseInterface;
 use Joomla\Database\ParameterType;
 
 /**
  * Import Service for YouTube Videos Component
+ *
+ * Each import runs in a transaction: if any item fails, nothing is imported.
  *
  * @since  1.0.21
  */
 class ImportService
 {
     /**
+     * Minimum similarity (0-100) for a recipe title to match a video title
+     *
+     * @var    int
+     * @since  1.0.45
+     */
+    private const RECIPE_MATCH_THRESHOLD = 70;
+
+    /**
+     * Columns that are never copied from an import file
+     *
+     * @var    string[]
+     * @since  1.0.45
+     */
+    private const SKIPPED_COLUMNS = ['id', 'checked_out', 'checked_out_time', 'asset_id', 'hits'];
+
+    /**
      * Database driver
      *
-     * @var DatabaseDriver
+     * @var DatabaseInterface
      */
     private $db;
 
@@ -26,9 +44,9 @@ class ImportService
      * @var array
      */
     private $stats = [
-        'added' => 0,
+        'added'   => 0,
         'skipped' => 0,
-        'errors' => []
+        'errors'  => [],
     ];
 
     /**
@@ -39,29 +57,20 @@ class ImportService
     private $columnsCache = [];
 
     /**
-     * Constructor
+     * Cache for resolved foreign keys
      *
-     * @param   DatabaseDriver  $db  Database driver
+     * @var array
      */
-    public function __construct(DatabaseDriver $db = null)
-    {
-        $this->db = $db ?: Factory::getContainer()->get(DatabaseDriver::class);
-    }
+    private $lookupCache = [];
 
     /**
-     * Get columns for a table from cache or database
+     * Constructor
      *
-     * @param   string  $table  Table name
-     *
-     * @return  array
+     * @param   ?DatabaseInterface  $db  Database driver
      */
-    private function getTableColumns(string $table): array
+    public function __construct(?DatabaseInterface $db = null)
     {
-        if (!isset($this->columnsCache[$table])) {
-            $this->columnsCache[$table] = array_keys($this->db->getTableColumns($table));
-        }
-
-        return $this->columnsCache[$table];
+        $this->db = $db ?: Factory::getContainer()->get(DatabaseInterface::class);
     }
 
     /**
@@ -73,34 +82,34 @@ class ImportService
      */
     public function parseXML(string $xmlContent)
     {
-        libxml_use_internal_errors(true);
-        
-        $xml = simplexml_load_string($xmlContent);
-        
+        $previous = libxml_use_internal_errors(true);
+
+        // LIBXML_NONET: never fetch external resources while parsing.
+        $xml = simplexml_load_string($xmlContent, \SimpleXMLElement::class, LIBXML_NONET);
+
         if ($xml === false) {
-            $errors = libxml_get_errors();
             $errorMessages = [];
-            
-            foreach ($errors as $error) {
-                $errorMessages[] = sprintf(
-                    'Line %d: %s',
-                    $error->line,
-                    trim($error->message)
-                );
+
+            foreach (libxml_get_errors() as $error) {
+                $errorMessages[] = Text::sprintf('COM_YOUTUBEVIDEOS_IMPORT_ERROR_XML_LINE', $error->line, trim($error->message));
             }
-            
+
             libxml_clear_errors();
-            $this->stats['errors'][] = 'XML Parse Error: ' . implode('; ', $errorMessages);
-            
+            libxml_use_internal_errors($previous);
+
+            $this->stats['errors'][] = Text::sprintf('COM_YOUTUBEVIDEOS_IMPORT_ERROR_XML_PARSE', implode('; ', $errorMessages));
+
             return false;
         }
-        
-        // Validate structure
+
+        libxml_use_internal_errors($previous);
+
         if (!isset($xml->metadata) || !isset($xml->metadata->type)) {
-            $this->stats['errors'][] = 'Invalid XML structure: missing metadata';
+            $this->stats['errors'][] = Text::_('COM_YOUTUBEVIDEOS_IMPORT_ERROR_INVALID_STRUCTURE');
+
             return false;
         }
-        
+
         return $xml;
     }
 
@@ -113,93 +122,17 @@ class ImportService
      */
     public function importCategories(\SimpleXMLElement $xml): array
     {
-        $this->resetStats();
-        
-        if ((string) $xml->metadata->type !== 'categories') {
-            $this->stats['errors'][] = 'Invalid XML type: expected categories';
-            return $this->stats;
-        }
-        
-        if (!isset($xml->categories->category)) {
-            $this->stats['errors'][] = 'No categories found in XML';
-            return $this->stats;
-        }
-        
-        foreach ($xml->categories->category as $category) {
-            try {
-                $this->importCategory($category);
-            } catch (\Exception $e) {
-                $this->stats['errors'][] = sprintf(
-                    'Error importing category "%s": %s',
-                    (string) $category->title,
-                    $e->getMessage()
-                );
-            }
-        }
-        
-        return $this->stats;
-    }
+        return $this->importItems($xml, 'categories', 'category', function (\SimpleXMLElement $category): void {
+            $alias = (string) $category->alias;
 
-    /**
-     * Import a single category
-     *
-     * @param   \SimpleXMLElement  $category  Category element
-     *
-     * @return  void
-     */
-    private function importCategory(\SimpleXMLElement $category): void
-    {
-        $alias = (string) $category->alias;
-        
-        // Check if category already exists
-        $query = $this->db->getQuery(true)
-            ->select($this->db->quoteName('id'))
-            ->from($this->db->quoteName('#__youtubevideos_categories'))
-            ->where($this->db->quoteName('alias') . ' = :alias')
-            ->bind(':alias', $alias);
-        
-        $this->db->setQuery($query);
-        $existingId = $this->db->loadResult();
-        
-        if ($existingId) {
-            $this->stats['skipped']++;
-            return;
-        }
+            if ($alias !== '' && $this->findId('#__youtubevideos_categories', 'alias', $alias)) {
+                $this->stats['skipped']++;
 
-        $tableColumns = $this->getTableColumns('#__youtubevideos_categories');
-        
-        // Insert new category
-        $columns = [];
-        $values = [];
-        $bindings = [];
-        
-        foreach ($category as $key => $value) {
-            $strKey = (string) $key;
-            $strValue = (string) $value;
-            
-            // Skip id and auto-generated fields, and check if column exists
-            if (in_array($strKey, ['id', 'checked_out', 'checked_out_time']) || !in_array($strKey, $tableColumns)) {
-                continue;
+                return;
             }
-            
-            $columns[] = $this->db->quoteName($strKey);
-            $values[] = ':' . $strKey;
-            $bindings[':' . $strKey] = $strValue;
-        }
-        
-        $query = $this->db->getQuery(true)
-            ->insert($this->db->quoteName('#__youtubevideos_categories'))
-            ->columns($columns)
-            ->values(implode(', ', $values));
-        
-        foreach ($bindings as $key => $value) {
-            $query->bind($key, $bindings[$key]);
-        }
-        
-        $this->db->setQuery($query);
-        $this->db->execute();
-        
-        $this->stats['added']++;
+
+            $this->insertRow('#__youtubevideos_categories', $category);
+        });
     }
 
     /**
@@ -211,97 +144,23 @@ class ImportService
      */
     public function importPlaylists(\SimpleXMLElement $xml): array
     {
-        $this->resetStats();
-        
-        if ((string) $xml->metadata->type !== 'playlists') {
-            $this->stats['errors'][] = 'Invalid XML type: expected playlists';
-            return $this->stats;
-        }
-        
-        if (!isset($xml->playlists->playlist)) {
-            $this->stats['errors'][] = 'No playlists found in XML';
-            return $this->stats;
-        }
-        
-        foreach ($xml->playlists->playlist as $playlist) {
-            try {
-                $this->importPlaylist($playlist);
-            } catch (\Exception $e) {
-                $this->stats['errors'][] = sprintf(
-                    'Error importing playlist "%s": %s',
-                    (string) $playlist->title,
-                    $e->getMessage()
-                );
-            }
-        }
-        
-        return $this->stats;
-    }
+        return $this->importItems($xml, 'playlists', 'playlist', function (\SimpleXMLElement $playlist): void {
+            if ($this->findId('#__youtubevideos_playlists', 'youtube_playlist_id', (string) $playlist->youtube_playlist_id)) {
+                $this->stats['skipped']++;
 
-    /**
-     * Import a single playlist
-     *
-     * @param   \SimpleXMLElement  $playlist  Playlist element
-     *
-     * @return  void
-     */
-    private function importPlaylist(\SimpleXMLElement $playlist): void
-    {
-        $youtubePlaylistId = (string) $playlist->youtube_playlist_id;
-        
-        // Check if playlist already exists
-        $query = $this->db->getQuery(true)
-            ->select($this->db->quoteName('id'))
-            ->from($this->db->quoteName('#__youtubevideos_playlists'))
-            ->where($this->db->quoteName('youtube_playlist_id') . ' = :playlistId')
-            ->bind(':playlistId', $youtubePlaylistId);
-        
-        $this->db->setQuery($query);
-        $existingId = $this->db->loadResult();
-        
-        if ($existingId) {
-            $this->stats['skipped']++;
-            return;
-        }
-
-        $tableColumns = $this->getTableColumns('#__youtubevideos_playlists');
-        
-        // Insert new playlist
-        $columns = [];
-        $values = [];
-        $bindings = [];
-        
-        foreach ($playlist as $key => $value) {
-            $strKey = (string) $key;
-            $strValue = (string) $value;
-            
-            // Skip id and auto-generated fields, and check if column exists
-            if (in_array($strKey, ['id', 'checked_out', 'checked_out_time']) || !in_array($strKey, $tableColumns)) {
-                continue;
+                return;
             }
-            
-            $columns[] = $this->db->quoteName($strKey);
-            $values[] = ':' . $strKey;
-            $bindings[':' . $strKey] = $strValue;
-        }
-        
-        $query = $this->db->getQuery(true)
-            ->insert($this->db->quoteName('#__youtubevideos_playlists'))
-            ->columns($columns)
-            ->values(implode(', ', $values));
-        
-        foreach ($bindings as $key => $value) {
-            $query->bind($key, $bindings[$key]);
-        }
-        
-        $this->db->setQuery($query);
-        $this->db->execute();
-        
-        $this->stats['added']++;
+
+            $this->insertRow('#__youtubevideos_playlists', $playlist);
+        });
     }
 
     /**
      * Import videos from XML
+     *
+     * Category and playlist links are resolved through the exported category alias and
+     * YouTube playlist ID. Files from older versions only contain the source site's numeric
+     * ids, which mean nothing on another site, so those links are left empty.
      *
      * @param   \SimpleXMLElement  $xml  XML element
      *
@@ -309,107 +168,23 @@ class ImportService
      */
     public function importVideos(\SimpleXMLElement $xml): array
     {
-        $this->resetStats();
-        
-        if ((string) $xml->metadata->type !== 'videos') {
-            $this->stats['errors'][] = 'Invalid XML type: expected videos';
-            return $this->stats;
-        }
-        
-        if (!isset($xml->videos->video)) {
-            $this->stats['errors'][] = 'No videos found in XML';
-            return $this->stats;
-        }
-        
-        foreach ($xml->videos->video as $video) {
-            try {
-                $this->importVideo($video);
-            } catch (\Exception $e) {
-                $this->stats['errors'][] = sprintf(
-                    'Error importing video "%s": %s',
-                    (string) $video->title,
-                    $e->getMessage()
-                );
+        return $this->importItems($xml, 'videos', 'video', function (\SimpleXMLElement $video): void {
+            if ($this->findId('#__youtubevideos_featured', 'youtube_video_id', (string) $video->youtube_video_id)) {
+                $this->stats['skipped']++;
+
+                return;
             }
-        }
-        
-        return $this->stats;
-    }
 
-    /**
-     * Import a single video
-     *
-     * @param   \SimpleXMLElement  $video  Video element
-     *
-     * @return  void
-     */
-    private function importVideo(\SimpleXMLElement $video): void
-    {
-        $youtubeVideoId = (string) $video->youtube_video_id;
-        
-        // Check if video already exists
-        $query = $this->db->getQuery(true)
-            ->select($this->db->quoteName('id'))
-            ->from($this->db->quoteName('#__youtubevideos_featured'))
-            ->where($this->db->quoteName('youtube_video_id') . ' = :videoId')
-            ->bind(':videoId', $youtubeVideoId);
-        
-        $this->db->setQuery($query);
-        $existingId = $this->db->loadResult();
-        
-        if ($existingId) {
-            $this->stats['skipped']++;
-            return;
-        }
+            $categoryAlias = (string) ($video->category_alias ?? '');
+            $playlistId    = (string) ($video->playlist_youtube_id ?? '');
 
-        $tableColumns = $this->getTableColumns('#__youtubevideos_featured');
-        
-        // Insert new video
-        $columns = [];
-        $values = [];
-        $bindings = [];
-        
-        foreach ($video as $key => $value) {
-            $strKey = (string) $key;
-            $strValue = (string) $value;
-            
-            // Skip id and auto-generated fields, and check if column exists
-            if (in_array($strKey, ['id', 'checked_out', 'checked_out_time']) || !in_array($strKey, $tableColumns)) {
-                continue;
-            }
-            
-            $columns[] = $this->db->quoteName($strKey);
-            $values[] = ':' . $strKey;
-            $bindings[':' . $strKey] = $strValue;
-        }
-        
-        $query = $this->db->getQuery(true)
-            ->insert($this->db->quoteName('#__youtubevideos_featured'))
-            ->columns($columns)
-            ->values(implode(', ', $values));
-        
-        foreach ($bindings as $key => $value) {
-            $query->bind($key, $bindings[$key]);
-        }
-        
-        $this->db->setQuery($query);
-        $this->db->execute();
-        
-        $this->stats['added']++;
-    }
+            $overrides = [
+                'category_id' => $categoryAlias !== '' ? $this->findId('#__youtubevideos_categories', 'alias', $categoryAlias) : null,
+                'playlist_id' => $playlistId !== '' ? $this->findId('#__youtubevideos_playlists', 'youtube_playlist_id', $playlistId) : null,
+            ];
 
-    /**
-     * Reset statistics
-     *
-     * @return  void
-     */
-    private function resetStats(): void
-    {
-        $this->stats = [
-            'added' => 0,
-            'skipped' => 0,
-            'errors' => []
-        ];
+            $this->insertRow('#__youtubevideos_featured', $video, $overrides);
+        });
     }
 
     /**
@@ -432,17 +207,19 @@ class ImportService
     public function parseJSON(string $jsonContent)
     {
         $data = json_decode($jsonContent, true);
-        
+
         if ($data === null) {
-            $this->stats['errors'][] = 'JSON Parse Error: ' . json_last_error_msg();
+            $this->stats['errors'][] = Text::sprintf('COM_YOUTUBEVIDEOS_IMPORT_ERROR_JSON_PARSE', json_last_error_msg());
+
             return false;
         }
-        
-        if (!isset($data['recipes']) || !is_array($data['recipes'])) {
-            $this->stats['errors'][] = 'Invalid JSON structure: missing recipes array';
+
+        if (!isset($data['recipes']) || !\is_array($data['recipes'])) {
+            $this->stats['errors'][] = Text::_('COM_YOUTUBEVIDEOS_IMPORT_ERROR_NO_RECIPES');
+
             return false;
         }
-        
+
         return $data;
     }
 
@@ -456,151 +233,344 @@ class ImportService
     public function importRecipes(array $jsonData): array
     {
         $this->resetStats();
-        
-        if (!isset($jsonData['recipes']) || !is_array($jsonData['recipes'])) {
-            $this->stats['errors'][] = 'No recipes found in JSON';
+
+        if (empty($jsonData['recipes']) || !\is_array($jsonData['recipes'])) {
+            $this->stats['errors'][] = Text::_('COM_YOUTUBEVIDEOS_IMPORT_ERROR_NO_RECIPES');
+
             return $this->stats;
         }
-        
-        foreach ($jsonData['recipes'] as $recipe) {
-            try {
-                $this->importRecipe($recipe);
-            } catch (\Exception $e) {
-                $this->stats['errors'][] = sprintf(
-                    'Error importing recipe "%s": %s',
-                    $recipe['title'] ?? 'Unknown',
-                    $e->getMessage()
-                );
+
+        $videos = $this->loadVideoTitles();
+
+        $this->runInTransaction(function () use ($jsonData, $videos): void {
+            foreach ($jsonData['recipes'] as $recipe) {
+                try {
+                    $this->importRecipe((array) $recipe, $videos);
+                } catch (\Exception $e) {
+                    $this->stats['errors'][] = Text::sprintf(
+                        'COM_YOUTUBEVIDEOS_IMPORT_ERROR_ITEM',
+                        $recipe['title'] ?? Text::_('COM_YOUTUBEVIDEOS_IMPORT_UNKNOWN_ITEM'),
+                        $e->getMessage()
+                    );
+                }
+            }
+        });
+
+        return $this->stats;
+    }
+
+    /**
+     * Shared loop for the XML imports.
+     *
+     * @param   \SimpleXMLElement  $xml       The parsed file.
+     * @param   string             $type      Expected metadata type and container element.
+     * @param   string             $element   The item element name.
+     * @param   callable           $importer  Imports one item.
+     *
+     * @return  array  Import statistics
+     *
+     * @since   1.0.45
+     */
+    private function importItems(\SimpleXMLElement $xml, string $type, string $element, callable $importer): array
+    {
+        $this->resetStats();
+
+        if ((string) $xml->metadata->type !== $type) {
+            $this->stats['errors'][] = Text::sprintf('COM_YOUTUBEVIDEOS_IMPORT_ERROR_WRONG_TYPE', Text::_('COM_YOUTUBEVIDEOS_' . strtoupper($type)));
+
+            return $this->stats;
+        }
+
+        if (!isset($xml->{$type}->{$element})) {
+            $this->stats['errors'][] = Text::sprintf('COM_YOUTUBEVIDEOS_IMPORT_ERROR_NO_ITEMS', Text::_('COM_YOUTUBEVIDEOS_' . strtoupper($type)));
+
+            return $this->stats;
+        }
+
+        $this->runInTransaction(function () use ($xml, $type, $element, $importer): void {
+            foreach ($xml->{$type}->{$element} as $item) {
+                try {
+                    $importer($item);
+                } catch (\Exception $e) {
+                    $this->stats['errors'][] = Text::sprintf('COM_YOUTUBEVIDEOS_IMPORT_ERROR_ITEM', (string) $item->title, $e->getMessage());
+                }
+            }
+        });
+
+        return $this->stats;
+    }
+
+    /**
+     * Run an import inside a transaction; roll back everything when any item failed.
+     *
+     * @param   callable  $callback  The import loop.
+     *
+     * @return  void
+     *
+     * @since   1.0.45
+     */
+    private function runInTransaction(callable $callback): void
+    {
+        $this->db->transactionStart();
+
+        try {
+            $callback();
+        } catch (\Throwable $e) {
+            $this->stats['errors'][] = $e->getMessage();
+        }
+
+        if (!empty($this->stats['errors'])) {
+            $this->db->transactionRollback();
+            $this->stats['added'] = 0;
+
+            return;
+        }
+
+        $this->db->transactionCommit();
+    }
+
+    /**
+     * Insert one exported row, keeping only columns that exist in the target table.
+     *
+     * @param   string             $table      The table name.
+     * @param   \SimpleXMLElement  $row        The exported row.
+     * @param   array              $overrides  Column values that replace the exported ones (null = SQL NULL).
+     *
+     * @return  void
+     *
+     * @since   1.0.45
+     */
+    private function insertRow(string $table, \SimpleXMLElement $row, array $overrides = []): void
+    {
+        $tableColumns = $this->getTableColumns($table);
+        $values       = [];
+
+        foreach ($row as $key => $value) {
+            $key = (string) $key;
+
+            if (\in_array($key, self::SKIPPED_COLUMNS, true) || !\in_array($key, $tableColumns, true)) {
+                continue;
+            }
+
+            $values[$key] = (string) $value;
+        }
+
+        foreach ($overrides as $key => $value) {
+            if (\in_array($key, $tableColumns, true)) {
+                $values[$key] = $value;
             }
         }
-        
-        return $this->stats;
+
+        if (empty($values)) {
+            $this->stats['skipped']++;
+
+            return;
+        }
+
+        $query        = $this->db->getQuery(true)->insert($this->db->quoteName($table));
+        $columns      = [];
+        $placeholders = [];
+        $index        = 0;
+
+        foreach ($values as $column => $value) {
+            $columns[] = $this->db->quoteName($column);
+
+            if ($value === null) {
+                $placeholders[] = 'NULL';
+                continue;
+            }
+
+            $placeholder    = ':v' . $index++;
+            $placeholders[] = $placeholder;
+            $query->bind($placeholder, $values[$column]);
+        }
+
+        $query->columns($columns)->values(implode(', ', $placeholders));
+
+        $this->db->setQuery($query)->execute();
+
+        $this->stats['added']++;
+    }
+
+    /**
+     * Find a record id by a unique column value.
+     *
+     * @param   string  $table   The table name.
+     * @param   string  $column  The column to match.
+     * @param   string  $value   The value to match.
+     *
+     * @return  int|null
+     *
+     * @since   1.0.45
+     */
+    private function findId(string $table, string $column, string $value): ?int
+    {
+        if ($value === '') {
+            return null;
+        }
+
+        $cacheKey = $table . '|' . $column . '|' . $value;
+
+        if (!\array_key_exists($cacheKey, $this->lookupCache)) {
+            $query = $this->db->getQuery(true)
+                ->select($this->db->quoteName('id'))
+                ->from($this->db->quoteName($table))
+                ->where($this->db->quoteName($column) . ' = :value')
+                ->bind(':value', $value);
+
+            $id = (int) $this->db->setQuery($query, 0, 1)->loadResult();
+
+            $this->lookupCache[$cacheKey] = $id ?: null;
+        }
+
+        return $this->lookupCache[$cacheKey];
+    }
+
+    /**
+     * Get columns for a table from cache or database
+     *
+     * @param   string  $table  Table name
+     *
+     * @return  array
+     */
+    private function getTableColumns(string $table): array
+    {
+        if (!isset($this->columnsCache[$table])) {
+            $this->columnsCache[$table] = array_keys($this->db->getTableColumns($table));
+        }
+
+        return $this->columnsCache[$table];
+    }
+
+    /**
+     * Reset statistics
+     *
+     * @return  void
+     */
+    private function resetStats(): void
+    {
+        $this->stats       = ['added' => 0, 'skipped' => 0, 'errors' => []];
+        $this->lookupCache = [];
     }
 
     /**
      * Import a single recipe
      *
      * @param   array  $recipe  Recipe data
+     * @param   array  $videos  Normalised video titles keyed by video id
      *
      * @return  void
      */
-    private function importRecipe(array $recipe): void
+    private function importRecipe(array $recipe, array $videos): void
     {
-        $title = $recipe['title'] ?? $recipe['name'] ?? '';
-        $description = $recipe['description'] ?? '';
-        $youtubeId = $recipe['youtubeId'] ?? '';
-        
-        $videoId = $this->matchRecipeToVideo($title, $description, $youtubeId);
-        
+        $title     = (string) ($recipe['title'] ?? $recipe['name'] ?? '');
+        $youtubeId = (string) ($recipe['youtubeId'] ?? '');
+
+        $videoId = $this->matchRecipeToVideo($title, $youtubeId, $videos);
+
         if (!$videoId) {
             $this->stats['skipped']++;
+
             return;
         }
-        
+
         $recipeData = $this->extractRecipeData($recipe);
-        
+
         if (empty($recipeData)) {
             $this->stats['skipped']++;
+
             return;
         }
-        
+
         $query = $this->db->getQuery(true)
             ->update($this->db->quoteName('#__youtubevideos_featured'))
             ->set($this->db->quoteName('recipe_type') . ' = 1')
             ->set($this->db->quoteName('recipe_data') . ' = :recipeData')
             ->where($this->db->quoteName('id') . ' = :videoId')
             ->bind(':recipeData', $recipeData)
-            ->bind(':videoId', $videoId, \Joomla\Database\ParameterType::INTEGER);
-        
-        $this->db->setQuery($query);
-        $this->db->execute();
-        
+            ->bind(':videoId', $videoId, ParameterType::INTEGER);
+
+        $this->db->setQuery($query)->execute();
+
         $this->stats['added']++;
     }
 
     /**
-     * Match recipe to existing video using fuzzy matching
+     * Load all video titles, normalised for matching.
      *
-     * @param   string  $title        Recipe title
-     * @param   string  $description  Recipe description
-     * @param   string  $youtubeId    YouTube video ID
+     * @return  array  Map of video id => normalised title (empty titles are left out)
+     *
+     * @since   1.0.45
+     */
+    private function loadVideoTitles(): array
+    {
+        $query = $this->db->getQuery(true)
+            ->select($this->db->quoteName(['id', 'title']))
+            ->from($this->db->quoteName('#__youtubevideos_featured'));
+
+        $titles = [];
+
+        foreach ($this->db->setQuery($query)->loadObjectList() as $video) {
+            $normalised = $this->normaliseString((string) $video->title);
+
+            if ($normalised !== '') {
+                $titles[(int) $video->id] = $normalised;
+            }
+        }
+
+        return $titles;
+    }
+
+    /**
+     * Match a recipe to an existing video: exact YouTube ID first, then fuzzy title match.
+     *
+     * Descriptions are not compared: they are long (slow to compare) and share boilerplate
+     * text, which produced false matches.
+     *
+     * @param   string  $title      Recipe title
+     * @param   string  $youtubeId  YouTube video ID
+     * @param   array   $videos     Normalised video titles keyed by video id
      *
      * @return  int|null  Video ID if matched, null otherwise
      */
-    private function matchRecipeToVideo(string $title, string $description, string $youtubeId): ?int
+    private function matchRecipeToVideo(string $title, string $youtubeId, array $videos): ?int
     {
-        if ($youtubeId) {
-            $query = $this->db->getQuery(true)
-                ->select($this->db->quoteName('id'))
-                ->from($this->db->quoteName('#__youtubevideos_featured'))
-                ->where($this->db->quoteName('youtube_video_id') . ' = :youtubeId')
-                ->bind(':youtubeId', $youtubeId);
-            
-            $this->db->setQuery($query);
-            $id = $this->db->loadResult();
-            
+        if ($youtubeId !== '') {
+            $id = $this->findId('#__youtubevideos_featured', 'youtube_video_id', $youtubeId);
+
             if ($id) {
-                return (int) $id;
+                return $id;
             }
         }
-        
-        $query = $this->db->getQuery(true)
-            ->select('id, title, description')
-            ->from($this->db->quoteName('#__youtubevideos_featured'));
-        
-        $this->db->setQuery($query);
-        $videos = $this->db->loadObjectList();
-        
+
+        $needle = $this->normaliseString($title);
+
+        // A title with no letters or digits left cannot be matched reliably.
+        if ($needle === '') {
+            return null;
+        }
+
         $bestMatch = null;
-        $bestScore = 0;
-        $threshold = 70;
-        
-        foreach ($videos as $video) {
-            $titleScore = $this->calculateSimilarity($title, $video->title);
-            
-            if ($titleScore > $bestScore && $titleScore >= $threshold) {
-                $bestScore = $titleScore;
-                $bestMatch = $video->id;
+        $bestScore = 0.0;
+
+        foreach ($videos as $videoId => $videoTitle) {
+            if ($videoTitle === $needle) {
+                return $videoId;
             }
-            
-            if ($description && $video->description) {
-                $descScore = $this->calculateSimilarity($description, $video->description);
-                
-                if ($descScore > $bestScore && $descScore >= $threshold) {
-                    $bestScore = $descScore;
-                    $bestMatch = $video->id;
-                }
+
+            similar_text($needle, $videoTitle, $percent);
+
+            if ($percent >= self::RECIPE_MATCH_THRESHOLD && $percent > $bestScore) {
+                $bestScore = $percent;
+                $bestMatch = $videoId;
             }
         }
-        
-        return $bestMatch ? (int) $bestMatch : null;
+
+        return $bestMatch;
     }
 
     /**
-     * Calculate similarity between two strings
-     *
-     * @param   string  $str1  First string
-     * @param   string  $str2  Second string
-     *
-     * @return  float  Similarity percentage (0-100)
-     */
-    private function calculateSimilarity(string $str1, string $str2): float
-    {
-        $str1 = $this->normaliseString($str1);
-        $str2 = $this->normaliseString($str2);
-        
-        if ($str1 === $str2) {
-            return 100.0;
-        }
-        
-        $percent = 0;
-        similar_text($str1, $str2, $percent);
-        
-        return $percent;
-    }
-
-    /**
-     * Normalise string for comparison
+     * Normalise string for comparison (Unicode aware: keeps letters and digits in any script)
      *
      * @param   string  $str  String to normalise
      *
@@ -608,10 +578,10 @@ class ImportService
      */
     private function normaliseString(string $str): string
     {
-        $str = mb_strtolower($str);
-        $str = preg_replace('/[^a-z0-9\s]/', '', $str);
-        $str = preg_replace('/\s+/', ' ', $str);
-        
+        $str = mb_strtolower($str, 'UTF-8');
+        $str = (string) preg_replace('/[^\p{L}\p{N}\s]+/u', '', $str);
+        $str = (string) preg_replace('/\s+/u', ' ', $str);
+
         return trim($str);
     }
 
@@ -626,56 +596,51 @@ class ImportService
     {
         $recipeData = [
             'ingredients' => [],
-            'method' => []
+            'method'      => [],
         ];
-        
-        if (isset($recipe['list']) && is_array($recipe['list']) && !empty($recipe['list'])) {
+
+        if (isset($recipe['list']) && \is_array($recipe['list']) && !empty($recipe['list'])) {
             $recipe = $recipe['list'][0];
         }
-        
-        if (isset($recipe['recipe']['ingr']) && is_array($recipe['recipe']['ingr'])) {
+
+        if (isset($recipe['recipe']['ingr']) && \is_array($recipe['recipe']['ingr'])) {
             foreach ($recipe['recipe']['ingr'] as $ingredient) {
-                $item = $ingredient['Item'] ?? '';
-                
+                $item  = (string) ($ingredient['Item'] ?? '');
                 $group = '';
-                if (preg_match('/^\{([^}]+)\}(.*)$/', $item, $matches)) {
+
+                if (preg_match('/^\{([^}]+)\}(.*)$/u', $item, $matches)) {
                     $group = trim($matches[1]);
-                    $item = trim($matches[2]);
+                    $item  = trim($matches[2]);
                 }
-                
+
                 $recipeData['ingredients'][] = [
                     'quantity' => $ingredient['Qty'] ?? '',
-                    'unit' => $ingredient['Unit'] ?? '',
-                    'item' => $item,
-                    'group' => $group
+                    'unit'     => $ingredient['Unit'] ?? '',
+                    'item'     => $item,
+                    'group'    => $group,
                 ];
             }
         }
-        
-        if (isset($recipe['recipe']['method']) && is_array($recipe['recipe']['method'])) {
+
+        if (isset($recipe['recipe']['method']) && \is_array($recipe['recipe']['method'])) {
             $stepNum = 1;
+
             foreach ($recipe['recipe']['method'] as $method) {
-                $directions = $method['Directions'] ?? '';
-                
-                $directions = preg_replace('/^\{[^}]+\}/', '', $directions);
-                $directions = trim($directions);
-                
-                if ($directions) {
+                $directions = trim((string) preg_replace('/^\{[^}]+\}/u', '', (string) ($method['Directions'] ?? '')));
+
+                if ($directions !== '') {
                     $recipeData['method'][] = [
-                        'step' => $stepNum++,
-                        'directions' => $directions
+                        'step'       => $stepNum++,
+                        'directions' => $directions,
                     ];
                 }
             }
         }
-        
+
         if (empty($recipeData['ingredients']) && empty($recipeData['method'])) {
             return null;
         }
-        
+
         return json_encode($recipeData, JSON_UNESCAPED_UNICODE);
     }
 }
-
-
-

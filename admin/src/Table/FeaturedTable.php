@@ -1,7 +1,6 @@
 <?php
 namespace BKWSU\Component\Youtubevideos\Administrator\Table;
 
-use Joomla\CMS\Application\ApplicationHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Table\Table;
@@ -16,6 +15,8 @@ use Joomla\Event\DispatcherInterface;
  */
 class FeaturedTable extends Table implements VersionableTableInterface
 {
+    use UniqueAliasTrait;
+
     /**
      * Constructor
      *
@@ -24,7 +25,7 @@ class FeaturedTable extends Table implements VersionableTableInterface
      *
      * @since   1.0.0
      */
-    public function __construct(DatabaseDriver $db, DispatcherInterface $dispatcher = null)
+    public function __construct(DatabaseDriver $db, ?DispatcherInterface $dispatcher = null)
     {
         $this->typeAlias = 'com_youtubevideos.featured';
 
@@ -51,13 +52,13 @@ class FeaturedTable extends Table implements VersionableTableInterface
         }
 
         // Check for valid title
-        if (trim($this->title) == '') {
+        if (trim((string) $this->title) === '') {
             $this->setError(Text::_('COM_YOUTUBEVIDEOS_WARNING_PROVIDE_VALID_TITLE'));
             return false;
         }
 
         // Check for valid youtube_video_id
-        if (trim($this->youtube_video_id) == '') {
+        if (trim((string) $this->youtube_video_id) === '') {
             $this->setError(Text::_('COM_YOUTUBEVIDEOS_WARNING_PROVIDE_VALID_VIDEO_ID'));
             return false;
         }
@@ -93,15 +94,8 @@ class FeaturedTable extends Table implements VersionableTableInterface
             $this->recipe_data = null;
         }
 
-        // Generate alias if empty
-        if (empty($this->alias)) {
-            $this->alias = $this->title;
-        }
-
-        $this->alias = ApplicationHelper::stringURLSafe($this->alias);
-
-        if (trim(str_replace('-', '', $this->alias)) == '') {
-            $this->alias = Factory::getDate()->format('Y-m-d-H-i-s');
+        if (!$this->prepareUniqueAlias()) {
+            return false;
         }
 
         // Set created date if new record

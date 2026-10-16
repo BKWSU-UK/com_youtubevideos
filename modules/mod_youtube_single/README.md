@@ -189,9 +189,12 @@ Display different videos on different pages using a single module:
 ```
 mod_youtube_single/
 ├── mod_youtube_single.xml       # Module manifest
-├── mod_youtube_single.php       # Module entry point
 ├── README.md                     # This file
+├── services/
+│   └── provider.php              # Service provider (Joomla 5 dispatcher pattern)
 ├── src/
+│   ├── Dispatcher/
+│   │   └── Dispatcher.php        # Resolves the video and prepares layout data
 │   ├── Helper/
 │   │   └── YoutubeSingleHelper.php    # Helper class for fetching videos
 │   └── Field/

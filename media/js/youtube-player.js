@@ -1,137 +1,231 @@
-(function() {
-    // Global players storage to avoid conflicts if script is loaded multiple times
-    window.com_youtubevideos_players = window.com_youtubevideos_players || {};
-    var players = window.com_youtubevideos_players;
-    var apiReady = false;
+/**
+ * YouTube modal player for com_youtubevideos grids and mod_youtubevideos.
+ *
+ * Cards are real links (<a class="video-item" href="...">). When a card has
+ * data-yv-modal="#videoModal{suffix}", a plain left click opens that modal and
+ * plays the video; any other click (new tab, middle click) follows the link.
+ *
+ * Modal element ids: videoModal{suffix}, videoModalLabel{suffix},
+ * youtube-player{suffix}, video-description-container{suffix},
+ * video-description-content{suffix}.
+ *
+ * @package     Joomla.Site
+ * @subpackage  com_youtubevideos
+ * @since       1.0.0
+ */
+(function () {
+    'use strict';
 
-    // Load YouTube IFrame API
-    if (!window.YT) {
-        var tag = document.createElement('script');
-        tag.src = "https://www.youtube.com/iframe_api";
-        var firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    // Guard against the script being included twice (component + module).
+    if (window.comYoutubevideosPlayer) {
+        return;
     }
 
-    // Initialize players when API is ready
-    window.onYouTubeIframeAPIReady = (function(oldCallback) {
-        return function() {
-            if (oldCallback) oldCallback();
-            apiReady = true;
-            initAllPlayers();
-        };
-    })(window.onYouTubeIframeAPIReady);
+    var MODAL_PREFIX = 'videoModal';
+    var players = {};
+    var triggers = {};
+    var apiCallbacks = [];
+    var apiRequested = false;
 
-    function initAllPlayers() {
-        if (!apiReady || !window.YT || !window.YT.Player) return;
-        
-        document.querySelectorAll('[id^="youtube-player"]').forEach(function(playerElement) {
-            var playerId = playerElement.id;
-            var moduleId = playerId.replace('youtube-player', '');
-            
-            if (!players[moduleId] || typeof players[moduleId].loadVideoById !== 'function') {
-                try {
-                    players[moduleId] = new YT.Player(playerId, {
-                        height: '100%',
-                        width: '100%',
-                        playerVars: {
-                            'autoplay': 1,
-                            'rel': 0,
-                            'modestbranding': 1,
-                            'origin': window.location.origin
-                        }
-                    });
-                } catch (e) {
-                    console.error('Failed to initialize YouTube player for module ' + moduleId, e);
+    window.comYoutubevideosPlayer = { players: players };
+
+    function text(key, fallback) {
+        if (window.Joomla && Joomla.Text && typeof Joomla.Text._ === 'function') {
+            var value = Joomla.Text._(key, fallback);
+            if (value && value !== key) {
+                return value;
+            }
+        }
+        return fallback;
+    }
+
+    function apiReady() {
+        return !!(window.YT && window.YT.Player);
+    }
+
+    /**
+     * Run a callback once the YouTube IFrame API is available, loading it on first use.
+     */
+    function withApi(callback) {
+        if (apiReady()) {
+            callback();
+            return;
+        }
+
+        apiCallbacks.push(callback);
+
+        if (apiRequested) {
+            return;
+        }
+
+        apiRequested = true;
+
+        var previous = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = function () {
+            if (typeof previous === 'function') {
+                previous();
+            }
+            var queue = apiCallbacks.splice(0);
+            queue.forEach(function (fn) { fn(); });
+        };
+
+        if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+            var tag = document.createElement('script');
+            tag.src = 'https://www.youtube.com/iframe_api';
+            tag.async = true;
+            document.head.appendChild(tag);
+        }
+    }
+
+    function play(suffix, videoId) {
+        var player = players[suffix];
+
+        if (player) {
+            if (typeof player.loadVideoById === 'function') {
+                player.loadVideoById(videoId);
+            } else {
+                // Still initialising: play this one when ready.
+                player.pendingVideoId = videoId;
+                player.cancelled = false;
+            }
+            return;
+        }
+
+        var element = document.getElementById('youtube-player' + suffix);
+
+        if (!element) {
+            return;
+        }
+
+        players[suffix] = new window.YT.Player(element, {
+            height: '100%',
+            width: '100%',
+            videoId: videoId,
+            playerVars: {
+                autoplay: 1,
+                rel: 0,
+                playsinline: 1,
+                origin: window.location.origin
+            },
+            events: {
+                onReady: function (event) {
+                    var target = event.target;
+                    var pending = target.pendingVideoId;
+
+                    delete target.pendingVideoId;
+
+                    if (target.cancelled) {
+                        // The modal was closed before the player was ready.
+                        target.stopVideo();
+                    } else if (pending && pending !== videoId) {
+                        target.loadVideoById(pending);
+                    } else {
+                        target.playVideo();
+                    }
                 }
             }
         });
     }
 
-    // If API is already loaded
-    if (window.YT && window.YT.Player) {
-        apiReady = true;
-        initAllPlayers();
+    function suffixOf(modal) {
+        if (!modal || !modal.id || modal.id.indexOf(MODAL_PREFIX) !== 0) {
+            return null;
+        }
+        return modal.id.substring(MODAL_PREFIX.length);
     }
 
-    // Use Bootstrap modal events for cleaner logic
-    document.addEventListener('show.bs.modal', function(event) {
-        var modal = event.target;
-        if (!modal || !modal.id || !modal.id.startsWith('videoModal')) return;
+    function setDescription(suffix, description) {
+        var container = document.getElementById('video-description-container' + suffix);
+        var content = document.getElementById('video-description-content' + suffix);
 
-        var moduleId = modal.id.replace('videoModal', '');
+        if (!container || !content) {
+            return;
+        }
+
+        var hasText = !!(description && description.trim() !== '');
+
+        // textContent only: descriptions are untrusted text. Line breaks are kept by CSS (white-space: pre-line).
+        content.textContent = hasText ? description : '';
+        container.hidden = !hasText;
+        container.style.display = hasText ? '' : 'none';
+        container.classList.toggle('d-none', !hasText);
+    }
+
+    // Open the modal from a card link.
+    document.addEventListener('click', function (event) {
+        var card = event.target.closest ? event.target.closest('a.video-item[data-yv-modal]') : null;
+
+        if (!card || event.defaultPrevented || event.button !== 0
+            || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+            return;
+        }
+
+        var modalElement = document.querySelector(card.getAttribute('data-yv-modal'));
+
+        if (!modalElement || !window.bootstrap || !window.bootstrap.Modal) {
+            return; // Fall back to following the link.
+        }
+
+        event.preventDefault();
+        window.bootstrap.Modal.getOrCreateInstance(modalElement).show(card);
+    });
+
+    document.addEventListener('show.bs.modal', function (event) {
+        var suffix = suffixOf(event.target);
         var trigger = event.relatedTarget;
-        
-        // If triggered via JS without relatedTarget, we might need to find the data elsewhere
-        // But in our component/module, it's always from a click on .video-item
-        if (!trigger) return;
+
+        if (suffix === null || !trigger || !trigger.dataset || !trigger.dataset.videoId) {
+            return;
+        }
+
+        triggers[suffix] = trigger;
+
+        var title = document.getElementById('videoModalLabel' + suffix);
+        if (title) {
+            title.textContent = trigger.dataset.videoTitle || text('COM_YOUTUBEVIDEOS_JS_VIDEO_PLAYER', 'Video Player');
+        }
+
+        setDescription(suffix, trigger.dataset.videoDescription || '');
 
         var videoId = trigger.dataset.videoId;
-        var videoTitle = trigger.dataset.videoTitle || 'Video Player';
-        var videoDescription = trigger.dataset.videoDescription || '';
-
-        if (!videoId) return;
-
-        // Update modal title
-        var modalTitle = document.getElementById('videoModalLabel' + moduleId);
-        if (modalTitle) {
-            modalTitle.textContent = videoTitle;
-        }
-
-        // Update video description
-        var descriptionContainer = document.getElementById('video-description-container' + moduleId);
-        var descriptionContent = document.getElementById('video-description-content' + moduleId);
-        
-        if (descriptionContainer && descriptionContent) {
-            if (videoDescription && videoDescription.trim() !== '') {
-                descriptionContent.innerHTML = videoDescription
-                    .replace(/\n/g, '<br>')
-                    .replace(/\r/g, '');
-                descriptionContainer.style.display = 'block';
-            } else {
-                descriptionContainer.style.display = 'none';
-            }
-        }
-
-        // Play video
-        if (apiReady && players[moduleId] && typeof players[moduleId].loadVideoById === 'function') {
-            players[moduleId].loadVideoById(videoId);
-        } else {
-            // Re-initialize if missing and try again
-            initAllPlayers();
-            setTimeout(function() {
-                if (players[moduleId] && typeof players[moduleId].loadVideoById === 'function') {
-                    players[moduleId].loadVideoById(videoId);
-                }
-            }, 500);
-        }
+        withApi(function () { play(suffix, videoId); });
     });
 
-    // Stop video when modals are closed
-    document.addEventListener('hidden.bs.modal', function(event) {
-        var modal = event.target;
-        if (!modal || !modal.id || !modal.id.startsWith('videoModal')) return;
+    document.addEventListener('hidden.bs.modal', function (event) {
+        var suffix = suffixOf(event.target);
 
-        var moduleId = modal.id.replace('videoModal', '');
-        if (players[moduleId] && typeof players[moduleId].stopVideo === 'function') {
-            players[moduleId].stopVideo();
+        if (suffix === null) {
+            return;
         }
+
+        var player = players[suffix];
+        if (player && typeof player.stopVideo === 'function') {
+            player.stopVideo();
+        } else if (player) {
+            player.cancelled = true;
+        }
+
+        // Return focus to the card that opened the modal.
+        var trigger = triggers[suffix];
+        if (trigger && typeof trigger.focus === 'function' && document.body.contains(trigger)) {
+            trigger.focus();
+        }
+        delete triggers[suffix];
     });
 
-    // Handle Clear button functionality
-    document.addEventListener('click', function(e) {
-        var clearBtn = e.target.closest('.filter-search-actions .btn, .filter-search-actions button, .btn-clear');
-        if (clearBtn) {
-            e.preventDefault();
-            var form = clearBtn.closest('form');
-            if (form) {
-                var searchInput = form.querySelector('.filter-search, input[name="filter[search]"]');
-                if (searchInput) {
-                    searchInput.value = '';
-                }
-                form.submit();
-            } else {
-                window.location.href = window.location.pathname;
-            }
+    // Optional explicit clear buttons for search forms.
+    document.addEventListener('click', function (event) {
+        var clear = event.target.closest ? event.target.closest('.btn-clear, [data-yv-clear]') : null;
+        var form = clear ? clear.closest('form') : null;
+
+        if (!form) {
+            return;
         }
+
+        event.preventDefault();
+        form.querySelectorAll('input[name="filter[search]"]').forEach(function (input) {
+            input.value = '';
+        });
+        form.submit();
     });
 })();

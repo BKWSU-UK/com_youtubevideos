@@ -31,13 +31,19 @@ This script automatically adds all videos from your YouTube channel to a playlis
 
 ### 3. Run the Script
 
-From the Joomla root directory, run:
+The script is a developer tool kept in the repository root; it is not installed with the component. Run it from a checkout of this repository, pointing it at your Joomla installation:
 
 ```bash
-php components/com_youtubevideos/bulk_add_to_playlist.php PLaBcDeFgHiJkLmNoPqRsTuV
+# Preview what would be added (no changes, no quota spent on inserts)
+php bulk_add_to_playlist.php --joomla-root=/path/to/joomla --dry-run PLaBcDeFgHiJkLmNoPqRsTuV
+
+# Add the videos (asks for confirmation; pass --yes to skip the prompt)
+php bulk_add_to_playlist.php --joomla-root=/path/to/joomla PLaBcDeFgHiJkLmNoPqRsTuV
 ```
 
-Replace `PLaBcDeFgHiJkLmNoPqRsTuV` with your actual playlist ID.
+Replace `PLaBcDeFgHiJkLmNoPqRsTuV` with your actual playlist ID. `--joomla-root` can also be set with the `JOOMLA_ROOT` environment variable.
+
+**Quota:** each video added costs 50 units of the default 10,000-unit daily YouTube API quota, so roughly 190 videos per day. The script prints an estimate before starting and stops cleanly if the quota runs out; run it again the next day to continue.
 
 ### 4. Wait for Completion
 

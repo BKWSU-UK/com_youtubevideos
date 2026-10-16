@@ -2,11 +2,15 @@
 namespace BKWSU\Component\Youtubevideos\Site\Helper;
 
 use Exception;
+use Joomla\CMS\Application\AdministratorApplication;
 use Joomla\CMS\Cache\CacheControllerFactoryInterface;
-use Joomla\CMS\Cache\Controller\CallbackController;
+use Joomla\CMS\Cache\Controller\OutputController;
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Http\HttpFactory;
 use Joomla\CMS\Log\Log;
+use Joomla\Database\DatabaseInterface;
+use Joomla\Database\ParameterType;
 
 /**
  * Helper class for YouTube API interactions
@@ -15,6 +19,22 @@ use Joomla\CMS\Log\Log;
  */
 class YoutubeHelper
 {
+    /**
+     * Timeout in seconds for requests to Google APIs
+     *
+     * @var    int
+     * @since  1.0.45
+     */
+    private const HTTP_TIMEOUT = 15;
+
+    /**
+     * Refresh OAuth access tokens this many seconds before they expire
+     *
+     * @var    int
+     * @since  1.0.45
+     */
+    private const TOKEN_REFRESH_MARGIN = 300;
+
     /**
      * YouTube API Key
      *
@@ -50,7 +70,7 @@ class YoutubeHelper
     /**
      * Cache controller
      *
-     * @var    CallbackController|null
+     * @var    OutputController|null
      * @since  1.0.0
      */
     private $cache;
@@ -71,16 +91,16 @@ class YoutubeHelper
     public function __construct()
     {
         $app = Factory::getApplication();
-        
+
         // Get params differently depending on whether we're in admin or site context
-        if ($app instanceof \Joomla\CMS\Application\AdministratorApplication) {
-            $this->params = \Joomla\CMS\Component\ComponentHelper::getParams('com_youtubevideos');
+        if ($app instanceof AdministratorApplication || !method_exists($app, 'getParams')) {
+            $this->params = ComponentHelper::getParams('com_youtubevideos');
         } else {
             $this->params = $app->getParams('com_youtubevideos');
         }
-        
-        $this->apiKey = $this->params->get('api_key');
-        $this->channelId = $this->params->get('channel_id');
+
+        $this->apiKey     = $this->params->get('api_key');
+        $this->channelId  = $this->params->get('channel_id');
         $this->playlistId = $this->params->get('playlist_id');
 
         // Initialize OAuth token if enabled and available
@@ -89,23 +109,19 @@ class YoutubeHelper
         }
 
         // Initialize cache if enabled
-        if ($this->params->get('enable_cache', 1))
-        {
+        if ($this->params->get('enable_cache', 1)) {
             try {
                 $container = Factory::getContainer();
-                
-                if ($container && $container->has(CacheControllerFactoryInterface::class)) {
-                    $cacheFactory = $container->get(CacheControllerFactoryInterface::class);
-                    
-                    $options = [
-                        'defaultgroup' => 'com_youtubevideos',
-                        'caching' => true,
-                        'lifetime' => (int) $this->params->get('cache_time', 60) * 60
-                    ];
-                    
-                    $this->cache = $cacheFactory->createCacheController('callback', $options);
-                } else {
-                    $this->cache = null;
+
+                if ($container->has(CacheControllerFactoryInterface::class)) {
+                    $this->cache = $container->get(CacheControllerFactoryInterface::class)->createCacheController(
+                        'output',
+                        [
+                            'defaultgroup' => 'com_youtubevideos',
+                            'caching'      => true,
+                            'lifetime'     => (int) $this->params->get('cache_time', 60),
+                        ]
+                    );
                 }
             } catch (Exception $e) {
                 Log::add('Failed to initialize cache: ' . $e->getMessage(), Log::WARNING, 'com_youtubevideos');
@@ -115,41 +131,24 @@ class YoutubeHelper
     }
 
     /**
-     * Get videos from a YouTube channel
+     * Get videos from a YouTube channel (cached)
      *
      * @param   string  $search  Search query
      * @param   string  $tag     Tag to filter by
      *
      * @return  object|null  YouTube API response or null on error
      *
-     * @throws  \RuntimeException
      * @since   1.0.0
      */
     public function getChannelVideos(string $search = '', string $tag = ''): ?object
     {
-        // Validate configuration
-        if (!$this->validateConfiguration())
-        {
+        if (!$this->validateConfiguration()) {
             return null;
         }
 
-        // Use cache if available
-        if ($this->cache)
-        {
-            $cacheId = 'channel_' . md5($search . $tag . $this->channelId);
-            
-            try {
-                return $this->cache->get(
-                    [$this, 'fetchChannelVideos'],
-                    [$search, $tag],
-                    $cacheId
-                );
-            } catch (Exception $e) {
-                Log::add('Cache error, fetching directly: ' . $e->getMessage(), Log::WARNING, 'com_youtubevideos');
-            }
-        }
+        $cacheId = 'channel_' . md5(implode('|', [$search, $tag, $this->channelId, (int) $this->params->get('videos_per_page', 12)]));
 
-        return $this->fetchChannelVideos($search, $tag);
+        return $this->cachedCall($cacheId, fn () => $this->fetchChannelVideos($search, $tag));
     }
 
     /**
@@ -167,100 +166,58 @@ class YoutubeHelper
      */
     public function fetchChannelVideos(string $search = '', string $tag = '', int $maxResults = 0, bool $forMine = false, string $pageToken = ''): ?object
     {
-        try {
-            $http = HttpFactory::getHttp();
-            $headers = $this->getAuthHeaders();
-            $url = 'https://www.googleapis.com/youtube/v3/search';
-            
-            if ($maxResults === 0) {
-                $maxResults = (int) $this->params->get('videos_per_page', 12);
-            }
-            
-            $params = [
-                'part' => 'snippet',
-                'type' => 'video',
-                'maxResults' => min($maxResults, 50), // YouTube API max is 50
-                'order' => 'date'
-            ];
-            
-            if (!empty($pageToken)) {
-                $params['pageToken'] = $pageToken;
-            }
-
-            // If using OAuth with forMine, get videos from authenticated user's owned channel
-            if ($this->oauthToken && $forMine) {
-                $params['forMine'] = 'true';
-                Log::add('Using OAuth with forMine=true for owned channel videos', Log::INFO, 'com_youtubevideos');
-            } elseif ($this->oauthToken) {
-                // Use configured channel ID with OAuth authentication
-                // This allows access to unlisted videos on channels you manage
-                if ($this->channelId) {
-                    $params['channelId'] = $this->channelId;
-                    Log::add('Using OAuth with configured channelId: ' . $this->channelId, Log::INFO, 'com_youtubevideos');
-                } else {
-                    // No channel ID configured - try to get user's channels
-                    $myChannels = $this->getMyChannels();
-                    
-                    if (empty($myChannels)) {
-                        Log::add('OAuth connected but no channels found and no channel ID configured', Log::WARNING, 'com_youtubevideos');
-                        return null;
-                    }
-                    
-                    $params['channelId'] = $myChannels[0];
-                    Log::add('Using OAuth with auto-discovered channelId: ' . $myChannels[0] . ' (from ' . count($myChannels) . ' managed channels)', Log::INFO, 'com_youtubevideos');
-                }
-            } else {
-                $params['key'] = $this->apiKey;
-                $params['channelId'] = $this->channelId;
-                Log::add('Using API key with channelId: ' . $this->channelId, Log::DEBUG, 'com_youtubevideos');
-            }
-
-            if (!empty($search)) {
-                $params['q'] = $search;
-            }
-
-            if (!empty($tag)) {
-                $params['q'] = (isset($params['q']) ? $params['q'] . ' ' : '') . $tag;
-            }
-
-            // Log the request details
-            $requestUrl = $url . '?' . http_build_query($params);
-            Log::add('API Request URL: ' . $requestUrl, Log::DEBUG, 'com_youtubevideos');
-            Log::add('Headers: ' . json_encode($headers), Log::DEBUG, 'com_youtubevideos');
-
-            $response = $http->get($requestUrl, $headers);
-            
-            if ($response->code !== 200) {
-                $this->logError('YouTube API returned status ' . $response->code, $response->body);
-                return null;
-            }
-
-            $data = json_decode($response->body);
-            
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->logError('Failed to decode JSON response', json_last_error_msg());
-                return null;
-            }
-
-            if (isset($data->error)) {
-                $this->logError('YouTube API error', $data->error->message ?? 'Unknown error');
-                return null;
-            }
-
-            // Log the response details
-            $itemCount = isset($data->items) ? count($data->items) : 0;
-            Log::add('Search API Response: ' . $itemCount . ' videos returned', Log::INFO, 'com_youtubevideos');
-            
-            if ($itemCount === 0) {
-                Log::add('Empty response. Full API Response: ' . json_encode($data), Log::WARNING, 'com_youtubevideos');
-            }
-
-            return $data;
-
-        } catch (Exception $e) {
-            $this->logError('Exception fetching channel videos', $e->getMessage());
-            return null;
+        if ($maxResults === 0) {
+            $maxResults = (int) $this->params->get('videos_per_page', 12);
         }
+
+        $params = [
+            'part'       => 'snippet',
+            'type'       => 'video',
+            'maxResults' => min($maxResults, 50), // YouTube API max is 50
+            'order'      => 'date',
+        ];
+
+        if ($pageToken !== '') {
+            $params['pageToken'] = $pageToken;
+        }
+
+        if ($this->oauthToken && $forMine) {
+            // Videos from the authenticated user's own channel
+            $params['forMine'] = 'true';
+        } elseif ($this->oauthToken) {
+            // OAuth gives access to unlisted videos on channels the user manages
+            if ($this->channelId) {
+                $params['channelId'] = $this->channelId;
+            } else {
+                $myChannels = $this->getMyChannels();
+
+                if (empty($myChannels)) {
+                    Log::add('OAuth connected but no channels found and no channel ID configured', Log::WARNING, 'com_youtubevideos');
+
+                    return null;
+                }
+
+                $params['channelId'] = $myChannels[0];
+            }
+        } else {
+            $params['channelId'] = $this->channelId;
+        }
+
+        if ($search !== '') {
+            $params['q'] = $search;
+        }
+
+        if ($tag !== '') {
+            $params['q'] = (isset($params['q']) ? $params['q'] . ' ' : '') . $tag;
+        }
+
+        $data = $this->request('https://www.googleapis.com/youtube/v3/search', $params, 'channel videos');
+
+        if ($data && empty($data->items)) {
+            Log::add('Search API returned no videos for channel ' . ($params['channelId'] ?? 'mine'), Log::WARNING, 'com_youtubevideos');
+        }
+
+        return $data;
     }
 
     /**
@@ -276,42 +233,17 @@ class YoutubeHelper
             return [];
         }
 
-        try {
-            $http = HttpFactory::getHttp();
-            $headers = $this->getAuthHeaders();
-            $url = 'https://www.googleapis.com/youtube/v3/channels';
-            
-            $params = [
-                'part' => 'id,snippet',
-                'mine' => 'true',
-                'maxResults' => 50
-            ];
+        $data = $this->request(
+            'https://www.googleapis.com/youtube/v3/channels',
+            ['part' => 'id', 'mine' => 'true', 'maxResults' => 50],
+            'user channels'
+        );
 
-            $response = $http->get($url . '?' . http_build_query($params), $headers);
-            
-            if ($response->code !== 200) {
-                Log::add('Failed to get user channels: ' . $response->code . ' - ' . $response->body, Log::ERROR, 'com_youtubevideos');
-                return [];
-            }
-
-            $data = json_decode($response->body);
-            
-            if (!$data || !isset($data->items)) {
-                return [];
-            }
-
-            $channelIds = [];
-            foreach ($data->items as $channel) {
-                $channelIds[] = $channel->id;
-                Log::add('Found channel: ' . $channel->id . ' (' . ($channel->snippet->title ?? 'Unknown') . ')', Log::INFO, 'com_youtubevideos');
-            }
-
-            return $channelIds;
-
-        } catch (Exception $e) {
-            Log::add('Exception getting user channels: ' . $e->getMessage(), Log::ERROR, 'com_youtubevideos');
+        if (!$data || empty($data->items)) {
             return [];
         }
+
+        return array_values(array_filter(array_map(static fn ($channel) => $channel->id ?? null, $data->items)));
     }
 
     /**
@@ -327,103 +259,45 @@ class YoutubeHelper
      */
     public function fetchChannelUploads(int $maxResults = 50, string $pageToken = ''): ?object
     {
-        try {
-            $http = HttpFactory::getHttp();
-            $headers = $this->getAuthHeaders();
-            
-            // First, get the channel's uploads playlist ID
-            $channelUrl = 'https://www.googleapis.com/youtube/v3/channels';
-            $channelParams = [
-                'id' => $this->channelId,
-                'part' => 'contentDetails'
-            ];
+        $channelData = $this->request(
+            'https://www.googleapis.com/youtube/v3/channels',
+            ['id' => $this->channelId, 'part' => 'contentDetails'],
+            'channel details'
+        );
 
-            // Add API key only if not using OAuth
-            if (!$this->oauthToken) {
-                $channelParams['key'] = $this->apiKey;
-            }
-
-            $response = $http->get($channelUrl . '?' . http_build_query($channelParams), $headers);
-            
-            if ($response->code !== 200) {
-                $this->logError('YouTube API returned status ' . $response->code, $response->body);
-                return null;
-            }
-
-            $channelData = json_decode($response->body);
-            
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->logError('Failed to decode JSON response', json_last_error_msg());
-                return null;
-            }
-
-            if (isset($channelData->error)) {
-                $this->logError('YouTube API error', $channelData->error->message ?? 'Unknown error');
-                return null;
-            }
-
-            if (empty($channelData->items)) {
-                $this->logError('Channel not found', 'No channel found with ID: ' . $this->channelId);
-                return null;
-            }
-
-            // Get the uploads playlist ID
-            $uploadsPlaylistId = $channelData->items[0]->contentDetails->relatedPlaylists->uploads ?? null;
-            
-            if (!$uploadsPlaylistId) {
-                $this->logError('Uploads playlist not found', 'Channel has no uploads playlist. Channel data: ' . json_encode($channelData->items[0]));
-                return null;
-            }
-
-            // Log the playlist ID for debugging
-            Log::add('Using uploads playlist ID: ' . $uploadsPlaylistId . ' for channel: ' . $this->channelId, Log::DEBUG, 'com_youtubevideos');
-
-            // Now fetch videos from the uploads playlist
-            $playlistUrl = 'https://www.googleapis.com/youtube/v3/playlistItems';
-            $playlistParams = [
-                'playlistId' => $uploadsPlaylistId,
-                'part' => 'snippet,contentDetails',
-                'maxResults' => min($maxResults, 50) // YouTube API max is 50
-            ];
-            
-            if (!empty($pageToken)) {
-                $playlistParams['pageToken'] = $pageToken;
-            }
-
-            // Add API key only if not using OAuth
-            if (!$this->oauthToken) {
-                $playlistParams['key'] = $this->apiKey;
-            }
-
-            $response = $http->get($playlistUrl . '?' . http_build_query($playlistParams), $headers);
-            
-            if ($response->code !== 200) {
-                $this->logError('YouTube API returned status ' . $response->code, $response->body);
-                return null;
-            }
-
-            $data = json_decode($response->body);
-            
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->logError('Failed to decode JSON response', json_last_error_msg());
-                return null;
-            }
-
-            if (isset($data->error)) {
-                $this->logError('YouTube API error', $data->error->message ?? 'Unknown error');
-                return null;
-            }
-
-            return $data;
-
-        } catch (Exception $e) {
-            $this->logError('Exception fetching channel uploads', $e->getMessage());
+        if (!$channelData) {
             return null;
         }
+
+        if (empty($channelData->items)) {
+            $this->logError('Channel not found', 'No channel found with ID: ' . $this->channelId);
+
+            return null;
+        }
+
+        $uploadsPlaylistId = $channelData->items[0]->contentDetails->relatedPlaylists->uploads ?? null;
+
+        if (!$uploadsPlaylistId) {
+            $this->logError('Uploads playlist not found', 'Channel ' . $this->channelId . ' has no uploads playlist');
+
+            return null;
+        }
+
+        $params = [
+            'playlistId' => $uploadsPlaylistId,
+            'part'       => 'snippet,contentDetails,status',
+            'maxResults' => min($maxResults, 50), // YouTube API max is 50
+        ];
+
+        if ($pageToken !== '') {
+            $params['pageToken'] = $pageToken;
+        }
+
+        return $this->request('https://www.googleapis.com/youtube/v3/playlistItems', $params, 'channel uploads');
     }
 
     /**
-     * Get videos from a YouTube playlist
+     * Get videos from a YouTube playlist (cached)
      *
      * @param   string  $search      Search query
      * @param   string  $tag         Tag to filter by
@@ -435,29 +309,13 @@ class YoutubeHelper
      */
     public function getPlaylistVideos(string $search = '', string $tag = '', int $maxResults = 0): ?object
     {
-        // Validate configuration
-        if (!$this->validateConfiguration(true))
-        {
+        if (!$this->validateConfiguration(true)) {
             return null;
         }
 
-        // Use cache if available
-        if ($this->cache)
-        {
-            $cacheId = 'playlist_' . md5($search . $tag . $this->playlistId);
-            
-            try {
-                return $this->cache->get(
-                    [$this, 'fetchPlaylistVideos'],
-                    [$search, $tag, $maxResults],
-                    $cacheId
-                );
-            } catch (Exception $e) {
-                Log::add('Cache error, fetching directly: ' . $e->getMessage(), Log::WARNING, 'com_youtubevideos');
-            }
-        }
+        $cacheId = 'playlist_' . md5(implode('|', [$search, $tag, $this->playlistId, $maxResults, (int) $this->params->get('videos_per_page', 12)]));
 
-        return $this->fetchPlaylistVideos($search, $tag, $maxResults);
+        return $this->cachedCall($cacheId, fn () => $this->fetchPlaylistVideos($search, $tag, $maxResults));
     }
 
     /**
@@ -474,66 +332,228 @@ class YoutubeHelper
      */
     public function fetchPlaylistVideos(string $search = '', string $tag = '', int $maxResults = 0, string $pageToken = ''): ?object
     {
-        try {
-            $http = HttpFactory::getHttp();
-            $headers = $this->getAuthHeaders();
-            $url = 'https://www.googleapis.com/youtube/v3/playlistItems';
-            
-            if ($maxResults === 0) {
-                $maxResults = (int) $this->params->get('videos_per_page', 12);
-            }
-            
-            $params = [
-                'playlistId' => $this->playlistId,
-                'part' => 'snippet,contentDetails',
-                'maxResults' => min($maxResults, 50) // YouTube API max is 50
-            ];
-            
-            if (!empty($pageToken)) {
-                $params['pageToken'] = $pageToken;
-            }
+        if ($maxResults === 0) {
+            $maxResults = (int) $this->params->get('videos_per_page', 12);
+        }
 
-            // Add API key only if not using OAuth
-            if (!$this->oauthToken) {
-                $params['key'] = $this->apiKey;
-            } else {
-                Log::add('Using OAuth to fetch playlist: ' . $this->playlistId, Log::INFO, 'com_youtubevideos');
-            }
+        $params = [
+            'playlistId' => $this->playlistId,
+            'part'       => 'snippet,contentDetails,status',
+            'maxResults' => min($maxResults, 50), // YouTube API max is 50
+        ];
 
-            $response = $http->get($url . '?' . http_build_query($params), $headers);
-            
-            if ($response->code !== 200) {
-                $this->logError('YouTube API returned status ' . $response->code, $response->body);
-                return null;
-            }
+        if ($pageToken !== '') {
+            $params['pageToken'] = $pageToken;
+        }
 
-            $data = json_decode($response->body);
-            
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->logError('Failed to decode JSON response', json_last_error_msg());
-                return null;
-            }
+        $data = $this->request('https://www.googleapis.com/youtube/v3/playlistItems', $params, 'playlist videos');
 
-            if (isset($data->error)) {
-                $this->logError('YouTube API error', $data->error->message ?? 'Unknown error');
-                return null;
-            }
+        // Filter by search and tag if provided
+        if ($data && ($search !== '' || $tag !== '') && isset($data->items)) {
+            $data->items = array_values(array_filter($data->items, static function ($item) use ($search, $tag) {
+                $titleMatch = $search === '' || stripos($item->snippet->title ?? '', $search) !== false;
+                $tagMatch   = $tag === '' || stripos($item->snippet->description ?? '', $tag) !== false;
 
-            // Filter by search and tag if provided
-            if (($search || $tag) && isset($data->items)) {
-                $data->items = array_values(array_filter($data->items, function($item) use ($search, $tag) {
-                    $titleMatch = empty($search) || stripos($item->snippet->title ?? '', $search) !== false;
-                    $tagMatch = empty($tag) || stripos($item->snippet->description ?? '', $tag) !== false;
-                    return $titleMatch && $tagMatch;
-                }));
-            }
+                return $titleMatch && $tagMatch;
+            }));
+        }
 
-            return $data;
+        return $data;
+    }
 
-        } catch (Exception $e) {
-            $this->logError('Exception fetching playlist videos', $e->getMessage());
+    /**
+     * Fetch statistics and privacy status for up to 50 videos in one videos.list call.
+     *
+     * @param   string[]  $videoIds  YouTube video IDs (at most 50 are used).
+     *
+     * @return  array|null  Map of video ID => API item (with ->statistics and ->status), or null on error.
+     *
+     * @since   1.0.45
+     */
+    public function fetchVideoDetails(array $videoIds): ?array
+    {
+        $videoIds = array_slice(array_values(array_unique(array_filter($videoIds))), 0, 50);
+
+        if (empty($videoIds)) {
+            return [];
+        }
+
+        $data = $this->request(
+            'https://www.googleapis.com/youtube/v3/videos',
+            ['part' => 'statistics,status', 'id' => implode(',', $videoIds), 'maxResults' => 50],
+            'video details'
+        );
+
+        if (!$data || !isset($data->items)) {
             return null;
         }
+
+        $details = [];
+
+        foreach ($data->items as $item) {
+            if (!empty($item->id)) {
+                $details[$item->id] = $item;
+            }
+        }
+
+        return $details;
+    }
+
+    /**
+     * Check that the configured credentials and channel/playlist are usable.
+     *
+     * Costs one quota unit, so callers should cache the result.
+     *
+     * @return  array{status: string, message: string}  status is 'ok', 'not_configured' or 'error'.
+     *
+     * @since   1.0.45
+     */
+    public function testConnection(): array
+    {
+        if (empty($this->apiKey) && !$this->oauthToken) {
+            return ['status' => 'not_configured', 'message' => ''];
+        }
+
+        if ($this->playlistId) {
+            $url    = 'https://www.googleapis.com/youtube/v3/playlists';
+            $params = ['part' => 'id', 'id' => $this->playlistId];
+        } elseif ($this->channelId) {
+            $url    = 'https://www.googleapis.com/youtube/v3/channels';
+            $params = ['part' => 'id', 'id' => $this->channelId];
+        } elseif ($this->oauthToken) {
+            $url    = 'https://www.googleapis.com/youtube/v3/channels';
+            $params = ['part' => 'id', 'mine' => 'true'];
+        } else {
+            return ['status' => 'not_configured', 'message' => ''];
+        }
+
+        if (!$this->oauthToken) {
+            $params['key'] = $this->apiKey;
+        }
+
+        try {
+            $response = HttpFactory::getHttp()->get($url . '?' . http_build_query($params), $this->getAuthHeaders(), self::HTTP_TIMEOUT);
+            $data     = json_decode($response->body);
+
+            if ($response->code !== 200) {
+                return ['status' => 'error', 'message' => (string) ($data->error->message ?? ('HTTP ' . $response->code))];
+            }
+
+            if (empty($data->items)) {
+                return ['status' => 'error', 'message' => 'not_found'];
+            }
+
+            return ['status' => 'ok', 'message' => ''];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Check if OAuth is enabled and connected
+     *
+     * @return  bool  True if OAuth is available
+     *
+     * @since   1.0.2
+     */
+    public function isOAuthConnected(): bool
+    {
+        return $this->oauthToken !== null;
+    }
+
+    /**
+     * Perform a GET request against the YouTube Data API.
+     *
+     * Adds the API key when OAuth is not in use. The request URL and headers are never logged,
+     * because they contain the API key or the bearer token.
+     *
+     * @param   string  $url      Endpoint URL.
+     * @param   array   $params   Query parameters.
+     * @param   string  $context  Short description for log messages.
+     *
+     * @return  object|null  Decoded response, or null on any error.
+     *
+     * @since   1.0.45
+     */
+    private function request(string $url, array $params, string $context): ?object
+    {
+        if (!$this->oauthToken) {
+            $params['key'] = $this->apiKey;
+        }
+
+        try {
+            $response = HttpFactory::getHttp()->get($url . '?' . http_build_query($params), $this->getAuthHeaders(), self::HTTP_TIMEOUT);
+        } catch (Exception $e) {
+            $this->logError('Exception fetching ' . $context, $e->getMessage());
+
+            return null;
+        }
+
+        $data = json_decode((string) $response->body);
+
+        if ($response->code !== 200) {
+            $this->logError(
+                'YouTube API returned status ' . $response->code . ' for ' . $context,
+                (string) ($data->error->message ?? 'Unknown error')
+            );
+
+            return null;
+        }
+
+        if (!is_object($data)) {
+            $this->logError('Failed to decode JSON response for ' . $context, json_last_error_msg());
+
+            return null;
+        }
+
+        if (isset($data->error)) {
+            $this->logError('YouTube API error for ' . $context, (string) ($data->error->message ?? 'Unknown error'));
+
+            return null;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Return a cached API result, or fetch and cache it. Failed (null) results are never cached.
+     *
+     * @param   string    $cacheId  The cache id.
+     * @param   callable  $fetch    Callback returning the decoded API response or null.
+     *
+     * @return  object|null
+     *
+     * @since   1.0.45
+     */
+    private function cachedCall(string $cacheId, callable $fetch): ?object
+    {
+        if ($this->cache) {
+            try {
+                $cached = $this->cache->get($cacheId);
+
+                if (\is_string($cached) && $cached !== '') {
+                    $decoded = json_decode($cached);
+
+                    if (\is_object($decoded)) {
+                        return $decoded;
+                    }
+                }
+            } catch (Exception $e) {
+                Log::add('Cache read error, fetching directly: ' . $e->getMessage(), Log::WARNING, 'com_youtubevideos');
+            }
+        }
+
+        $data = $fetch();
+
+        if ($data !== null && $this->cache) {
+            try {
+                $this->cache->store(json_encode($data), $cacheId);
+            } catch (Exception $e) {
+                Log::add('Cache write error: ' . $e->getMessage(), Log::WARNING, 'com_youtubevideos');
+            }
+        }
+
+        return $data;
     }
 
     /**
@@ -547,18 +567,21 @@ class YoutubeHelper
      */
     private function validateConfiguration(bool $requirePlaylist = false): bool
     {
-        if (empty($this->apiKey)) {
+        if (empty($this->apiKey) && !$this->oauthToken) {
             $this->logError('Configuration error', 'YouTube API key is not configured');
+
             return false;
         }
 
-        if (empty($this->channelId) && !$requirePlaylist) {
+        if (!$requirePlaylist && empty($this->channelId)) {
             $this->logError('Configuration error', 'YouTube channel ID is not configured');
+
             return false;
         }
 
         if ($requirePlaylist && empty($this->playlistId)) {
             $this->logError('Configuration error', 'YouTube playlist ID is not configured');
+
             return false;
         }
 
@@ -577,15 +600,11 @@ class YoutubeHelper
      */
     private function logError(string $context, string $message): void
     {
-        Log::add(
-            sprintf('[%s] %s', $context, $message),
-            Log::ERROR,
-            'com_youtubevideos'
-        );
+        Log::add(sprintf('[%s] %s', $context, $message), Log::ERROR, 'com_youtubevideos');
     }
 
     /**
-     * Get a valid OAuth access token (refresh if expired)
+     * Get a valid OAuth access token, refreshing it shortly before it expires
      *
      * @return  string|null  Valid access token or null if not available
      *
@@ -594,49 +613,39 @@ class YoutubeHelper
     private function getValidOAuthToken(): ?string
     {
         try {
-            $db = Factory::getDbo();
-            $app = Factory::getApplication();
-            
-            // Get current user ID
-            $userId = 0;
-            if ($app instanceof \Joomla\CMS\Application\AdministratorApplication) {
-                $userId = $app->getIdentity()->id ?? 0;
-            } else {
-                $userId = $app->getIdentity()->id ?? 0;
-            }
+            $identity = Factory::getApplication()->getIdentity();
+            $userId   = (int) ($identity->id ?? 0);
 
             if (!$userId) {
                 return null;
             }
 
-            // Get token from database
+            $db    = Factory::getContainer()->get(DatabaseInterface::class);
             $query = $db->getQuery(true)
                 ->select('*')
                 ->from($db->quoteName('#__youtubevideos_oauth_tokens'))
-                ->where($db->quoteName('user_id') . ' = ' . (int) $userId)
+                ->where($db->quoteName('user_id') . ' = :userId')
+                ->bind(':userId', $userId, ParameterType::INTEGER)
                 ->order($db->quoteName('created') . ' DESC')
                 ->setLimit(1);
 
-            $db->setQuery($query);
-            $token = $db->loadObject();
+            $token = $db->setQuery($query)->loadObject();
 
             if (!$token) {
                 return null;
             }
 
-            // Check if token is expired
-            $now = Factory::getDate();
-            $expiresAt = Factory::getDate($token->expires_at);
+            // Refresh shortly before expiry so a token never expires mid-sync.
+            $refreshAt = Factory::getDate($token->expires_at)->toUnix() - self::TOKEN_REFRESH_MARGIN;
 
-            if ($now >= $expiresAt) {
-                // Token expired, try to refresh
+            if (Factory::getDate()->toUnix() >= $refreshAt) {
                 return $this->refreshOAuthToken($token);
             }
 
             return $token->access_token;
-
         } catch (Exception $e) {
             Log::add('Failed to get OAuth token: ' . $e->getMessage(), Log::ERROR, 'com_youtubevideos');
+
             return null;
         }
     }
@@ -652,51 +661,53 @@ class YoutubeHelper
      */
     private function refreshOAuthToken(object $token): ?string
     {
-        if (!$token->refresh_token) {
-            Log::add('No refresh token available', Log::WARNING, 'com_youtubevideos');
+        if (empty($token->refresh_token)) {
+            Log::add('No OAuth refresh token available', Log::WARNING, 'com_youtubevideos');
+
+            return null;
+        }
+
+        $clientId     = $this->params->get('oauth_client_id');
+        $clientSecret = $this->params->get('oauth_client_secret');
+
+        if (!$clientId || !$clientSecret) {
+            Log::add('OAuth credentials not configured', Log::ERROR, 'com_youtubevideos');
+
             return null;
         }
 
         try {
-            $clientId = $this->params->get('oauth_client_id');
-            $clientSecret = $this->params->get('oauth_client_secret');
+            $response = HttpFactory::getHttp()->post(
+                'https://oauth2.googleapis.com/token',
+                [
+                    'client_id'     => $clientId,
+                    'client_secret' => $clientSecret,
+                    'refresh_token' => $token->refresh_token,
+                    'grant_type'    => 'refresh_token',
+                ],
+                [],
+                self::HTTP_TIMEOUT
+            );
 
-            if (!$clientId || !$clientSecret) {
-                Log::add('OAuth credentials not configured', Log::ERROR, 'com_youtubevideos');
+            $newToken = json_decode((string) $response->body);
+
+            if ($response->code !== 200 || !isset($newToken->access_token)) {
+                // Only log Google's error code; the body may echo request details.
+                Log::add(
+                    'Failed to refresh OAuth token (HTTP ' . $response->code . '): ' . ($newToken->error ?? 'invalid response'),
+                    Log::ERROR,
+                    'com_youtubevideos'
+                );
+
                 return null;
             }
 
-            $http = HttpFactory::getHttp();
-            $tokenUrl = 'https://oauth2.googleapis.com/token';
-
-            $postData = [
-                'client_id' => $clientId,
-                'client_secret' => $clientSecret,
-                'refresh_token' => $token->refresh_token,
-                'grant_type' => 'refresh_token'
-            ];
-
-            $response = $http->post($tokenUrl, $postData);
-
-            if ($response->code !== 200) {
-                Log::add('Failed to refresh token: ' . $response->body, Log::ERROR, 'com_youtubevideos');
-                return null;
-            }
-
-            $newToken = json_decode($response->body);
-
-            if (!$newToken || !isset($newToken->access_token)) {
-                Log::add('Invalid token refresh response', Log::ERROR, 'com_youtubevideos');
-                return null;
-            }
-
-            // Update token in database
-            $this->updateOAuthToken($token->id, $newToken);
+            $this->updateOAuthToken((int) $token->id, $newToken);
 
             return $newToken->access_token;
-
         } catch (Exception $e) {
             Log::add('Exception refreshing OAuth token: ' . $e->getMessage(), Log::ERROR, 'com_youtubevideos');
+
             return null;
         }
     }
@@ -714,26 +725,38 @@ class YoutubeHelper
     private function updateOAuthToken(int $tokenId, object $newToken): bool
     {
         try {
-            $db = Factory::getDbo();
+            $db   = Factory::getContainer()->get(DatabaseInterface::class);
             $date = Factory::getDate();
 
-            $expiresIn = $newToken->expires_in ?? 3600;
-            $expiresAt = clone $date;
-            $expiresAt->modify('+' . $expiresIn . ' seconds');
+            $expiresIn = (int) ($newToken->expires_in ?? 3600);
+            $expiresAt = (clone $date)->modify('+' . $expiresIn . ' seconds')->toSql();
+            $now       = $date->toSql();
+            $access    = (string) $newToken->access_token;
 
             $query = $db->getQuery(true)
                 ->update($db->quoteName('#__youtubevideos_oauth_tokens'))
-                ->set($db->quoteName('access_token') . ' = ' . $db->quote($newToken->access_token))
-                ->set($db->quoteName('expires_in') . ' = ' . (int) $expiresIn)
-                ->set($db->quoteName('expires_at') . ' = ' . $db->quote($expiresAt->toSql()))
-                ->set($db->quoteName('modified') . ' = ' . $db->quote($date->toSql()))
-                ->where($db->quoteName('id') . ' = ' . (int) $tokenId);
+                ->set($db->quoteName('access_token') . ' = :accessToken')
+                ->set($db->quoteName('expires_in') . ' = :expiresIn')
+                ->set($db->quoteName('expires_at') . ' = :expiresAt')
+                ->set($db->quoteName('modified') . ' = :modified')
+                ->where($db->quoteName('id') . ' = :id')
+                ->bind(':accessToken', $access)
+                ->bind(':expiresIn', $expiresIn, ParameterType::INTEGER)
+                ->bind(':expiresAt', $expiresAt)
+                ->bind(':modified', $now)
+                ->bind(':id', $tokenId, ParameterType::INTEGER);
 
-            $db->setQuery($query);
-            return $db->execute();
+            // Google may rotate the refresh token; keep the new one when it does.
+            if (!empty($newToken->refresh_token)) {
+                $refresh = (string) $newToken->refresh_token;
+                $query->set($db->quoteName('refresh_token') . ' = :refreshToken')
+                    ->bind(':refreshToken', $refresh);
+            }
 
+            return (bool) $db->setQuery($query)->execute();
         } catch (Exception $e) {
             Log::add('Failed to update OAuth token: ' . $e->getMessage(), Log::ERROR, 'com_youtubevideos');
+
             return false;
         }
     }
@@ -747,24 +770,6 @@ class YoutubeHelper
      */
     private function getAuthHeaders(): array
     {
-        $headers = [];
-
-        if ($this->oauthToken) {
-            $headers['Authorization'] = 'Bearer ' . $this->oauthToken;
-        }
-
-        return $headers;
+        return $this->oauthToken ? ['Authorization' => 'Bearer ' . $this->oauthToken] : [];
     }
-
-    /**
-     * Check if OAuth is enabled and connected
-     *
-     * @return  bool  True if OAuth is available
-     *
-     * @since   1.0.2
-     */
-    public function isOAuthConnected(): bool
-    {
-        return $this->oauthToken !== null;
-    }
-} 
+}

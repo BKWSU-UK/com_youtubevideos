@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <extension type="plugin" group="system" method="upgrade">
-    <name>System - YouTube Videos</name>
+    <name>PLG_SYSTEM_YOUTUBEVIDEOS</name>
     <author>Allan Schweitz</author>
-    <creationDate>November 2025</creationDate>
+    <creationDate>October 2026</creationDate>
     <copyright>(C) 2025 Brahma Kumaris. All rights reserved.</copyright>
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>allan@bkconnect.net</authorEmail>
     <authorUrl>www.brahmakumaris.org</authorUrl>
-    <version>1.0.2</version>
-    <description>Adds iWeb Fields tab to Menu Item edit form and fixes component canonical URLs</description>
-    <namespace>BKWSU\Plugin\System\YoutubeVideos</namespace>
+    <version>1.0.3</version>
+    <description>PLG_SYSTEM_YOUTUBEVIDEOS_XML_DESCRIPTION</description>
+    <namespace path="src">BKWSU\Plugin\System\YoutubeVideos</namespace>
     <files>
         <folder plugin="youtubevideos">services</folder>
+        <folder>language</folder>
         <folder>src</folder>
     </files>
 </extension>

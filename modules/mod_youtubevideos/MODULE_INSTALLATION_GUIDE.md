@@ -72,10 +72,6 @@ The YouTube Videos Module (`mod_youtubevideos`) is a Joomla 5 module that displa
 - Toggle: Yes/No (Default: Yes)
 - Display a truncated video description (100 characters)
 
-**Show Duration**
-- Toggle: Yes/No (Default: Yes)
-- Display video duration badge overlay on thumbnail
-
 **Module Heading**
 - Text field (Optional)
 - Custom heading text displayed above the video grid

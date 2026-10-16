@@ -2,9 +2,13 @@
 
 namespace BKWSU\Component\Youtubevideos\Site\Model;
 
+\defined('_JEXEC') or die;
+
+use BKWSU\Component\Youtubevideos\Site\Helper\VideoHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\ItemModel;
-use Joomla\CMS\Language\Multilanguage;
+use Joomla\Database\ParameterType;
 
 /**
  * Video Model
@@ -32,16 +36,8 @@ class VideoModel extends ItemModel
     {
         $app = Factory::getApplication();
 
-        // Load state from the request
-        $pk = $app->input->getInt('id');
-        $this->setState('video.id', $pk);
-
-        // Load the parameters
-        $params = $app->getParams();
-        $this->setState('params', $params);
-
-        $this->setState('filter.published', 1);
-        $this->setState('filter.language', Multilanguage::isEnabled());
+        $this->setState('video.id', $app->getInput()->getInt('id'));
+        $this->setState('params', $app->getParams());
     }
 
     /**
@@ -49,121 +45,96 @@ class VideoModel extends ItemModel
      *
      * @param   integer  $pk  The id of the primary key.
      *
-     * @return  object|boolean  Object on success, false on failure.
+     * @return  object  The video.
      *
+     * @throws  \Exception  404 when the video does not exist or is not visible.
      * @since   1.0.0
      */
     public function getItem($pk = null)
     {
-        $pk = (!empty($pk)) ? $pk : (int) $this->getState('video.id');
+        $pk = (int) ($pk ?: $this->getState('video.id'));
 
         if ($this->_item === null) {
             $this->_item = [];
         }
 
         if (!isset($this->_item[$pk])) {
-            try {
-                $db = $this->getDatabase();
-                $query = $db->getQuery(true);
+            $db    = $this->getDatabase();
+            $query = $db->getQuery(true);
 
-                $query->select('v.*')
-                    ->select($db->quoteName('v.recipe_type'))
-                    ->select($db->quoteName('v.recipe_data'))
-                    ->from($db->quoteName('#__youtubevideos_featured', 'v'))
-                    ->where($db->quoteName('v.id') . ' = :id')
-                    ->bind(':id', $pk, \Joomla\Database\ParameterType::INTEGER);
+            $query->select('v.*')
+                ->select($db->quoteName('c.title', 'category_title'))
+                ->select($db->quoteName('p.title', 'playlist_title'))
+                ->select($db->quoteName('p.published', 'playlist_published'))
+                ->select($db->quoteName(['s.views', 's.likes'], ['views', 'likes']))
+                ->from($db->quoteName('#__youtubevideos_featured', 'v'))
+                ->leftJoin(
+                    $db->quoteName('#__youtubevideos_playlists', 'p'),
+                    $db->quoteName('p.id') . ' = ' . $db->quoteName('v.playlist_id')
+                )
+                ->leftJoin(
+                    $db->quoteName('#__youtubevideos_statistics', 's'),
+                    $db->quoteName('s.youtube_video_id') . ' = ' . $db->quoteName('v.youtube_video_id')
+                )
+                ->where($db->quoteName('v.id') . ' = :id')
+                ->bind(':id', $pk, ParameterType::INTEGER);
 
-                // Filter by published state
-                $published = (int) $this->getState('filter.published');
-                if ($published) {
-                    $query->where($db->quoteName('v.published') . ' = 1');
-                }
+            VideoHelper::applyVisibility($query, $db, 'v');
+            VideoHelper::applyCategoryVisibility($query, $db, 'v', 'c');
 
-                // Filter by language
-                if ($this->getState('filter.language')) {
-                    $query->whereIn($db->quoteName('v.language'), [Factory::getLanguage()->getTag(), '*'], \Joomla\Database\ParameterType::STRING);
-                }
+            $data = $db->setQuery($query)->loadObject();
 
-                // Join with category
-                $query->select($db->quoteName('c.title', 'category_title'))
-                    ->leftJoin($db->quoteName('#__youtubevideos_categories', 'c') . ' ON ' . $db->quoteName('c.id') . ' = ' . $db->quoteName('v.category_id'));
-
-                // Join with playlist
-                $query->select($db->quoteName('p.title', 'playlist_title'))
-                    ->leftJoin($db->quoteName('#__youtubevideos_playlists', 'p') . ' ON ' . $db->quoteName('p.id') . ' = ' . $db->quoteName('v.playlist_id'));
-
-                // Join with statistics
-                $query->select($db->quoteName('s.views', 'views'))
-                    ->select($db->quoteName('s.likes', 'likes'))
-                    ->leftJoin($db->quoteName('#__youtubevideos_statistics', 's') . ' ON ' . $db->quoteName('s.youtube_video_id') . ' = ' . $db->quoteName('v.youtube_video_id'));
-
-                $db->setQuery($query);
-                $data = $db->loadObject();
-
-                if (empty($data)) {
-                    throw new \Exception(\Joomla\CMS\Language\Text::_('COM_YOUTUBEVIDEOS_ERROR_VIDEO_NOT_FOUND'), 404);
-                }
-
-                if (!empty($data->recipe_data)) {
-                    $data->recipe = json_decode($data->recipe_data, true);
-                }
-
-                $this->_item[$pk] = $data;
-            } catch (\Exception $e) {
-                $this->setError($e->getMessage());
-                $this->_item[$pk] = false;
+            if (empty($data)) {
+                throw new \Exception(Text::_('COM_YOUTUBEVIDEOS_ERROR_VIDEO_NOT_FOUND'), 404);
             }
+
+            $video         = VideoHelper::normalise($data);
+            $video->recipe = !empty($data->recipe_data) ? json_decode($data->recipe_data, true) : null;
+
+            $this->_item[$pk] = $video;
         }
 
         return $this->_item[$pk];
     }
 
     /**
-     * Method to get related videos
+     * Method to get related videos from the same category.
      *
-     * @param   integer  $pk  The id of the primary key.
+     * @param   integer  $pk     The id of the primary key.
+     * @param   integer  $limit  Maximum number of videos.
      *
-     * @return  array  Array of related videos
+     * @return  array  Normalised related videos.
      *
      * @since   1.0.0
      */
-    public function getRelatedVideos($pk = null)
+    public function getRelatedVideos($pk = null, int $limit = 6): array
     {
-        $pk = (!empty($pk)) ? $pk : (int) $this->getState('video.id');
         $item = $this->getItem($pk);
 
-        if (!$item) {
+        if (empty($item->category_id)) {
             return [];
         }
 
-        $db = $this->getDatabase();
-        $query = $db->getQuery(true);
+        $db         = $this->getDatabase();
+        $query      = $db->getQuery(true);
+        $id         = (int) $item->id;
+        $categoryId = (int) $item->category_id;
 
         $query->select('v.*')
             ->from($db->quoteName('#__youtubevideos_featured', 'v'))
             ->where($db->quoteName('v.id') . ' != :id')
-            ->where($db->quoteName('v.published') . ' = 1')
-            ->bind(':id', $pk, \Joomla\Database\ParameterType::INTEGER);
+            ->where($db->quoteName('v.category_id') . ' = :category_id')
+            ->bind(':id', $id, ParameterType::INTEGER)
+            ->bind(':category_id', $categoryId, ParameterType::INTEGER)
+            ->order($db->quoteName('v.ordering') . ' ASC')
+            ->order($db->quoteName('v.created') . ' DESC')
+            ->setLimit($limit);
 
-        // Get videos from the same category if available
-        if ($item->category_id) {
-            $query->where($db->quoteName('v.category_id') . ' = :category_id')
-                ->bind(':category_id', $item->category_id, \Joomla\Database\ParameterType::INTEGER);
-        }
-
-        // Filter by language
-        if ($this->getState('filter.language')) {
-            $query->whereIn($db->quoteName('v.language'), [Factory::getLanguage()->getTag(), '*'], \Joomla\Database\ParameterType::STRING);
-        }
-
-        $query->setLimit(6);
-
-        $db->setQuery($query);
+        VideoHelper::applyVisibility($query, $db, 'v');
 
         try {
-            return $db->loadObjectList();
-        } catch (\Exception $e) {
-            $this->setError($e->getMessage());
+            return VideoHelper::normaliseList($db->setQuery($query)->loadObjectList());
+        } catch (\RuntimeException $e) {
             return [];
         }
     }
@@ -173,42 +144,32 @@ class VideoModel extends ItemModel
      *
      * @param   integer  $pk  Primary key of the video to increment.
      *
-     * @return  boolean  True if successful; false otherwise and internal error set.
+     * @return  boolean  True if successful.
      *
      * @since   1.0.0
      */
     public function hit($pk = 0)
     {
-        if (empty($pk)) {
-            $pk = (int) $this->getState('video.id');
+        $pk = (int) ($pk ?: $this->getState('video.id'));
+
+        if (!$pk) {
+            return false;
         }
 
-        $video = $this->getItem($pk);
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__youtubevideos_featured'))
+            ->set($db->quoteName('hits') . ' = ' . $db->quoteName('hits') . ' + 1')
+            ->where($db->quoteName('id') . ' = :id')
+            ->bind(':id', $pk, ParameterType::INTEGER);
 
-        if ($video) {
-            $db = $this->getDatabase();
-            $query = $db->getQuery(true);
-
-            $query->update($db->quoteName('#__youtubevideos_featured'))
-                ->set($db->quoteName('hits') . ' = ' . $db->quoteName('hits') . ' + 1')
-                ->where($db->quoteName('id') . ' = :id')
-                ->bind(':id', $pk, \Joomla\Database\ParameterType::INTEGER);
-
-            try {
-                $db->setQuery($query);
-                $db->execute();
-
-                return true;
-            } catch (\Exception $e) {
-                $this->setError($e->getMessage());
-            }
+        try {
+            $db->setQuery($query)->execute();
+        } catch (\RuntimeException $e) {
+            // A missing hits column on a partially upgraded site must not break the page.
+            return false;
         }
 
-        return false;
+        return true;
     }
 }
-
-
-
-
-

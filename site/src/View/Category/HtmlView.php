@@ -2,6 +2,8 @@
 
 namespace BKWSU\Component\Youtubevideos\Site\View\Category;
 
+\defined('_JEXEC') or die;
+
 use BKWSU\Component\Youtubevideos\Site\Helper\RouteHelper;
 use BKWSU\Component\Youtubevideos\Site\Helper\SeoHelper;
 use Joomla\CMS\Factory;
@@ -24,12 +26,12 @@ class HtmlView extends BaseHtmlView
     protected $category;
 
     /**
-     * The list of videos
+     * The list of normalised videos
      *
      * @var    array
      * @since  1.0.0
      */
-    protected $items;
+    protected $items = [];
 
     /**
      * The pagination object
@@ -40,7 +42,7 @@ class HtmlView extends BaseHtmlView
     protected $pagination;
 
     /**
-     * The component parameters
+     * The merged component and menu parameters
      *
      * @var    \Joomla\Registry\Registry
      * @since  1.0.0
@@ -50,23 +52,10 @@ class HtmlView extends BaseHtmlView
     /**
      * The model state
      *
-     * @var    \Joomla\CMS\Object\CMSObject
+     * @var    \Joomla\Registry\Registry
+     * @since  1.0.0
      */
     protected $state;
-
-    /**
-     * Filter form for search tools
-     *
-     * @var    \Joomla\CMS\Form\Form|null
-     */
-    public $filterForm;
-
-    /**
-     * Active filters
-     *
-     * @var    array
-     */
-    public $activeFilters = [];
 
     /**
      * Execute and display a template script.
@@ -80,24 +69,17 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null): void
     {
-        $app = Factory::getApplication();
-        $this->params = $app->getParams();
-        $this->category = $this->get('Category');
-        $this->items = $this->get('Items');
-        $this->pagination = $this->get('Pagination');
-        $this->state = $this->get('State');
-        $this->filterForm = $this->get('FilterForm');
-        $this->activeFilters = $this->get('ActiveFilters');
+        /** @var \BKWSU\Component\Youtubevideos\Site\Model\CategoryModel $model */
+        $model = $this->getModel();
 
-        // Check for errors
-        if (count($errors = $this->get('Errors'))) {
-            throw new \Exception(implode("\n", $errors), 500);
-        }
+        $this->state      = $model->getState();
+        $this->params     = $this->state->get('params');
+        $this->category   = $model->getCategory();
+        $this->items      = $model->getItems();
+        $this->pagination = $model->getPagination();
 
-        // Increment the hit counter
-        $this->getModel()->hit();
+        $model->hit();
 
-        // Prepare the document
         $this->prepareDocument();
 
         parent::display($tpl);
@@ -112,194 +94,68 @@ class HtmlView extends BaseHtmlView
      */
     protected function prepareDocument(): void
     {
-        $app = Factory::getApplication();
-        $menus = $app->getMenu();
-        $menu = $menus->getActive();
+        $app  = Factory::getApplication();
+        $menu = $app->getMenu()->getActive();
 
-        // Set the page title
-        if ($menu && isset($menu->query['view']) && $menu->query['view'] === 'category' && isset($menu->query['id']) && $menu->query['id'] == $this->category->id) {
-            $title = $menu->title ?: $this->category->title;
-        } else {
-            $title = $this->category->title;
-        }
+        $isMenuItem = $menu
+            && ($menu->query['view'] ?? '') === 'category'
+            && (int) ($menu->query['id'] ?? 0) === (int) $this->category->id;
 
-        $title = SeoHelper::appendPaginationTitle($title, $this->pagination);
+        $title = $isMenuItem && $this->params->get('page_title') ? $this->params->get('page_title') : $this->category->title;
+        $title = SeoHelper::appendPaginationTitle((string) $title, $this->pagination);
 
-        $this->document->setTitle($title);
+        $this->setDocumentTitle($title);
 
-        $body = $this->category->description
-            ? strip_tags($this->category->description)
-            : ($this->params->get('menu-meta_description') ?: '');
+        $body = $this->category->metadesc
+            ?: ($this->category->description ?: ($this->params->get('menu-meta_description') ?: ''));
 
-        $description = SeoHelper::appendPaginationSuffix(
-            SeoHelper::buildPageDescription($title, $body),
-            $this->pagination
+        $this->document->setDescription(
+            SeoHelper::appendPaginationSuffix(SeoHelper::buildPageDescription($title, $body), $this->pagination)
         );
-        $this->document->setDescription($description);
 
-        // Set meta keywords
-        if ($this->category->metakey) {
+        if (!empty($this->category->metakey)) {
             $this->document->setMetaData('keywords', $this->category->metakey);
         }
 
-        // Set robots
         if ($this->params->get('robots')) {
             $this->document->setMetaData('robots', $this->params->get('robots'));
         }
 
-        $categoryRoute = 'index.php?option=com_youtubevideos&view=category&id=' . (int) $this->category->id;
-        $categoryUrl = RouteHelper::getAbsoluteUrl($categoryRoute);
+        $route       = 'index.php?option=com_youtubevideos&view=category&id=' . (int) $this->category->id;
+        $pageUrl     = RouteHelper::getAbsoluteUrl(SeoHelper::pageRoute($route, (int) $this->pagination->limitstart));
+        $categoryUrl = RouteHelper::getAbsoluteUrl($route);
 
-        // OpenGraph meta tags
-        $this->document->setMetaData('og:url', $categoryUrl, 'property');
+        $this->document->setMetaData('og:url', $pageUrl, 'property');
         $this->document->setMetaData('og:site_name', $app->get('sitename'), 'property');
-        
         $this->document->setMetaData('twitter:card', 'summary');
 
-        RouteHelper::setCanonicalUrl($this->document, $categoryRoute);
+        SeoHelper::setCanonical($this->document, $pageUrl);
+        SeoHelper::addPaginationLinks($this->document, $this->pagination, $route);
 
-        // Add pagination meta tags (prev/next)
-        $this->addPaginationLinks();
+        if (!empty($this->items)) {
+            SeoHelper::addJsonLd($this->document, SeoHelper::videoItemList($this->items));
+        }
 
-        // Add JSON+LD structured data
-        $this->addStructuredData();
+        $collection = [
+            '@context'   => 'https://schema.org',
+            '@type'      => 'CollectionPage',
+            'name'       => $this->category->title,
+            'url'        => $pageUrl,
+            'mainEntity' => ['@type' => 'ItemList', 'numberOfItems' => (int) $this->pagination->total],
+        ];
 
-        // Add the component's media files
-        $wa = $this->document->getWebAssetManager();
-        $wa->useStyle('com_youtubevideos.site.css')
+        if (!empty($this->category->description)) {
+            $collection['description'] = SeoHelper::prepareDescription($this->category->description, 300);
+        }
+
+        SeoHelper::addJsonLd($this->document, $collection);
+        SeoHelper::addJsonLd($this->document, SeoHelper::breadcrumbList($this->category->title, $categoryUrl, $isMenuItem));
+
+        Text::script('COM_YOUTUBEVIDEOS_JS_VIDEO_PLAYER');
+
+        $this->document->getWebAssetManager()
+            ->useStyle('fontawesome')
+            ->useStyle('com_youtubevideos.site.css')
             ->useScript('com_youtubevideos.youtube-player');
     }
-
-    /**
-     * Adds pagination links to the document
-     *
-     * @return  void
-     *
-     * @since   1.0.0
-     */
-    protected function addPaginationLinks(): void
-    {
-        if ($this->pagination->pagesTotal <= 1) {
-            return;
-        }
-
-        $baseUrl = \Joomla\CMS\Uri\Uri::getInstance()->toString(['scheme', 'host', 'port']);
-        $currentPage = $this->pagination->pagesCurrent;
-        $totalPages = $this->pagination->pagesTotal;
-        $limit = $this->pagination->limit;
-
-        // Previous page link
-        if ($currentPage > 1) {
-            $start = ($currentPage - 2) * $limit;
-            $prevUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=category&id=' . $this->category->id . '&start=' . $start);
-            $this->document->addHeadLink($prevUrl, 'prev');
-        }
-
-        // Next page link
-        if ($currentPage < $totalPages) {
-            $start = $currentPage * $limit;
-            $nextUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=category&id=' . $this->category->id . '&start=' . $start);
-            $this->document->addHeadLink($nextUrl, 'next');
-        }
-    }
-
-    /**
-     * Adds JSON+LD structured data to the document
-     *
-     * @return  void
-     *
-     * @since   1.0.0
-     */
-    protected function addStructuredData(): void
-    {
-        $app = Factory::getApplication();
-        $baseUrl = \Joomla\CMS\Uri\Uri::getInstance()->toString(['scheme', 'host', 'port']);
-        $categoryUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=category&id=' . $this->category->id);
-
-        // ItemList schema for video collection in category
-        if (!empty($this->items)) {
-            $itemListSchema = [
-                '@context' => 'https://schema.org',
-                '@type' => 'ItemList',
-                'itemListElement' => []
-            ];
-
-            $position = 1;
-            foreach ($this->items as $video) {
-                // Skip if no video ID
-                if (empty($video->youtube_video_id)) {
-                    continue;
-                }
-
-                $videoUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=video&id=' . $video->id);
-                $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $video->youtube_video_id . '/hqdefault.jpg';
-
-                $itemListSchema['itemListElement'][] = [
-                    '@type' => 'ListItem',
-                    'position' => $position++,
-                    'item' => [
-                        '@type' => 'VideoObject',
-                        'url' => $videoUrl,
-                        'name' => $video->title,
-                        'description' => strip_tags($video->description ?? ''),
-                        'thumbnailUrl' => $thumbnailUrl,
-                        'uploadDate' => date('c', strtotime($video->created)),
-                        'contentUrl' => 'https://www.youtube.com/watch?v=' . $video->youtube_video_id,
-                        'embedUrl' => 'https://www.youtube.com/embed/' . $video->youtube_video_id,
-                    ]
-                ];
-            }
-
-            $this->document->addScriptDeclaration(json_encode($itemListSchema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), 'application/ld+json');
-        }
-
-        // CollectionPage schema
-        $collectionSchema = [
-            '@context' => 'https://schema.org',
-            '@type' => 'CollectionPage',
-            'name' => $this->category->title,
-            'url' => $categoryUrl,
-            'mainEntity' => [
-                '@type' => 'ItemList',
-                'numberOfItems' => $this->pagination->total
-            ]
-        ];
-
-        if ($this->category->description) {
-            $collectionSchema['description'] = strip_tags($this->category->description);
-        }
-
-        $this->document->addScriptDeclaration(json_encode($collectionSchema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), 'application/ld+json');
-
-        // BreadcrumbList schema
-        $videosUrl = $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=videos');
-        
-        $breadcrumbSchema = [
-            '@context' => 'https://schema.org',
-            '@type' => 'BreadcrumbList',
-            'itemListElement' => [
-                [
-                    '@type' => 'ListItem',
-                    'position' => 1,
-                    'name' => 'Home',
-                    'item' => $baseUrl . '/'
-                ],
-                [
-                    '@type' => 'ListItem',
-                    'position' => 2,
-                    'name' => 'Videos',
-                    'item' => $videosUrl
-                ],
-                [
-                    '@type' => 'ListItem',
-                    'position' => 3,
-                    'name' => $this->category->title,
-                    'item' => $categoryUrl
-                ]
-            ]
-        ];
-
-        $this->document->addScriptDeclaration(json_encode($breadcrumbSchema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), 'application/ld+json');
-    }
 }
-

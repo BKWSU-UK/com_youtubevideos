@@ -1,13 +1,16 @@
 <?php
 namespace BKWSU\Component\Youtubevideos\Administrator\Controller;
 
+use BKWSU\Component\Youtubevideos\Administrator\Helper\OauthHelper;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Http\HttpFactory;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Log\Log;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
-use Joomla\CMS\Uri\Uri;
+use Joomla\Database\DatabaseInterface;
+use Joomla\Database\ParameterType;
 
 /**
  * OAuth controller for YouTube OAuth 2.0 authentication
@@ -16,6 +19,14 @@ use Joomla\CMS\Uri\Uri;
  */
 class OauthController extends BaseController
 {
+    /**
+     * Session key holding the OAuth state value
+     *
+     * @var    string
+     * @since  1.0.45
+     */
+    private const STATE_KEY = 'com_youtubevideos.oauth_state';
+
     /**
      * Initiate OAuth authorization flow
      *
@@ -28,41 +39,41 @@ class OauthController extends BaseController
         // Check for request forgeries
         $this->checkToken();
 
+        if (!$this->canAdminister()) {
+            return;
+        }
+
         $params = ComponentHelper::getParams('com_youtubevideos');
-        
+
         if (!$params->get('oauth_enabled')) {
-            $this->setMessage(Text::_('COM_YOUTUBEVIDEOS_OAUTH_NOT_ENABLED'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=dashboard', false));
+            $this->redirectToDashboard(Text::_('COM_YOUTUBEVIDEOS_OAUTH_NOT_ENABLED'), 'error');
+
             return;
         }
 
         $clientId = $params->get('oauth_client_id');
-        $redirectUri = Uri::base() . 'index.php?option=com_youtubevideos&task=oauth.callback';
 
         if (!$clientId) {
-            $this->setMessage(Text::_('COM_YOUTUBEVIDEOS_OAUTH_CLIENT_ID_MISSING'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=dashboard', false));
+            $this->redirectToDashboard(Text::_('COM_YOUTUBEVIDEOS_OAUTH_CLIENT_ID_MISSING'), 'error');
+
             return;
         }
 
         // Generate and store state parameter for CSRF protection
         $state = bin2hex(random_bytes(16));
-        $session = Factory::getApplication()->getSession();
-        $session->set('oauth_state', $state);
+        $this->app->getSession()->set(self::STATE_KEY, $state);
 
-        // Build authorization URL
         $authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
-            'client_id' => $clientId,
-            'redirect_uri' => $redirectUri,
+            'client_id'     => $clientId,
+            'redirect_uri'  => OauthHelper::getRedirectUri(),
             'response_type' => 'code',
-            'scope' => 'https://www.googleapis.com/auth/youtube.readonly',
-            'access_type' => 'offline',
-            'prompt' => 'consent',
-            'state' => $state
+            'scope'         => 'https://www.googleapis.com/auth/youtube.readonly',
+            'access_type'   => 'offline',
+            'prompt'        => 'consent',
+            'state'         => $state,
         ]);
 
-        // Redirect to Google OAuth
-        Factory::getApplication()->redirect($authUrl);
+        $this->app->redirect($authUrl);
     }
 
     /**
@@ -74,60 +85,53 @@ class OauthController extends BaseController
      */
     public function callback(): void
     {
-        $app = Factory::getApplication();
-        $input = $app->input;
-        $session = $app->getSession();
-
-        // Verify state parameter
-        $state = $input->get('state', '', 'string');
-        $savedState = $session->get('oauth_state');
-
-        if (!$state || $state !== $savedState) {
-            $this->setMessage(Text::_('COM_YOUTUBEVIDEOS_OAUTH_INVALID_STATE'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=dashboard', false));
+        if (!$this->canAdminister()) {
             return;
         }
 
-        // Clear state from session
-        $session->clear('oauth_state');
+        $session    = $this->app->getSession();
+        $state      = $this->input->getString('state', '');
+        $savedState = (string) $session->get(self::STATE_KEY, '');
 
-        // Check for error in response
-        $error = $input->get('error', '', 'string');
-        if ($error) {
-            $this->setMessage(
-                Text::sprintf('COM_YOUTUBEVIDEOS_OAUTH_AUTH_ERROR', $error),
-                'error'
-            );
-            $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=dashboard', false));
+        // The state is single use.
+        $session->clear(self::STATE_KEY);
+
+        if ($state === '' || $savedState === '' || !hash_equals($savedState, $state)) {
+            $this->redirectToDashboard(Text::_('COM_YOUTUBEVIDEOS_OAUTH_INVALID_STATE'), 'error');
+
             return;
         }
 
-        // Get authorization code
-        $code = $input->get('code', '', 'string');
-        if (!$code) {
-            $this->setMessage(Text::_('COM_YOUTUBEVIDEOS_OAUTH_NO_CODE'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=dashboard', false));
+        $error = $this->input->getCmd('error', '');
+
+        if ($error !== '') {
+            $this->redirectToDashboard(Text::sprintf('COM_YOUTUBEVIDEOS_OAUTH_AUTH_ERROR', $error), 'error');
+
             return;
         }
 
-        // Exchange code for tokens
+        $code = $this->input->getString('code', '');
+
+        if ($code === '') {
+            $this->redirectToDashboard(Text::_('COM_YOUTUBEVIDEOS_OAUTH_NO_CODE'), 'error');
+
+            return;
+        }
+
         try {
             $tokens = $this->exchangeCodeForTokens($code);
-            
-            if ($tokens) {
-                $this->saveTokens($tokens);
-                $this->setMessage(Text::_('COM_YOUTUBEVIDEOS_OAUTH_SUCCESS'), 'message');
-            } else {
-                $this->setMessage(Text::_('COM_YOUTUBEVIDEOS_OAUTH_TOKEN_EXCHANGE_FAILED'), 'error');
-            }
-        } catch (\Exception $e) {
-            $this->setMessage(
-                Text::sprintf('COM_YOUTUBEVIDEOS_OAUTH_ERROR', $e->getMessage()),
-                'error'
-            );
-        }
 
-        $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=dashboard', false));
+            if ($tokens && $this->saveTokens($tokens)) {
+                $this->redirectToDashboard(Text::_('COM_YOUTUBEVIDEOS_OAUTH_SUCCESS'));
+
+                return;
+            }
+
+            $this->redirectToDashboard(Text::_('COM_YOUTUBEVIDEOS_OAUTH_TOKEN_EXCHANGE_FAILED'), 'error');
+        } catch (\Exception $e) {
+            Log::add('OAuth callback failed: ' . $e->getMessage(), Log::ERROR, 'com_youtubevideos');
+            $this->redirectToDashboard(Text::_('COM_YOUTUBEVIDEOS_OAUTH_TOKEN_EXCHANGE_FAILED'), 'error');
+        }
     }
 
     /**
@@ -142,27 +146,50 @@ class OauthController extends BaseController
         // Check for request forgeries
         $this->checkToken();
 
-        try {
-            $db = Factory::getDbo();
-            $user = Factory::getApplication()->getIdentity();
-
-            // Delete tokens for current user
-            $query = $db->getQuery(true)
-                ->delete($db->quoteName('#__youtubevideos_oauth_tokens'))
-                ->where($db->quoteName('user_id') . ' = ' . (int) $user->id);
-
-            $db->setQuery($query);
-            $db->execute();
-
-            $this->setMessage(Text::_('COM_YOUTUBEVIDEOS_OAUTH_DISCONNECTED'), 'message');
-        } catch (\Exception $e) {
-            $this->setMessage(
-                Text::sprintf('COM_YOUTUBEVIDEOS_OAUTH_DISCONNECT_ERROR', $e->getMessage()),
-                'error'
-            );
+        if (!$this->canAdminister()) {
+            return;
         }
 
-        $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=dashboard', false));
+        try {
+            $this->deleteTokens((int) $this->app->getIdentity()->id);
+            $this->redirectToDashboard(Text::_('COM_YOUTUBEVIDEOS_OAUTH_DISCONNECTED'));
+        } catch (\Exception $e) {
+            Log::add('OAuth disconnect failed: ' . $e->getMessage(), Log::ERROR, 'com_youtubevideos');
+            $this->redirectToDashboard(Text::_('COM_YOUTUBEVIDEOS_OAUTH_DISCONNECT_FAILED'), 'error');
+        }
+    }
+
+    /**
+     * Only super users / component administrators may manage the OAuth connection.
+     *
+     * @return  boolean  True when allowed; otherwise a redirect with an error is set.
+     *
+     * @since   1.0.45
+     */
+    private function canAdminister(): bool
+    {
+        if ($this->app->getIdentity()->authorise('core.admin', 'com_youtubevideos')) {
+            return true;
+        }
+
+        $this->redirectToDashboard(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+
+        return false;
+    }
+
+    /**
+     * Redirect to the dashboard with a message.
+     *
+     * @param   string  $message  The message.
+     * @param   string  $type     The message type.
+     *
+     * @return  void
+     *
+     * @since   1.0.45
+     */
+    private function redirectToDashboard(string $message, string $type = 'message'): void
+    {
+        $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=dashboard', false), $message, $type);
     }
 
     /**
@@ -177,32 +204,54 @@ class OauthController extends BaseController
     private function exchangeCodeForTokens(string $code): ?object
     {
         $params = ComponentHelper::getParams('com_youtubevideos');
-        $clientId = $params->get('oauth_client_id');
-        $clientSecret = $params->get('oauth_client_secret');
-        $redirectUri = Uri::base() . 'index.php?option=com_youtubevideos&task=oauth.callback';
 
-        $http = HttpFactory::getHttp();
-        $tokenUrl = 'https://oauth2.googleapis.com/token';
+        $response = HttpFactory::getHttp()->post(
+            'https://oauth2.googleapis.com/token',
+            [
+                'code'          => $code,
+                'client_id'     => $params->get('oauth_client_id'),
+                'client_secret' => $params->get('oauth_client_secret'),
+                'redirect_uri'  => OauthHelper::getRedirectUri(),
+                'grant_type'    => 'authorization_code',
+            ],
+            [],
+            15
+        );
 
-        $postData = [
-            'code' => $code,
-            'client_id' => $clientId,
-            'client_secret' => $clientSecret,
-            'redirect_uri' => $redirectUri,
-            'grant_type' => 'authorization_code'
-        ];
+        $tokens = json_decode((string) $response->body);
 
-        $response = $http->post($tokenUrl, $postData);
-
-        if ($response->code !== 200) {
-            Factory::getApplication()->enqueueMessage(
-                'Token exchange failed: ' . $response->body,
-                'error'
+        if ($response->code !== 200 || empty($tokens->access_token)) {
+            // Log Google's error code only; never show the raw response to the user.
+            Log::add(
+                'OAuth token exchange failed (HTTP ' . $response->code . '): ' . ($tokens->error ?? 'invalid response'),
+                Log::ERROR,
+                'com_youtubevideos'
             );
+
             return null;
         }
 
-        return json_decode($response->body);
+        return $tokens;
+    }
+
+    /**
+     * Delete the stored tokens of a user.
+     *
+     * @param   int  $userId  The user id.
+     *
+     * @return  void
+     *
+     * @since   1.0.45
+     */
+    private function deleteTokens(int $userId): void
+    {
+        $db    = Factory::getContainer()->get(DatabaseInterface::class);
+        $query = $db->getQuery(true)
+            ->delete($db->quoteName('#__youtubevideos_oauth_tokens'))
+            ->where($db->quoteName('user_id') . ' = :userId')
+            ->bind(':userId', $userId, ParameterType::INTEGER);
+
+        $db->setQuery($query)->execute();
     }
 
     /**
@@ -216,51 +265,35 @@ class OauthController extends BaseController
      */
     private function saveTokens(object $tokens): bool
     {
-        $db = Factory::getDbo();
-        $user = Factory::getApplication()->getIdentity();
-        $date = Factory::getDate();
+        $db     = Factory::getContainer()->get(DatabaseInterface::class);
+        $userId = (int) $this->app->getIdentity()->id;
+        $date   = Factory::getDate();
 
-        // Calculate expiration time
-        $expiresIn = $tokens->expires_in ?? 3600;
-        $expiresAt = clone $date;
-        $expiresAt->modify('+' . $expiresIn . ' seconds');
+        $expiresIn    = (int) ($tokens->expires_in ?? 3600);
+        $expiresAt    = (clone $date)->modify('+' . $expiresIn . ' seconds')->toSql();
+        $created      = $date->toSql();
+        $accessToken  = (string) $tokens->access_token;
+        $refreshToken = (string) ($tokens->refresh_token ?? '');
+        $tokenType    = (string) ($tokens->token_type ?? 'Bearer');
+        $scope        = (string) ($tokens->scope ?? '');
 
-        // Delete existing tokens for this user
-        $query = $db->getQuery(true)
-            ->delete($db->quoteName('#__youtubevideos_oauth_tokens'))
-            ->where($db->quoteName('user_id') . ' = ' . (int) $user->id);
+        $this->deleteTokens($userId);
 
-        $db->setQuery($query);
-        $db->execute();
-
-        // Insert new tokens
         $query = $db->getQuery(true)
             ->insert($db->quoteName('#__youtubevideos_oauth_tokens'))
-            ->columns([
-                $db->quoteName('user_id'),
-                $db->quoteName('access_token'),
-                $db->quoteName('refresh_token'),
-                $db->quoteName('token_type'),
-                $db->quoteName('expires_in'),
-                $db->quoteName('expires_at'),
-                $db->quoteName('scope'),
-                $db->quoteName('created')
-            ])
-            ->values(
-                (int) $user->id . ', ' .
-                $db->quote($tokens->access_token) . ', ' .
-                $db->quote($tokens->refresh_token ?? '') . ', ' .
-                $db->quote($tokens->token_type ?? 'Bearer') . ', ' .
-                (int) $expiresIn . ', ' .
-                $db->quote($expiresAt->toSql()) . ', ' .
-                $db->quote($tokens->scope ?? '') . ', ' .
-                $db->quote($date->toSql())
-            );
+            ->columns($db->quoteName([
+                'user_id', 'access_token', 'refresh_token', 'token_type', 'expires_in', 'expires_at', 'scope', 'created',
+            ]))
+            ->values(':userId, :accessToken, :refreshToken, :tokenType, :expiresIn, :expiresAt, :scope, :created')
+            ->bind(':userId', $userId, ParameterType::INTEGER)
+            ->bind(':accessToken', $accessToken)
+            ->bind(':refreshToken', $refreshToken)
+            ->bind(':tokenType', $tokenType)
+            ->bind(':expiresIn', $expiresIn, ParameterType::INTEGER)
+            ->bind(':expiresAt', $expiresAt)
+            ->bind(':scope', $scope)
+            ->bind(':created', $created);
 
-        $db->setQuery($query);
-        
-        return $db->execute();
+        return (bool) $db->setQuery($query)->execute();
     }
 }
-
-

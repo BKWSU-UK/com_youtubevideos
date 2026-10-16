@@ -7,8 +7,8 @@ A Joomla 5 module for displaying YouTube videos from a selected playlist in a re
 - **Playlist Selection**: Display videos from any published YouTube playlist in your component database
 - **Responsive Grid Layout**: Choose between 2, 3, 4, or 6 videos per row
 - **Modal Video Player**: Play videos in a modal popup with YouTube player integration
-- **Customisable Display**: Toggle visibility of title, description, and duration
-- **Automatic Description Retrieval**: Fetches missing descriptions from YouTube API when database description is empty
+- **Customisable Display**: Toggle visibility of title and description
+- **Automatic Description Retrieval**: Fetches missing descriptions from the YouTube API when the database description is empty (results are cached using the component cache time)
 - **Flexible Ordering**: Sort videos by custom order, date, or title (ascending/descending)
 - **Bootstrap 5 Styling**: Clean, modern design using Bootstrap 5 classes and variables
 - **Multi-lingual Support**: Fully translatable with language files
@@ -39,7 +39,6 @@ After installation, configure the module through **Content → Site Modules**:
   - Title (Z-A) - Reverse alphabetical by title
 - **Show Video Title**: Toggle video title display (default: Yes)
 - **Show Description**: Toggle video description display (default: Yes)
-- **Show Duration**: Toggle video duration badge display (default: Yes)
 - **Module Heading**: Optional heading text above the video grid
 - **Enable Modal Player**: Play videos in modal popup when clicked (default: Yes)
 - **Caching**: Enable/disable caching (default: Yes)
@@ -65,14 +64,18 @@ After installation, configure the module through **Content → Site Modules**:
 - YouTube Videos Component (com_youtubevideos) installed and configured
 - Bootstrap 5 (included in Joomla 5)
 - Published YouTube playlists in the component database
+- The modal player uses the component's `com_youtubevideos.youtube-player` web asset, so the component must be installed
 
 ## File Structure
 
 ```
 mod_youtubevideos/
 ├── mod_youtubevideos.xml       # Module manifest
-├── mod_youtubevideos.php       # Main module entry file
+├── services/
+│   └── provider.php            # Service provider (Joomla 5 dispatcher pattern)
 ├── src/
+│   ├── Dispatcher/
+│   │   └── Dispatcher.php      # Prepares layout data and assets
 │   └── Helper/
 │       └── YoutubeHelper.php   # Helper class for data retrieval
 ├── tmpl/

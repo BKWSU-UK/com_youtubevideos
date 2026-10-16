@@ -1,7 +1,6 @@
 <?php
 namespace BKWSU\Component\Youtubevideos\Administrator\Table;
 
-use Joomla\CMS\Application\ApplicationHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Table\Table;
@@ -16,6 +15,8 @@ use Joomla\Event\DispatcherInterface;
  */
 class CategoryTable extends Table implements VersionableTableInterface
 {
+    use UniqueAliasTrait;
+
     /**
      * Constructor
      *
@@ -24,7 +25,7 @@ class CategoryTable extends Table implements VersionableTableInterface
      *
      * @since   1.0.0
      */
-    public function __construct(DatabaseDriver $db, DispatcherInterface $dispatcher = null)
+    public function __construct(DatabaseDriver $db, ?DispatcherInterface $dispatcher = null)
     {
         $this->typeAlias = 'com_youtubevideos.category';
 
@@ -51,40 +52,13 @@ class CategoryTable extends Table implements VersionableTableInterface
         }
 
         // Check for valid title
-        if (trim($this->title) == '') {
+        if (trim((string) $this->title) === '') {
             $this->setError(Text::_('COM_YOUTUBEVIDEOS_WARNING_PROVIDE_VALID_TITLE'));
             return false;
         }
 
-        // Generate alias if empty
-        if (empty($this->alias)) {
-            $this->alias = $this->title;
-        }
-
-        $this->alias = ApplicationHelper::stringURLSafe($this->alias);
-
-        if (trim(str_replace('-', '', $this->alias)) == '') {
-            $this->alias = Factory::getDate()->format('Y-m-d-H-i-s');
-        }
-
-        // Check for existing alias
-        if ($this->id) {
-            $db = $this->getDbo();
-            $query = $db->getQuery(true)
-                ->select($db->quoteName('id'))
-                ->from($db->quoteName('#__youtubevideos_categories'))
-                ->where($db->quoteName('alias') . ' = :alias')
-                ->where($db->quoteName('id') . ' != :id')
-                ->bind(':alias', $this->alias)
-                ->bind(':id', $this->id, \Joomla\Database\ParameterType::INTEGER);
-
-            $db->setQuery($query);
-            $xid = (int) $db->loadResult();
-
-            if ($xid && $xid != $this->id) {
-                $this->setError(Text::_('COM_YOUTUBEVIDEOS_ERROR_UNIQUE_ALIAS'));
-                return false;
-            }
+        if (!$this->prepareUniqueAlias()) {
+            return false;
         }
 
         // Set created date if new record
@@ -137,5 +111,3 @@ class CategoryTable extends Table implements VersionableTableInterface
         return $this->typeAlias;
     }
 }
-
-

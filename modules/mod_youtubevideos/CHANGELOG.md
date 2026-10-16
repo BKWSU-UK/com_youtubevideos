@@ -2,6 +2,25 @@
 
 All notable changes to the YouTube Videos Module will be documented in this file.
 
+## [1.0.6] - 2026-10-16
+
+### Changed
+- Converted the module to the Joomla 5 dispatcher pattern (`services/provider.php`, `Dispatcher`, `HelperFactory`); removed the legacy `mod_youtubevideos.php` entry file.
+- Video cards are now real links to the component's video page, so they are keyboard accessible and crawlable. When the modal player is enabled the shared player script opens the modal instead.
+- The module now uses the component's `com_youtubevideos.youtube-player` script instead of shipping its own copy.
+- Grid layout uses Bootstrap `row-cols-*` utilities; styles use Bootstrap CSS variables and work in dark mode.
+- Module caching uses the `itemid` cache mode.
+
+### Fixed
+- Language filtering bound the language tag as an integer, which showed videos from every language.
+- Videos outside their publish up/down window, or belonging to an unpublished or restricted playlist, were shown.
+- Database errors were displayed to site visitors; they are now logged.
+- Missing descriptions were fetched from the YouTube API on every render without a timeout; results are now cached.
+- Video descriptions in the modal could execute HTML (the shared player now uses plain text).
+
+### Removed
+- The "Show Duration" option, which never had any data to show.
+
 ## [1.0.3] - 2025-11-15
 
 ### Fixed

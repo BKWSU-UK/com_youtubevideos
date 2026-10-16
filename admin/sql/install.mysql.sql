@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS `#__youtubevideos_categories` (
     KEY `idx_checkout` (`checked_out`),
     KEY `idx_published` (`published`),
     KEY `idx_language` (`language`),
-    KEY `idx_createdby` (`created_by`)
+    KEY `idx_createdby` (`created_by`),
+    KEY `idx_alias` (`alias`(191))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -64,7 +65,8 @@ CREATE TABLE IF NOT EXISTS `#__youtubevideos_playlists` (
     KEY `idx_checkout` (`checked_out`),
     KEY `idx_published` (`published`),
     KEY `idx_language` (`language`),
-    KEY `idx_createdby` (`created_by`)
+    KEY `idx_createdby` (`created_by`),
+    KEY `idx_alias` (`alias`(191))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -78,6 +80,7 @@ CREATE TABLE IF NOT EXISTS `#__youtubevideos_featured` (
     `description` mediumtext,
     `recipe_type` tinyint(1) NOT NULL DEFAULT '0',
     `recipe_data` text,
+    `sync_locked` tinyint NOT NULL DEFAULT '0',
     `custom_thumbnail` varchar(255) DEFAULT NULL,
     `category_id` int unsigned DEFAULT NULL,
     `playlist_id` int unsigned DEFAULT NULL,
@@ -95,6 +98,7 @@ CREATE TABLE IF NOT EXISTS `#__youtubevideos_featured` (
     `params` text,
     `language` char(7) NOT NULL DEFAULT '*',
     `access` int unsigned NOT NULL DEFAULT '1',
+    `hits` int unsigned NOT NULL DEFAULT '0',
     PRIMARY KEY (`id`),
     UNIQUE KEY `idx_video_id` (`youtube_video_id`),
     KEY `idx_access` (`access`),
@@ -104,6 +108,8 @@ CREATE TABLE IF NOT EXISTS `#__youtubevideos_featured` (
     KEY `idx_playlistid` (`playlist_id`),
     KEY `idx_language` (`language`),
     KEY `idx_createdby` (`created_by`),
+    KEY `idx_recipe_type` (`recipe_type`),
+    KEY `idx_alias` (`alias`(191)),
     CONSTRAINT `fk_featured_category` FOREIGN KEY (`category_id`) REFERENCES `#__youtubevideos_categories` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_featured_playlist` FOREIGN KEY (`playlist_id`) REFERENCES `#__youtubevideos_playlists` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;

@@ -4,8 +4,11 @@ namespace BKWSU\Component\Youtubevideos\Administrator\Model;
 use Joomla\CMS\Application\ApplicationHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Form\Form;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\AdminModel;
 use Joomla\CMS\Table\Table;
+use Joomla\Database\ParameterType;
+use Joomla\Utilities\ArrayHelper;
 
 /**
  * Video model
@@ -100,8 +103,7 @@ class VideoModel extends AdminModel
     protected function loadFormData()
     {
         // Check the session for previously entered form data.
-        $app  = Factory::getApplication();
-        $data = $app->getUserState('com_youtubevideos.edit.video.data', []);
+        $data = Factory::getApplication()->getUserState('com_youtubevideos.edit.video.data', []);
 
         if (empty($data)) {
             $data = $this->getItem();
@@ -299,7 +301,23 @@ class VideoModel extends AdminModel
         $existingVideoId = null;
 
         if (!empty($data['id'])) {
-            $existingVideoId = $this->loadYoutubeVideoId((int) $data['id']);
+            $existing = $this->loadSyncFields((int) $data['id']);
+
+            if ($existing) {
+                $existingVideoId = $existing->youtube_video_id;
+
+                // Editing the title or description by hand protects them from being
+                // overwritten by the next YouTube sync.
+                // Compare as plain text so the editor re-wrapping the text in markup does not count.
+                $titleChanged       = isset($data['title'])
+                    && $this->normaliseForComparison($data['title']) !== $this->normaliseForComparison($existing->title);
+                $descriptionChanged = isset($data['description'])
+                    && $this->normaliseForComparison($data['description']) !== $this->normaliseForComparison($existing->description);
+
+                if ($titleChanged || $descriptionChanged) {
+                    $data['sync_locked'] = 1;
+                }
+            }
         }
 
         $result = parent::save($data);
@@ -308,7 +326,8 @@ class VideoModel extends AdminModel
             return false;
         }
 
-        $pk = (int) ($data['id'] ?? $this->getState($this->getName() . '.id'));
+        // Prefer the id stored in the model state: a new record posts id "0".
+        $pk = (int) $this->getState($this->getName() . '.id') ?: (int) ($data['id'] ?? 0);
         $currentVideoId = $this->loadYoutubeVideoId($pk);
 
         $this->syncVideoTags(
@@ -318,6 +337,88 @@ class VideoModel extends AdminModel
         );
 
         return true;
+    }
+
+    /**
+     * Method to toggle the featured setting of videos.
+     *
+     * @param   array    $pks    The ids of the items to toggle.
+     * @param   integer  $value  The value to toggle to.
+     *
+     * @return  boolean  True on success.
+     *
+     * @since   1.0.45
+     */
+    public function featured($pks, $value = 0)
+    {
+        $pks   = array_filter(ArrayHelper::toInteger((array) $pks));
+        $value = (int) $value === 1 ? 1 : 0;
+
+        if (empty($pks)) {
+            $this->setError(Text::_('JERROR_NO_ITEMS_SELECTED'));
+
+            return false;
+        }
+
+        try {
+            $db    = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__youtubevideos_featured'))
+                ->set($db->quoteName('featured') . ' = :featured')
+                ->whereIn($db->quoteName('id'), $pks)
+                ->bind(':featured', $value, ParameterType::INTEGER);
+
+            $db->setQuery($query)->execute();
+        } catch (\RuntimeException $e) {
+            $this->setError($e->getMessage());
+
+            return false;
+        }
+
+        $this->cleanCache();
+
+        return true;
+    }
+
+    /**
+     * Reduce text to a plain, whitespace-collapsed form for change detection.
+     *
+     * @param   mixed  $text  The text (plain or HTML).
+     *
+     * @return  string
+     *
+     * @since   1.0.45
+     */
+    private function normaliseForComparison($text): string
+    {
+        $text = html_entity_decode(strip_tags((string) $text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return trim((string) preg_replace('/\s+/u', ' ', $text));
+    }
+
+    /**
+     * Load the fields needed to detect manual edits of synced metadata.
+     *
+     * @param   int  $pk  The primary key.
+     *
+     * @return  object|null
+     *
+     * @since   1.0.45
+     */
+    private function loadSyncFields(int $pk): ?object
+    {
+        if ($pk <= 0) {
+            return null;
+        }
+
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName(['youtube_video_id', 'title', 'description']))
+            ->from($db->quoteName('#__youtubevideos_featured'))
+            ->where($db->quoteName('id') . ' = :id')
+            ->bind(':id', $pk, ParameterType::INTEGER);
+
+        return $db->setQuery($query)->loadObject() ?: null;
     }
 
     /**
@@ -615,7 +716,8 @@ class VideoModel extends AdminModel
             $query = $db->getQuery(true)
                 ->select($db->quoteName('id'))
                 ->from($db->quoteName('#__youtubevideos_tags'))
-                ->where($db->quoteName('alias') . ' = ' . $db->quote($alias));
+                ->where($db->quoteName('alias') . ' = :alias')
+                ->bind(':alias', $alias);
 
             $db->setQuery($query);
 

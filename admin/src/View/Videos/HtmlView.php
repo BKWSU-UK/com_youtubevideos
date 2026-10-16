@@ -3,12 +3,13 @@ namespace BKWSU\Component\Youtubevideos\Administrator\View\Videos;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Form\Form;
+use Joomla\CMS\Form\FormFactoryInterface;
 use Joomla\CMS\Helper\ContentHelper;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\GenericDataException;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
-use Joomla\CMS\Toolbar\Toolbar;
+use Joomla\CMS\Session\Session;
 use Joomla\CMS\Toolbar\ToolbarHelper;
 
 /**
@@ -78,11 +79,14 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null): void
     {
-        $this->items         = $this->get('Items');
-        $this->pagination    = $this->get('Pagination');
-        $this->state         = $this->get('State');
-        $this->filterForm    = $this->get('FilterForm');
-        $this->activeFilters = $this->get('ActiveFilters');
+        /** @var \BKWSU\Component\Youtubevideos\Administrator\Model\VideosModel $model */
+        $model = $this->getModel();
+
+        $this->items         = $model->getItems();
+        $this->pagination    = $model->getPagination();
+        $this->state         = $model->getState();
+        $this->filterForm    = $model->getFilterForm();
+        $this->activeFilters = $model->getActiveFilters();
 
         // Load the batch form
         $this->batchForm = $this->loadBatchForm();
@@ -94,7 +98,7 @@ class HtmlView extends BaseHtmlView
         }
 
         // Check for errors.
-        if (count($errors = $this->get('Errors')))
+        if (\count($errors = $model->getErrors()))
         {
             throw new GenericDataException(implode("\n", $errors), 500);
         }
@@ -117,13 +121,10 @@ class HtmlView extends BaseHtmlView
             // Load the form using Form class directly
             Form::addFormPath(JPATH_ADMINISTRATOR . '/components/com_youtubevideos/forms');
             
-            $form = Form::getInstance(
-                'com_youtubevideos.batch',
-                'batch_videos',
-                ['control' => 'batch', 'load_data' => false]
-            );
+            $form = Factory::getContainer()->get(FormFactoryInterface::class)
+                ->createForm('com_youtubevideos.batch', ['control' => 'batch']);
 
-            return $form;
+            return $form->loadFile('batch_videos') ? $form : null;
         } catch (\Exception $e) {
             Factory::getApplication()->enqueueMessage($e->getMessage(), 'error');
             return null;
@@ -142,8 +143,7 @@ class HtmlView extends BaseHtmlView
         $canDo = ContentHelper::getActions('com_youtubevideos');
         $user  = Factory::getApplication()->getIdentity();
 
-        // Get the toolbar object instance
-        $toolbar = Toolbar::getInstance();
+        $toolbar = $this->getDocument()->getToolbar();
 
         ToolbarHelper::title(Text::_('COM_YOUTUBEVIDEOS_VIDEOS_TITLE'), 'video');
 
@@ -203,27 +203,32 @@ class HtmlView extends BaseHtmlView
         }
 
         // Add Import/Export buttons
-        $toolbar->linkButton('import')
-            ->text('COM_YOUTUBEVIDEOS_IMPORT')
-            ->icon('icon-upload')
-            ->url('index.php?option=com_youtubevideos&view=import&type=videos');
+        if ($canDo->get('core.create'))
+        {
+            $toolbar->linkButton('import')
+                ->text('COM_YOUTUBEVIDEOS_IMPORT')
+                ->icon('icon-upload')
+                ->url('index.php?option=com_youtubevideos&view=import&type=videos');
+        }
 
-        $toolbar->linkButton('import-recipes')
-            ->text('COM_YOUTUBEVIDEOS_IMPORT_RECIPES')
-            ->icon('icon-upload')
-            ->url('index.php?option=com_youtubevideos&view=import&type=recipes');
+        if ($canDo->get('core.edit'))
+        {
+            $toolbar->linkButton('import-recipes')
+                ->text('COM_YOUTUBEVIDEOS_IMPORT_RECIPES')
+                ->icon('icon-upload')
+                ->url('index.php?option=com_youtubevideos&view=import&type=recipes');
+        }
 
         $toolbar->linkButton('export')
             ->text('COM_YOUTUBEVIDEOS_EXPORT')
             ->icon('icon-download')
-            ->url('index.php?option=com_youtubevideos&task=export.export&type=videos');
+            ->url('index.php?option=com_youtubevideos&task=export.export&type=videos&' . Session::getFormToken() . '=1');
 
         if ($user->authorise('core.admin', 'com_youtubevideos') || $user->authorise('core.options', 'com_youtubevideos'))
         {
             $toolbar->preferences('com_youtubevideos');
         }
 
-        ToolbarHelper::help('', false, 'https://docs.joomla.org/');
     }
 }
 

@@ -2,6 +2,22 @@
 
 All notable changes to this module will be documented in this file.
 
+## [1.2.12] - 2026-10-16
+
+### Changed
+- Converted the module to the Joomla 5 dispatcher pattern (`services/provider.php`, `Dispatcher`, `HelperFactory`); removed the legacy `mod_youtube_single.php` entry file.
+- Assets are loaded through the Web Asset Manager with automatic media versioning instead of a hardcoded version string.
+- Card and thumbnail links now point to the component's video page, so the video is still reachable without JavaScript or when opened in a new tab.
+- Embedded players use Bootstrap's `ratio` helper and `loading="lazy"`; styles use Bootstrap CSS variables and work in dark mode.
+
+### Fixed
+- Videos outside their publish up/down window were shown.
+- Thumbnail URLs, player width and custom YouTube parameters were output without escaping or validation. Custom parameters are now limited to simple `key=value` pairs.
+- A video whose aspect ratio parameter was 0 caused a division-by-zero error.
+- Database errors were displayed to site visitors; they are now logged.
+- Editing the module with a selected video called an undefined `escape()` method on the form field.
+- Hardcoded English strings in the module JavaScript and video selector are now translatable.
+
 ## [1.2.6] - 2025-11-23
 
 ### Fixed

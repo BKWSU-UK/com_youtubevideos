@@ -1,15 +1,31 @@
 <?php
+/**
+ * @package     Joomla.Plugin
+ * @subpackage  System.youtubevideos
+ *
+ * @copyright   Copyright (C) 2025 Brahma Kumaris. All rights reserved.
+ * @license     GNU General Public License version 2 or later
+ */
+
 namespace BKWSU\Plugin\System\YoutubeVideos\Field;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\Form\Field\ListField;
 use Joomla\CMS\HTML\HTMLHelper;
-use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Log\Log;
+use Joomla\Database\DatabaseInterface;
+use Joomla\Database\ParameterType;
 
 /**
- * YouTube Video Field
+ * Searchable list of YouTube videos (uses Joomla's fancy-select / choices.js).
+ *
+ * The currently saved video is always included, even if it is no longer published,
+ * so saving a menu item never silently clears the selection.
+ *
+ * @since  1.0.0
  */
 class YoutubeVideoField extends ListField
 {
@@ -22,83 +38,54 @@ class YoutubeVideoField extends ListField
     protected $type = 'YoutubeVideo';
 
     /**
-     * Method to get the field input markup.
+     * Name of the layout being used to render the field
      *
-     * @return  string  The field input markup.
-     *
-     * @since   1.0.0
+     * @var    string
+     * @since  1.0.3
      */
-    protected function getInput()
+    protected $layout = 'joomla.form.field.list-fancy-select';
+
+    /**
+     * Method to get the field options.
+     *
+     * @return  array  The field option objects.
+     *
+     * @since   1.0.3
+     */
+    protected function getOptions()
     {
-        // Load the necessary assets
-        HTMLHelper::_('jquery.framework');
-        
-        // Get the current value
-        $value = $this->value;
-        
-        // Generate the select list
-        $options = [];
-        
-        // If we have a value, we need to fetch the title for it to show initially
-        if ($value)
-        {
-            $db = Factory::getContainer()->get('DatabaseDriver');
+        $options  = parent::getOptions();
+        $current  = (int) $this->value;
+        $hasValue = false;
+
+        try {
+            $db    = Factory::getContainer()->get(DatabaseInterface::class);
             $query = $db->getQuery(true)
-                ->select($db->quoteName('title'))
+                ->select($db->quoteName(['id', 'title', 'youtube_video_id', 'published']))
                 ->from($db->quoteName('#__youtubevideos_featured'))
-                ->where($db->quoteName('id') . ' = :id')
-                ->bind(':id', $value);
-            $db->setQuery($query);
-            $title = $db->loadResult();
-            
-            if ($title)
-            {
-                $options[] = HTMLHelper::_('select.option', $value, $title);
+                ->where('(' . $db->quoteName('published') . ' = 1 OR ' . $db->quoteName('id') . ' = :current)')
+                ->bind(':current', $current, ParameterType::INTEGER)
+                ->order($db->quoteName('title') . ' ASC');
+
+            foreach ($db->setQuery($query)->loadObjectList() as $video) {
+                $text = $video->title . ' (' . $video->youtube_video_id . ')';
+
+                if ((int) $video->published !== 1) {
+                    $text .= ' [' . Text::_('JUNPUBLISHED') . ']';
+                }
+
+                $options[] = HTMLHelper::_('select.option', (string) $video->id, $text);
+                $hasValue  = $hasValue || (int) $video->id === $current;
             }
+        } catch (\Throwable $e) {
+            Log::add('plg_system_youtubevideos: ' . $e->getMessage(), Log::WARNING, 'plg_system_youtubevideos');
         }
 
-        // Add the class for the select2/choices initialization
-        $this->class = $this->class . ' youtubevideo-select';
+        // Keep a value that no longer matches a record (e.g. a YouTube ID typed in a custom field)
+        if (!$hasValue && (string) $this->value !== '' && (string) $this->value !== '0') {
+            $options[] = HTMLHelper::_('select.option', (string) $this->value, (string) $this->value);
+        }
 
-        // Render the select list
-        $html = parent::getInput();
-
-        // Add the script to initialize the select2/choices
-        // We use a simple fetch to the JSON view we created
-        $script = "
-        document.addEventListener('DOMContentLoaded', function() {
-            const selects = document.querySelectorAll('.youtubevideo-select');
-            selects.forEach(function(select) {
-                if (window.jQuery && jQuery(select).select2) {
-                    jQuery(select).select2({
-                        ajax: {
-                            url: 'index.php?option=com_youtubevideos&view=videos&format=json',
-                            dataType: 'json',
-                            delay: 250,
-                            data: function (params) {
-                                return {
-                                    'filter[search]': params.term,
-                                    'filter[published]': 1
-                                };
-                            },
-                            processResults: function (data) {
-                                return {
-                                    results: data
-                                };
-                            },
-                            cache: true
-                        },
-                        minimumInputLength: 1,
-                        placeholder: '" . Text::_('JSEARCH_FILTER_SUBMIT') . "',
-                        allowClear: true
-                    });
-                }
-            });
-        });
-        ";
-
-        Factory::getDocument()->addScriptDeclaration($script);
-
-        return $html;
+        return $options;
     }
 }

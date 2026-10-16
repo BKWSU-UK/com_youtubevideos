@@ -1,204 +1,194 @@
 /**
- * Playlist Player - AJAX Video Switching
- * 
+ * Playlist Player - switches the playlist video without a page reload.
+ *
+ * Sidebar items are real links, so they work without JavaScript and in new tabs.
+ *
  * @package     Joomla.Site
  * @subpackage  com_youtubevideos
  * @since       1.0.0
  */
-
-(function() {
+(function () {
     'use strict';
 
-    // Wait for DOM to be ready
-    document.addEventListener('DOMContentLoaded', function() {
-        const playlistItems = document.querySelectorAll('.playlist-video-item');
-        const iframe = document.getElementById('playlist-iframe');
-        const videoTitle = document.getElementById('current-video-title');
-        const videoMeta = document.getElementById('current-video-meta');
-        const videoDescription = document.getElementById('current-video-description');
+    function text(key, fallback) {
+        if (window.Joomla && Joomla.Text && typeof Joomla.Text._ === 'function') {
+            var value = Joomla.Text._(key, fallback);
+            if (value && value !== key) {
+                return value;
+            }
+        }
+        return fallback;
+    }
 
-        if (!playlistItems.length || !iframe) {
+    function metaItem(iconClass, label) {
+        var wrapper = document.createElement('span');
+        var icon = document.createElement('span');
+
+        wrapper.className = 'me-3';
+        icon.className = iconClass;
+        icon.setAttribute('aria-hidden', 'true');
+        wrapper.appendChild(icon);
+        wrapper.appendChild(document.createTextNode(' ' + label));
+
+        return wrapper;
+    }
+
+    function init() {
+        var items = Array.prototype.slice.call(document.querySelectorAll('.playlist-video-item'));
+        var iframe = document.getElementById('playlist-iframe');
+        var videoTitle = document.getElementById('current-video-title');
+        var videoMeta = document.getElementById('current-video-meta');
+        var videoDescription = document.getElementById('current-video-description');
+
+        if (!items.length || !iframe) {
             return;
         }
 
-        // Get embed parameters from the current iframe URL
-        function getEmbedParams() {
-            const currentSrc = iframe.src;
-            const urlParams = new URLSearchParams(currentSrc.split('?')[1] || '');
-            return {
-                autoplay: urlParams.get('autoplay') || '1', // Auto-play when switching videos
-                rel: urlParams.get('rel') || '0',
-                showinfo: urlParams.get('showinfo') || '1'
-            };
-        }
-
-        // Build YouTube embed URL
         function buildEmbedUrl(youtubeId) {
-            const params = getEmbedParams();
-            params.autoplay = '1'; // Always autoplay when switching
-            const queryString = new URLSearchParams(params).toString();
-            return `https://www.youtube.com/embed/${youtubeId}?${queryString}`;
+            var url = new URL(iframe.src, window.location.href);
+
+            url.pathname = '/embed/' + encodeURIComponent(youtubeId);
+            url.searchParams.set('autoplay', '1');
+            url.searchParams.set('rel', '0');
+            url.searchParams.delete('showinfo');
+
+            return url.toString();
         }
 
-        // Format number with commas
-        function formatNumber(num) {
-            return parseInt(num).toLocaleString();
+        function findItem(videoId) {
+            return items.filter(function (item) {
+                return item.dataset.videoId === String(videoId);
+            })[0] || null;
         }
 
-        // Format date
-        function formatDate(dateString) {
-            if (!dateString) return '';
-            const date = new Date(dateString);
-            return date.toLocaleDateString(undefined, { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            });
-        }
-
-        // Update video player and info
-        function switchVideo(item) {
-            const youtubeId = item.dataset.youtubeId;
-            const title = item.dataset.videoTitle;
-            const description = item.dataset.videoDescription;
-            const created = item.dataset.videoCreated;
-            const views = parseInt(item.dataset.videoViews) || 0;
-            const likes = parseInt(item.dataset.videoLikes) || 0;
-            const videoUrl = item.dataset.videoUrl;
-
-            if (!youtubeId) {
-                console.error('No YouTube ID found for video');
+        function updateMeta(item) {
+            if (!videoMeta) {
                 return;
             }
 
-            // Update iframe source
-            iframe.src = buildEmbedUrl(youtubeId);
-            iframe.title = title;
+            var views = parseInt(item.dataset.videoViews, 10) || 0;
+            var likes = parseInt(item.dataset.videoLikes, 10) || 0;
 
-            // Update video title
-            if (videoTitle) {
-                videoTitle.textContent = title;
+            videoMeta.textContent = '';
+
+            if (videoMeta.dataset.showDate !== '0' && item.dataset.videoDate) {
+                videoMeta.appendChild(metaItem('icon-calendar', item.dataset.videoDate));
             }
 
-            // Update video meta information
-            if (videoMeta) {
-                // Read display settings from data attributes
-                const showDate = videoMeta.dataset.showDate !== '0';
-                const showViews = videoMeta.dataset.showViews !== '0';
-                
-                let metaHtml = '';
-                
-                if (showDate && created) {
-                    metaHtml += `<span class="me-3">
-                        <span class="icon-calendar" aria-hidden="true"></span>
-                        ${formatDate(created)}
-                    </span>`;
-                }
-                
-                if (showViews && views > 0) {
-                    metaHtml += `<span class="me-3">
-                        <span class="icon-eye" aria-hidden="true"></span>
-                        ${formatNumber(views)} views
-                    </span>`;
-                }
-                
-                if (likes > 0) {
-                    metaHtml += `<span>
-                        <span class="icon-heart" aria-hidden="true"></span>
-                        ${formatNumber(likes)}
-                    </span>`;
-                }
-                
-                videoMeta.innerHTML = metaHtml;
+            if (videoMeta.dataset.showViews !== '0' && views > 0) {
+                videoMeta.appendChild(metaItem('icon-eye', views.toLocaleString() + ' ' + text('COM_YOUTUBEVIDEOS_JS_VIEWS', 'views')));
             }
 
-            // Update video description
-            if (videoDescription) {
-                videoDescription.innerHTML = description || '';
+            if (likes > 0) {
+                videoMeta.appendChild(metaItem('icon-heart', likes.toLocaleString()));
             }
+        }
 
-            // Update active state on playlist items
-            playlistItems.forEach(function(playlistItem) {
-                playlistItem.classList.remove('active');
-                const card = playlistItem.querySelector('.card');
-                if (card) {
-                    card.classList.remove('border-primary', 'bg-light');
-                }
-                // Remove "Now Playing" badge
-                const badge = playlistItem.querySelector('.badge.bg-primary');
+        function setActive(item) {
+            items.forEach(function (other) {
+                var badge = other.querySelector('.playlist-video-item__now');
+
+                other.classList.remove('active', 'border-primary');
+                other.removeAttribute('aria-current');
+
                 if (badge) {
                     badge.remove();
                 }
             });
 
-            // Add active state to current item
-            item.classList.add('active');
-            const currentCard = item.querySelector('.card');
-            if (currentCard) {
-                currentCard.classList.add('border-primary', 'bg-light');
-            }
+            item.classList.add('active', 'border-primary');
+            item.setAttribute('aria-current', 'true');
 
-            // Add "Now Playing" badge
-            const thumbnailContainer = item.querySelector('.position-relative');
-            if (thumbnailContainer && !thumbnailContainer.querySelector('.badge.bg-primary')) {
-                const badge = document.createElement('span');
-                badge.className = 'badge bg-primary position-absolute top-0 start-0 m-1';
-                badge.textContent = 'Now Playing';
-                thumbnailContainer.appendChild(badge);
-            }
+            var thumb = item.querySelector('.playlist-video-item__thumb');
 
-            // Update browser URL without reloading (optional - improves SEO and allows bookmarking)
-            if (videoUrl && window.history && window.history.pushState) {
-                try {
-                    window.history.pushState(
-                        { videoId: item.dataset.videoId }, 
-                        title, 
-                        videoUrl
-                    );
-                    // Update document title
-                    if (document.title) {
-                        const siteName = document.title.split(' - ')[1] || '';
-                        document.title = siteName ? `${title} - ${siteName}` : title;
-                    }
-                } catch (e) {
-                    console.warn('Could not update browser URL:', e);
-                }
-            }
-
-            // Scroll to top of video player (helpful on mobile)
-            const mainVideoContainer = document.querySelector('.main-video-container');
-            if (mainVideoContainer && window.innerWidth < 992) {
-                mainVideoContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (thumb) {
+                var badge = document.createElement('span');
+                badge.className = 'badge text-bg-primary position-absolute top-0 start-0 m-1 playlist-video-item__now';
+                badge.textContent = text('COM_YOUTUBEVIDEOS_JS_NOW_PLAYING', 'Now Playing');
+                thumb.appendChild(badge);
             }
         }
 
-        // Add click event listeners to all playlist items
-        playlistItems.forEach(function(item) {
-            item.addEventListener('click', function(e) {
-                e.preventDefault();
-                switchVideo(item);
-            });
+        /**
+         * @param {HTMLElement} item        The playlist item to show.
+         * @param {boolean}     pushHistory Add a history entry (false when handling Back/Forward).
+         */
+        function switchVideo(item, pushHistory) {
+            var youtubeId = item.dataset.youtubeId;
+            var title = item.dataset.videoTitle || '';
 
-            // Make keyboard accessible
-            item.setAttribute('tabindex', '0');
-            item.setAttribute('role', 'button');
-            item.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    switchVideo(item);
+            if (!youtubeId) {
+                return;
+            }
+
+            // Changing an existing iframe's src adds a history entry, which breaks Back/Forward,
+            // so swap in a fresh iframe instead.
+            var fresh = iframe.cloneNode(false);
+            fresh.src = buildEmbedUrl(youtubeId);
+            fresh.title = title;
+            iframe.replaceWith(fresh);
+            iframe = fresh;
+
+            if (videoTitle) {
+                videoTitle.textContent = title;
+            }
+
+            updateMeta(item);
+
+            if (videoDescription) {
+                // Plain text only; CSS keeps the line breaks.
+                videoDescription.textContent = item.dataset.videoDescription || '';
+                videoDescription.classList.add('is-plain-text');
+            }
+
+            setActive(item);
+
+            if (item.dataset.pageTitle) {
+                document.title = item.dataset.pageTitle;
+            }
+
+            if (pushHistory && window.history && window.history.pushState) {
+                window.history.pushState({ videoId: item.dataset.videoId }, '', item.href);
+            }
+
+            var container = document.querySelector('.main-video-container');
+            if (container && window.innerWidth < 992) {
+                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        // Record the initial entry so Back returns to the first video.
+        var initial = items.filter(function (item) { return item.classList.contains('active'); })[0];
+        if (initial && window.history && window.history.replaceState) {
+            window.history.replaceState({ videoId: initial.dataset.videoId }, '', window.location.href);
+        }
+
+        items.forEach(function (item) {
+            item.addEventListener('click', function (event) {
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                    return; // Let the browser open the link normally.
+                }
+
+                event.preventDefault();
+
+                if (!item.classList.contains('active')) {
+                    switchVideo(item, true);
                 }
             });
         });
 
-        // Handle browser back/forward buttons
-        window.addEventListener('popstate', function(e) {
-            if (e.state && e.state.videoId) {
-                const item = document.querySelector(`.playlist-video-item[data-video-id="${e.state.videoId}"]`);
-                if (item) {
-                    switchVideo(item);
-                }
+        window.addEventListener('popstate', function (event) {
+            var item = event.state && event.state.videoId ? findItem(event.state.videoId) : null;
+
+            if (item) {
+                switchVideo(item, false);
             }
         });
-    });
-})();
+    }
 
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();

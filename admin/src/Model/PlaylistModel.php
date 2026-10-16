@@ -128,7 +128,7 @@ class PlaylistModel extends AdminModel
      */
     public function save($data)
     {
-        $input = Factory::getApplication()->input;
+        $input = Factory::getApplication()->getInput();
 
         // Alter the title for save as copy
         if ($input->get('task') == 'save2copy') {

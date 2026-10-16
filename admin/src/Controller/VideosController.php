@@ -2,10 +2,13 @@
 namespace BKWSU\Component\Youtubevideos\Administrator\Controller;
 
 use Joomla\CMS\Factory;
-use Joomla\CMS\MVC\Controller\AdminController;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Log\Log;
+use Joomla\CMS\MVC\Controller\AdminController;
 use Joomla\CMS\Router\Route;
-use Joomla\CMS\Session\Session;
+use Joomla\Database\DatabaseInterface;
+use Joomla\Database\ParameterType;
+use Joomla\Utilities\ArrayHelper;
 
 /**
  * Videos list controller class.
@@ -39,6 +42,67 @@ class VideosController extends AdminController
     }
 
     /**
+     * Toggle the featured flag of the selected videos.
+     *
+     * @return  void
+     *
+     * @since   1.0.45
+     */
+    public function featured()
+    {
+        $this->checkToken();
+
+        $user   = $this->app->getIdentity();
+        $ids    = (array) $this->input->get('cid', [], 'int');
+        $values = ['featured' => 1, 'unfeatured' => 0];
+        $value  = ArrayHelper::getValue($values, $this->getTask(), 0, 'int');
+
+        foreach ($ids as $i => $id) {
+            if (!$id || !$user->authorise('core.edit.state', 'com_youtubevideos.video.' . (int) $id)) {
+                unset($ids[$i]);
+
+                if ($id) {
+                    $this->app->enqueueMessage(Text::_('JLIB_APPLICATION_ERROR_EDITSTATE_NOT_PERMITTED'), 'notice');
+                }
+            }
+        }
+
+        $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=videos', false));
+
+        if (empty($ids)) {
+            $this->setMessage(Text::_('JERROR_NO_ITEMS_SELECTED'), 'warning');
+
+            return;
+        }
+
+        /** @var \BKWSU\Component\Youtubevideos\Administrator\Model\VideoModel $model */
+        $model = $this->getModel();
+
+        if (!$model->featured($ids, $value)) {
+            $this->setMessage($model->getError(), 'error');
+
+            return;
+        }
+
+        $ntext = $value === 1 ? 'COM_YOUTUBEVIDEOS_VIDEOS_N_ITEMS_FEATURED' : 'COM_YOUTUBEVIDEOS_VIDEOS_N_ITEMS_UNFEATURED';
+
+        $this->setMessage(Text::plural($ntext, \count($ids)));
+    }
+
+    /**
+     * Remove the featured flag from the selected videos.
+     *
+     * @return  void
+     *
+     * @since   1.0.45
+     */
+    public function unfeatured()
+    {
+        // getTask() returns "unfeatured" here, which featured() maps to 0.
+        $this->featured();
+    }
+
+    /**
      * AJAX method to search for videos
      *
      * @return  void
@@ -47,59 +111,49 @@ class VideosController extends AdminController
      */
     public function searchVideos()
     {
-        Session::checkToken() or jexit(Text::_('JINVALID_TOKEN'));
+        if (!$this->checkToken('post', false)) {
+            $this->sendJson(['success' => false, 'message' => Text::_('JINVALID_TOKEN'), 'data' => []]);
+        }
 
-        // Set JSON response
-        header('Content-Type: application/json');
+        if (!$this->app->getIdentity()->authorise('core.manage', 'com_youtubevideos')) {
+            $this->sendJson(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR'), 'data' => []]);
+        }
+
+        $search = trim($this->input->getString('search', ''));
+
+        if ($search === '') {
+            $this->sendJson([
+                'success' => false,
+                'message' => Text::_('COM_YOUTUBEVIDEOS_SEARCH_TERM_REQUIRED'),
+                'data'    => [],
+            ]);
+        }
 
         try {
-            $search = $this->input->getString('search', '');
-            
-            if (empty($search)) {
-                echo json_encode([
-                    'success' => false,
-                    'message' => 'Search term is required',
-                    'data' => []
-                ]);
-                jexit();
-            }
-
-            $db = Factory::getContainer()->get('DatabaseDriver');
-            $query = $db->getQuery(true);
-
+            $db     = Factory::getContainer()->get(DatabaseInterface::class);
             $search = '%' . $db->escape($search, true) . '%';
-
-            $query->select([
-                $db->quoteName('id'),
-                $db->quoteName('title'),
-                $db->quoteName('youtube_video_id'),
-            ])
+            $query  = $db->getQuery(true)
+                ->select($db->quoteName(['id', 'title', 'youtube_video_id']))
                 ->from($db->quoteName('#__youtubevideos_featured'))
                 ->where($db->quoteName('published') . ' = 1')
                 ->where(
-                    '(' . $db->quoteName('title') . ' LIKE :search1 OR ' .
-                    $db->quoteName('youtube_video_id') . ' LIKE :search2)'
+                    '(' . $db->quoteName('title') . ' LIKE :search1 OR '
+                    . $db->quoteName('youtube_video_id') . ' LIKE :search2)'
                 )
                 ->bind([':search1', ':search2'], $search)
                 ->order($db->quoteName('title') . ' ASC')
                 ->setLimit(20);
 
-            $db->setQuery($query);
-            $videos = $db->loadObjectList();
+            $this->sendJson(['success' => true, 'data' => $db->setQuery($query)->loadObjectList()]);
+        } catch (\RuntimeException $e) {
+            Log::add('Video search failed: ' . $e->getMessage(), Log::ERROR, 'com_youtubevideos');
 
-            echo json_encode([
-                'success' => true,
-                'data' => $videos
-            ]);
-        } catch (\Exception $e) {
-            echo json_encode([
+            $this->sendJson([
                 'success' => false,
-                'message' => $e->getMessage(),
-                'data' => []
+                'message' => Text::_('COM_YOUTUBEVIDEOS_SEARCH_FAILED'),
+                'data'    => [],
             ]);
         }
-
-        jexit();
     }
 
     /**
@@ -111,96 +165,95 @@ class VideosController extends AdminController
      */
     public function batch()
     {
-        Session::checkToken() or jexit(Text::_('JINVALID_TOKEN'));
+        $this->checkToken();
 
-        $model = $this->getModel('Video', '', []);
+        $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=videos', false));
+
+        if (!$this->app->getIdentity()->authorise('core.edit', 'com_youtubevideos')) {
+            $this->setMessage(Text::_('JLIB_APPLICATION_ERROR_BATCH_CANNOT_EDIT'), 'error');
+
+            return;
+        }
+
         $batchData = $this->input->post->get('batch', [], 'array');
-        $cid   = $this->input->post->get('cid', [], 'array');
+        $cid       = array_filter(ArrayHelper::toInteger((array) $this->input->post->get('cid', [], 'array')));
 
         // The batch fields are nested inside another 'batch' key
         $vars = $batchData['batch'] ?? [];
 
-        // Debug: Log what we received
-        \Joomla\CMS\Log\Log::add('Batch data received: ' . print_r($vars, true), \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
-        \Joomla\CMS\Log\Log::add('Selected IDs: ' . print_r($cid, true), \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
-
-        // Check for valid items
         if (empty($cid)) {
             $this->setMessage(Text::_('COM_YOUTUBEVIDEOS_NO_ITEMS_SELECTED'), 'warning');
-            $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=videos', false));
+
             return;
         }
 
-        // Preset the redirect
-        $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=videos', false));
-
         try {
-            $db = Factory::getContainer()->get('DatabaseDriver');
-            $updated = 0;
+            $db      = Factory::getContainer()->get(DatabaseInterface::class);
+            $query   = $db->getQuery(true)->update($db->quoteName('#__youtubevideos_featured'));
+            $changes = 0;
 
-            foreach ($cid as $id) {
-                $id = (int) $id;
-                
-                if ($id <= 0) {
+            foreach (['category_id', 'playlist_id'] as $field) {
+                if (!isset($vars[$field]) || $vars[$field] === '') {
                     continue;
                 }
 
-                $fields = [];
-
-                // Update category
-                if (isset($vars['category_id']) && $vars['category_id'] !== '' && $vars['category_id'] !== '0') {
-                    $categoryId = (int) $vars['category_id'];
-                    $fields[] = $db->quoteName('category_id') . ' = ' . $categoryId;
-                    \Joomla\CMS\Log\Log::add('Setting category_id to: ' . $categoryId, \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
-                } elseif (isset($vars['category_id']) && $vars['category_id'] === '0') {
-                    // Remove category
-                    $fields[] = $db->quoteName('category_id') . ' = NULL';
-                    \Joomla\CMS\Log\Log::add('Removing category', \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
+                if ($vars[$field] === '0') {
+                    $query->set($db->quoteName($field) . ' = NULL');
+                } else {
+                    $value = (int) $vars[$field];
+                    $query->set($db->quoteName($field) . ' = :' . $field)
+                        ->bind(':' . $field, $value, ParameterType::INTEGER);
                 }
 
-                // Update playlist
-                if (isset($vars['playlist_id']) && $vars['playlist_id'] !== '' && $vars['playlist_id'] !== '0') {
-                    $playlistId = (int) $vars['playlist_id'];
-                    $fields[] = $db->quoteName('playlist_id') . ' = ' . $playlistId;
-                } elseif (isset($vars['playlist_id']) && $vars['playlist_id'] === '0') {
-                    // Remove playlist
-                    $fields[] = $db->quoteName('playlist_id') . ' = NULL';
-                }
-
-                // Update access
-                if (isset($vars['access']) && $vars['access'] !== '') {
-                    $fields[] = $db->quoteName('access') . ' = ' . (int) $vars['access'];
-                }
-
-                // Update language
-                if (isset($vars['language_id']) && $vars['language_id'] !== '') {
-                    $fields[] = $db->quoteName('language') . ' = ' . $db->quote($vars['language_id']);
-                }
-
-                // If we have fields to update, run the query
-                if (!empty($fields)) {
-                    $query = $db->getQuery(true)
-                        ->update($db->quoteName('#__youtubevideos_featured'))
-                        ->set($fields)
-                        ->where($db->quoteName('id') . ' = ' . $id);
-
-                    $db->setQuery($query);
-                    \Joomla\CMS\Log\Log::add('Executing query: ' . $query, \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
-                    $db->execute();
-                    $updated++;
-                }
+                $changes++;
             }
 
-            if ($updated > 0) {
-                $this->setMessage(Text::plural('COM_YOUTUBEVIDEOS_N_ITEMS_BATCH_UPDATED', $updated));
-            } else {
+            if (isset($vars['access']) && $vars['access'] !== '') {
+                $access = (int) $vars['access'];
+                $query->set($db->quoteName('access') . ' = :access')
+                    ->bind(':access', $access, ParameterType::INTEGER);
+                $changes++;
+            }
+
+            if (isset($vars['language_id']) && $vars['language_id'] !== '') {
+                $language = (string) $vars['language_id'];
+                $query->set($db->quoteName('language') . ' = :language')
+                    ->bind(':language', $language);
+                $changes++;
+            }
+
+            if ($changes === 0) {
                 $this->setMessage(Text::_('COM_YOUTUBEVIDEOS_NO_CHANGES_MADE'), 'notice');
+
+                return;
             }
-        } catch (\Exception $e) {
-            $this->setMessage($e->getMessage(), 'error');
-            \Joomla\CMS\Log\Log::add('Batch error: ' . $e->getMessage(), \Joomla\CMS\Log\Log::ERROR, 'com_youtubevideos');
+
+            $query->whereIn($db->quoteName('id'), $cid);
+            $db->setQuery($query)->execute();
+
+            $this->setMessage(Text::plural('COM_YOUTUBEVIDEOS_N_ITEMS_BATCH_UPDATED', \count($cid)));
+        } catch (\RuntimeException $e) {
+            Log::add('Batch error: ' . $e->getMessage(), Log::ERROR, 'com_youtubevideos');
+            $this->setMessage(Text::_('COM_YOUTUBEVIDEOS_BATCH_FAILED'), 'error');
         }
     }
+
+    /**
+     * Send a JSON response and close the application.
+     *
+     * @param   array  $data  The response payload.
+     *
+     * @return  void
+     *
+     * @since   1.0.45
+     */
+    private function sendJson(array $data): void
+    {
+        $this->app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+        $this->app->sendHeaders();
+
+        echo json_encode($data);
+
+        $this->app->close();
+    }
 }
-
-

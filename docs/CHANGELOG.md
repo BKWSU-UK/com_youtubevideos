@@ -5,6 +5,51 @@ All notable changes to the YouTube Videos Component for Joomla will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.45] - 2026-10-16
+
+Full review release. Package 1.0.45, component 1.0.45, `mod_youtubevideos` 1.0.6, `mod_youtube_single` 1.2.12, `plg_system_youtubevideos` 1.0.3.
+
+### Upgrade notes
+- **System plugin now enabled.** In earlier versions the plugin was installed disabled, and enabling it broke the whole site, because its manifest mapped the plugin namespace to the wrong folder. So the canonical URL and social-tag fixes from 1.0.41–1.0.43 never ran. The namespace is fixed, and the package now enables the plugin on fresh installs and once when upgrading from a version before 1.0.45.
+- **Synced titles and descriptions.** Sync no longer overwrites a video once its title or description has been edited in the admin (or its new "Keep Local Title and Description" switch is on). Videos synced by earlier versions are still unlocked, so they are updated by the next sync.
+- **Featured admin view removed.** It duplicated the Videos list; feature/unfeature videos from **Videos**.
+- The OAuth redirect URI is unchanged and is now shown read-only in **Options → OAuth**.
+- `bulk_add_to_playlist.php` is no longer installed with the component; run it from the repository (see `docs/BULK_PLAYLIST_GUIDE.md`). `cleanup_duplicates.php` has been removed (the unique index makes it obsolete).
+
+### Security
+- Site queries now enforce access levels and publish up/down dates, so restricted or scheduled videos, categories and playlists are no longer viewable by ID or listed.
+- Fixed stored XSS: JSON-LD is encoded with `JSON_HEX_*`; modal and playlist descriptions are set with `textContent`; descriptions shown as HTML are sanitised, and synced YouTube descriptions are stored escaped.
+- Admin tasks (sync, import, export, batch, OAuth, video search) now check ACL in the controller, not only in the toolbar. Export requires a token.
+- OAuth: single-use `state` parameter; Google responses are no longer shown to users; API keys and bearer tokens are no longer written to logs.
+- Uninstall now drops `#__youtubevideos_oauth_tokens`; package uninstall now also removes the system plugin.
+- Modules no longer show database error text to visitors and escape all output.
+
+### Fixed
+- Feature/Unfeature buttons and list toggles (the `videos.featured` task did not exist).
+- Tags entered when creating a new video were lost.
+- Missing, unpublished or restricted items return HTTP 404 instead of 500.
+- Language filtering in the videos list and grid module (values were bound as integers, so every language was shown).
+- The system plugin no longer strips the component's `twitter:*` tags, and keeps exactly one canonical URL (the component's), without doubling the subfolder.
+- The menu-item video picker kept losing its saved value; it is now a searchable fancy-select that needs no select2.
+- `VideoModel::hit()` updated a column that did not exist (added `hits`).
+- Statistics are now collected during sync (views, likes, comments), so view counts, popular videos and "most viewed" ordering work.
+- Paginated listing canonicals include the page, and the "Page X of Y" suffix survives description truncation.
+- Playlist view: Back/Forward now work (an iframe `src` change was adding history entries), videos not in the playlist return 404, and the breadcrumb no longer links to a non-existent view.
+- XML import resolves categories and playlists by alias / YouTube playlist ID instead of the source site's numeric IDs, runs in a transaction, and matches recipes to videos by Unicode-aware title.
+- Duplicate aliases are prevented for new videos, categories and playlists.
+- Malformed recipe ingredient lists; the playlists admin list now has search, filters, ordering and pagination; category search with apostrophes.
+- Dashboard shows the real installed version, cache size and API status.
+- Manifest/packaging: layouts are now installed, the plugin's namespace path is correct, PHP 8.3 is required consistently, and the build fails loudly on errors.
+
+### Changed
+- Video cards are real links to the video page (keyboard accessible and crawlable); the modal opens as an enhancement. Shared card and modal layouts replace duplicated template markup.
+- The YouTube player loads lazily on first use. `mod_youtubevideos` uses the component's player script instead of its own copy.
+- Both modules use the Joomla 5 dispatcher pattern. `mod_youtubevideos` reads published videos from the database and respects admin publishing.
+- CSS rewritten with Bootstrap variables (dark-mode compatible); icons switched to Joomla's Font Awesome `icon-*` classes.
+- Display options that previously did nothing now work (show date/views/heading/related videos, grid columns) and a tag filter was added; unsupported options were removed.
+- All user-visible strings, including JavaScript and the system plugin, are translatable.
+- Removed Joomla 6 / PHP 8.4 deprecations (`getDbo`, `$app->input`, `$this->get()`, implicitly nullable parameters, legacy toolbar calls).
+
 ## [1.0.44] - 2026-10-16
 
 ### Fixed

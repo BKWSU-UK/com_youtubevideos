@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @package     Joomla.Site
  * @subpackage  com_youtubevideos
@@ -7,116 +8,118 @@
  * @license     GNU General Public License version 2 or later;
  */
 
-defined('_JEXEC') or die;
+\defined('_JEXEC') or die;
 
-use Joomla\CMS\Factory;
+use BKWSU\Component\Youtubevideos\Site\Helper\SeoHelper;
+use BKWSU\Component\Youtubevideos\Site\Helper\VideoHelper;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
-use Joomla\CMS\Layout\LayoutHelper;
 use Joomla\CMS\Router\Route;
 
 /** @var \BKWSU\Component\Youtubevideos\Site\View\Playlist\HtmlView $this */
 
-$params = $this->params;
-$playlist = $this->playlist;
+$params       = $this->params;
+$playlist     = $this->playlist;
 $currentVideo = $this->currentVideo;
-$videos = $this->videos;
-$app = Factory::getApplication();
-$itemId = $app->input->getInt('Itemid', 0);
-$itemIdParam = $itemId ? '&Itemid=' . $itemId : '';
-$formAction = Route::_('index.php?option=com_youtubevideos&view=playlist&id=' . (int) $playlist->id . $itemIdParam);
-
-// Load required assets
-HTMLHelper::_('bootstrap.framework');
-$wa = $this->document->getWebAssetManager();
-$wa->useStyle('com_youtubevideos.site.css');
-
-// Prepare YouTube embed parameters
-$embedParams = [
-    'autoplay' => $params->get('autoplay', 0),
-    'rel' => $params->get('show_related', 0),
-    'showinfo' => $params->get('show_info', 1),
-];
-$embedUrl = $currentVideo
-    ? 'https://www.youtube.com/embed/' . $currentVideo->youtube_video_id . '?' . http_build_query($embedParams)
+$videos       = $this->videos;
+$baseRoute    = $this->getPlaylistRoute();
+$searchValue  = (string) $this->state->get('filter.search', '');
+$showDate     = VideoHelper::flag($params, 'show_date', 'show_published_date');
+$showViews    = VideoHelper::flag($params, 'show_views', 'show_view_count');
+$embedUrl     = $currentVideo
+    ? 'https://www.youtube.com/embed/' . rawurlencode($currentVideo->videoId) . '?' . http_build_query([
+        'autoplay' => (int) $params->get('autoplay', 0),
+        'rel'      => 0,
+    ])
     : '';
 ?>
-
 <div class="com-youtubevideos videos com-youtubevideos-playlist playlist-view">
     <?php if ($params->get('show_page_heading', 1)) : ?>
         <div class="page-header">
-            <h1>
-                <?php echo $this->escape($playlist->title); ?>
-            </h1>
+            <h1><?php echo $this->escape($playlist->title); ?></h1>
         </div>
     <?php endif; ?>
 
-    <form action="<?php echo $formAction; ?>"
-        method="post"
-        name="adminForm"
-        id="adminForm"
+    <form action="<?php echo Route::_($baseRoute); ?>" method="post" name="adminForm" id="adminForm"
         class="com-youtubevideos-videos__form com-youtubevideos-playlist__form">
 
         <?php if ($params->get('show_search_bar', 1)) : ?>
-            <?php echo LayoutHelper::render('joomla.searchtools.default', ['view' => $this]); ?>
+            <div class="com-youtubevideos-videos__filters mb-4">
+                <div class="row g-2">
+                    <div class="col-12 col-md-5 col-lg-4">
+                        <label for="filter_search" class="visually-hidden"><?php echo Text::_('COM_YOUTUBEVIDEOS_FILTER_SEARCH_LABEL'); ?></label>
+                        <div class="input-group">
+                            <input type="search" name="filter[search]" id="filter_search"
+                                value="<?php echo $this->escape($searchValue); ?>"
+                                class="form-control"
+                                placeholder="<?php echo $this->escape(Text::_('JSEARCH_FILTER')); ?>">
+                            <button type="submit" class="btn btn-primary">
+                                <span class="icon-search" aria-hidden="true"></span>
+                                <span class="visually-hidden"><?php echo Text::_('JSEARCH_FILTER_SUBMIT'); ?></span>
+                            </button>
+                            <?php if ($searchValue !== '') : ?>
+                                <a href="<?php echo Route::_($baseRoute . '&filter[search]='); ?>" class="btn btn-secondary">
+                                    <span class="icon-times" aria-hidden="true"></span>
+                                    <span class="visually-hidden"><?php echo Text::_('JSEARCH_FILTER_CLEAR'); ?></span>
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
         <?php endif; ?>
 
         <?php if (empty($videos) || empty($currentVideo)) : ?>
             <div class="alert alert-info">
-                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                <span class="icon-info-circle" aria-hidden="true"></span>
                 <span class="visually-hidden"><?php echo Text::_('INFO'); ?></span>
                 <?php echo Text::_('COM_YOUTUBEVIDEOS_NO_VIDEOS_FOUND'); ?>
             </div>
         <?php else : ?>
             <div class="row">
-                <!-- Main Video Player -->
                 <div class="col-lg-8">
                     <div class="main-video-container">
                         <?php if ($params->get('show_video_title', 1)) : ?>
                             <div class="current-video-header mb-3">
-                                <h2 id="current-video-title" class="h4">
-                                    <?php echo $this->escape($currentVideo->title); ?>
-                                </h2>
-                                <div class="text-muted small" id="current-video-meta"
-                                     data-show-date="<?php echo $params->get('show_date', 1); ?>"
-                                     data-show-views="<?php echo $params->get('show_views', 1); ?>">
-                                    <?php if ($params->get('show_date', 1)) : ?>
+                                <h2 id="current-video-title" class="h4"><?php echo $this->escape($currentVideo->title); ?></h2>
+                                <p class="text-body-secondary small mb-0" id="current-video-meta"
+                                    data-show-date="<?php echo (int) $showDate; ?>"
+                                    data-show-views="<?php echo (int) $showViews; ?>">
+                                    <?php if ($showDate && $currentVideo->publishedAt) : ?>
                                         <span class="me-3">
-                                            <i class="bi bi-calendar" aria-hidden="true"></i>
-                                            <?php echo HTMLHelper::_('date', $currentVideo->created, Text::_('DATE_FORMAT_LC3')); ?>
+                                            <span class="icon-calendar" aria-hidden="true"></span>
+                                            <?php echo HTMLHelper::_('date', $currentVideo->publishedAt, Text::_('DATE_FORMAT_LC3')); ?>
                                         </span>
                                     <?php endif; ?>
-                                    <?php if ($params->get('show_views', 1) && $currentVideo->views) : ?>
+                                    <?php if ($showViews && $currentVideo->views) : ?>
                                         <span class="me-3">
-                                            <i class="bi bi-eye" aria-hidden="true"></i>
-                                            <?php echo number_format($currentVideo->views); ?>
-                                            <?php echo Text::_('COM_YOUTUBEVIDEOS_VIEWS'); ?>
+                                            <span class="icon-eye" aria-hidden="true"></span>
+                                            <?php echo Text::sprintf('COM_YOUTUBEVIDEOS_VIEW_COUNT', number_format((int) $currentVideo->views)); ?>
                                         </span>
                                     <?php endif; ?>
                                     <?php if ($currentVideo->likes) : ?>
                                         <span>
-                                            <i class="bi bi-heart" aria-hidden="true"></i>
-                                            <?php echo number_format($currentVideo->likes); ?>
+                                            <span class="icon-heart" aria-hidden="true"></span>
+                                            <?php echo number_format((int) $currentVideo->likes); ?>
                                         </span>
                                     <?php endif; ?>
-                                </div>
+                                </p>
                             </div>
                         <?php endif; ?>
 
                         <div class="video-player ratio ratio-16x9 mb-4" id="main-video-player">
                             <iframe
                                 id="playlist-iframe"
-                                src="<?php echo $embedUrl; ?>"
+                                src="<?php echo $this->escape($embedUrl); ?>"
                                 title="<?php echo $this->escape($currentVideo->title); ?>"
-                                frameborder="0"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowfullscreen>
-                            </iframe>
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                referrerpolicy="strict-origin-when-cross-origin"
+                                allowfullscreen></iframe>
                         </div>
 
                         <?php if ($params->get('show_video_description', 1) && $currentVideo->description) : ?>
                             <div class="video-description mb-4" id="current-video-description">
-                                <?php echo HTMLHelper::_('content.prepare', $currentVideo->description); ?>
+                                <?php echo HTMLHelper::_('content.prepare', VideoHelper::safeHtml($currentVideo->description)); ?>
                             </div>
                         <?php endif; ?>
 
@@ -128,70 +131,59 @@ $embedUrl = $currentVideo
                     </div>
                 </div>
 
-                <!-- Playlist Sidebar -->
                 <div class="col-lg-4">
                     <div class="playlist-sidebar">
-                        <div class="playlist-header mb-3">
-                            <h3 class="h5">
-                                <?php echo Text::_('COM_YOUTUBEVIDEOS_PLAYLIST'); ?> (<?php echo count($videos); ?> <?php echo Text::_('COM_YOUTUBEVIDEOS_VIDEOS'); ?>)
-                            </h3>
-                        </div>
+                        <h2 class="playlist-header h5 mb-3">
+                            <?php echo $this->escape(Text::_('COM_YOUTUBEVIDEOS_PLAYLIST')); ?>
+                            <span class="text-body-secondary">(<?php echo Text::plural('COM_YOUTUBEVIDEOS_N_VIDEOS', \count($videos)); ?>)</span>
+                        </h2>
 
-                        <div class="playlist-videos" style="max-height: 600px; overflow-y: auto;">
-                            <?php foreach ($videos as $index => $video) : ?>
-                                <?php
-                                $isActive = ($video->id == $currentVideo->id);
-                                $videoId = $video->youtube_video_id ?? '';
-                                $thumbnailUrl = $video->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $videoId . '/mqdefault.jpg';
-                                $videoLink = Route::_('index.php?option=com_youtubevideos&view=playlist&id=' . $playlist->id . '&video_id=' . $video->id . $itemIdParam);
+                        <div class="playlist-videos">
+                            <?php foreach ($videos as $video) :
+                                $isActive  = (int) $video->id === (int) $currentVideo->id;
+                                $videoLink = Route::_($this->getPlaylistRoute((int) $video->id));
                                 ?>
-                                <div class="playlist-video-item mb-3 <?php echo $isActive ? 'active' : ''; ?>"
-                                     data-video-id="<?php echo $video->id; ?>"
-                                     data-youtube-id="<?php echo $this->escape($videoId); ?>"
-                                     data-video-title="<?php echo $this->escape($video->title); ?>"
-                                     data-video-description="<?php echo $this->escape($video->description ?? ''); ?>"
-                                     data-video-created="<?php echo $this->escape($video->created); ?>"
-                                     data-video-views="<?php echo (int)($video->views ?? 0); ?>"
-                                     data-video-likes="<?php echo (int)($video->likes ?? 0); ?>"
-                                     data-video-url="<?php echo $videoLink; ?>">
-                                    <div class="card h-100 <?php echo $isActive ? 'border-primary' : ''; ?>" style="cursor: pointer;">
-                                        <div class="row g-0">
-                                            <div class="col-5">
-                                                <div class="position-relative">
-                                                    <img src="<?php echo $thumbnailUrl; ?>"
-                                                         class="img-fluid rounded-start"
-                                                         alt="<?php echo $this->escape($video->title); ?>"
-                                                         loading="lazy">
-                                                    <span class="position-absolute top-50 start-50 translate-middle">
-                                                        <i class="bi bi-play-fill text-white"
-                                                              style="font-size: 2rem; text-shadow: 0 0 5px rgba(0,0,0,0.5);"
-                                                              aria-hidden="true"></i>
-                                                    </span>
-                                                    <?php if ($isActive) : ?>
-                                                        <span class="badge bg-primary position-absolute top-0 start-0 m-1">
-                                                            <?php echo Text::_('COM_YOUTUBEVIDEOS_NOW_PLAYING'); ?>
-                                                        </span>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </div>
-                                            <div class="col-7">
-                                                <div class="card-body p-2">
-                                                    <h5 class="card-title small mb-1" style="line-height: 1.2;">
-                                                        <?php echo $this->escape($video->title); ?>
-                                                    </h5>
-                                                    <?php if ($params->get('show_views', 1) && $video->views) : ?>
-                                                        <p class="card-text mb-0">
-                                                            <small class="text-muted">
-                                                                <i class="bi bi-eye" aria-hidden="true"></i>
-                                                                <?php echo number_format($video->views); ?>
-                                                            </small>
-                                                        </p>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <a class="playlist-video-item card mb-3<?php echo $isActive ? ' active border-primary' : ''; ?>"
+                                    href="<?php echo $videoLink; ?>"
+                                    <?php echo $isActive ? 'aria-current="true"' : ''; ?>
+                                    data-video-id="<?php echo (int) $video->id; ?>"
+                                    data-youtube-id="<?php echo $this->escape($video->videoId); ?>"
+                                    data-video-title="<?php echo $this->escape($video->title); ?>"
+                                    data-video-description="<?php echo $this->escape(VideoHelper::plainText($video->description)); ?>"
+                                    data-video-date="<?php echo $video->publishedAt ? $this->escape(HTMLHelper::_('date', $video->publishedAt, Text::_('DATE_FORMAT_LC3'))) : ''; ?>"
+                                    data-video-views="<?php echo (int) $video->views; ?>"
+                                    data-video-likes="<?php echo (int) $video->likes; ?>"
+                                    data-page-title="<?php echo $this->escape(SeoHelper::formatPageTitle($video->title)); ?>">
+                                    <span class="row g-0">
+                                        <span class="col-5 position-relative playlist-video-item__thumb">
+                                            <img src="<?php echo $this->escape($video->thumbnail_url); ?>"
+                                                class="img-fluid rounded-start"
+                                                alt=""
+                                                width="320"
+                                                height="180"
+                                                loading="lazy">
+                                            <span class="playlist-video-item__play position-absolute top-50 start-50 translate-middle" aria-hidden="true">
+                                                <span class="icon-play"></span>
+                                            </span>
+                                            <?php if ($isActive) : ?>
+                                                <span class="badge text-bg-primary position-absolute top-0 start-0 m-1 playlist-video-item__now">
+                                                    <?php echo Text::_('COM_YOUTUBEVIDEOS_NOW_PLAYING'); ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </span>
+                                        <span class="col-7">
+                                            <span class="card-body d-block p-2">
+                                                <span class="card-title d-block small fw-semibold mb-1 lh-sm"><?php echo $this->escape($video->title); ?></span>
+                                                <?php if ($showViews && $video->views) : ?>
+                                                    <small class="text-body-secondary">
+                                                        <span class="icon-eye" aria-hidden="true"></span>
+                                                        <?php echo number_format((int) $video->views); ?>
+                                                    </small>
+                                                <?php endif; ?>
+                                            </span>
+                                        </span>
+                                    </span>
+                                </a>
                             <?php endforeach; ?>
                         </div>
                     </div>
@@ -203,42 +195,3 @@ $embedUrl = $currentVideo
         <?php echo HTMLHelper::_('form.token'); ?>
     </form>
 </div>
-
-<style>
-/* Playlist-specific styles */
-.playlist-video-item {
-    transition: all 0.3s ease;
-}
-
-.playlist-video-item:hover .card {
-    transform: translateX(5px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.playlist-video-item.active .card {
-    background-color: var(--bs-light, #f8f9fa);
-}
-
-.playlist-videos {
-    scrollbar-width: thin;
-    scrollbar-color: var(--bs-secondary, #6c757d) var(--bs-light, #f8f9fa);
-}
-
-.playlist-videos::-webkit-scrollbar {
-    width: 8px;
-}
-
-.playlist-videos::-webkit-scrollbar-track {
-    background: var(--bs-light, #f8f9fa);
-}
-
-.playlist-videos::-webkit-scrollbar-thumb {
-    background-color: var(--bs-secondary, #6c757d);
-    border-radius: 4px;
-}
-
-.playlist-videos::-webkit-scrollbar-thumb:hover {
-    background-color: var(--bs-dark, #343a40);
-}
-</style>
-

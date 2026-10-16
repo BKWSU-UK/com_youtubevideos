@@ -33,11 +33,17 @@
         }
         
         thumbnail.addEventListener('click', function(e) {
+            // Let modified clicks (new tab/window) follow the link to the video page
+            if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+                return;
+            }
+
             e.preventDefault();
             e.stopPropagation();
             
             const youtubeId = this.dataset.youtubeId;
-            const title = this.dataset.videoTitle || 'YouTube Video';
+            const defaultTitle = (window.Joomla && Joomla.Text) ? Joomla.Text._('MOD_YOUTUBE_SINGLE_JS_DEFAULT_TITLE', 'YouTube Video') : 'YouTube Video';
+            const title = this.dataset.videoTitle || defaultTitle;
             const autoplay = this.dataset.autoplay || '1';
             const aspectRatioPercent = parseFloat(this.dataset.aspectRatio) || 56.25; // Default to 16:9 if not set
             
@@ -52,14 +58,14 @@
             
             // Create the iframe HTML with the video's aspect ratio
             const iframeHtml = `
-                <div class="youtube-player-container" style="position: relative; width: 100%; padding-bottom: ${aspectRatioPercent}%;">
-                    <iframe 
-                        src="https://www.youtube.com/embed/${escapeHtml(youtubeId)}?${youtubeParams}" 
+                <div class="youtube-player-container ratio" style="--bs-aspect-ratio: ${aspectRatioPercent}%;">
+                    <iframe
+                        src="https://www.youtube.com/embed/${encodeURIComponent(youtubeId)}?${youtubeParams}"
                         title="${escapeHtml(title)}"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        referrerpolicy="strict-origin-when-cross-origin"
                         allowfullscreen
-                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
-                        class="rounded">
+                        class="rounded border-0">
                     </iframe>
                 </div>
             `;
@@ -91,8 +97,7 @@
     
     // Expose initialization function globally
     window.ModYoutubeSinglePlayer = {
-        init: initializeAllPlayers,
-        version: '1.2.10'
+        init: initializeAllPlayers
     };
     
     // Initialize when DOM is ready

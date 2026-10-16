@@ -1,10 +1,17 @@
 <?php
 namespace BKWSU\Component\Youtubevideos\Administrator\Model;
 
+use BKWSU\Component\Youtubevideos\Site\Helper\YoutubeHelper;
 use Joomla\CMS\Application\ApplicationHelper;
+use Joomla\CMS\Cache\CacheControllerFactoryInterface;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Installer\Installer;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\Log\Log;
 use Joomla\CMS\MVC\Model\BaseDatabaseModel;
+use Joomla\Database\ParameterType;
+use Joomla\String\StringHelper;
 
 /**
  * Dashboard model for YouTube Videos component
@@ -14,21 +21,26 @@ use Joomla\CMS\MVC\Model\BaseDatabaseModel;
 class DashboardModel extends BaseDatabaseModel
 {
     /**
-     * Get total number of featured videos (includes both published and unpublished)
+     * Maximum number of API pages fetched per sync (50 videos per page)
+     *
+     * @var    int
+     * @since  1.0.45
+     */
+    private const SYNC_MAX_PAGES = 20;
+
+    /**
+     * Get total number of videos (includes both published and unpublished)
      *
      * @return  int
      */
     public function getTotalVideos(): int
     {
-        $db = Factory::getDbo();
-        $query = $db->getQuery(true);
-
-        $query->select('COUNT(*)')
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('COUNT(*)')
             ->from($db->quoteName('#__youtubevideos_featured'));
 
-        $db->setQuery($query);
-
-        return (int) $db->loadResult();
+        return (int) $db->setQuery($query)->loadResult();
     }
 
     /**
@@ -40,122 +52,119 @@ class DashboardModel extends BaseDatabaseModel
      */
     public function getVideoStats(): object
     {
-        $db = Factory::getDbo();
-        $query = $db->getQuery(true);
-
-        $query->select([
-                'COUNT(*) as total',
-                'SUM(CASE WHEN published = 1 THEN 1 ELSE 0 END) as published',
-                'SUM(CASE WHEN published = 0 THEN 1 ELSE 0 END) as unpublished'
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select([
+                'COUNT(*) AS total',
+                'SUM(CASE WHEN ' . $db->quoteName('published') . ' = 1 THEN 1 ELSE 0 END) AS published',
+                'SUM(CASE WHEN ' . $db->quoteName('published') . ' = 0 THEN 1 ELSE 0 END) AS unpublished',
             ])
             ->from($db->quoteName('#__youtubevideos_featured'));
 
-        $db->setQuery($query);
+        $stats = $db->setQuery($query)->loadObject();
 
-        return $db->loadObject() ?? (object) ['total' => 0, 'published' => 0, 'unpublished' => 0];
+        return (object) [
+            'total'       => (int) ($stats->total ?? 0),
+            'published'   => (int) ($stats->published ?? 0),
+            'unpublished' => (int) ($stats->unpublished ?? 0),
+        ];
     }
 
     /**
-     * Get featured videos
+     * Get the latest featured videos
      *
      * @return  array
      */
     public function getFeaturedVideos(): array
     {
-        $db = Factory::getDbo();
-        $query = $db->getQuery(true);
-
-        $query->select([
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select([
                 $db->quoteName('f.id'),
                 $db->quoteName('f.title'),
                 $db->quoteName('f.youtube_video_id'),
                 $db->quoteName('f.created'),
-                'COALESCE(' . $db->quoteName('s.views') . ', 0) AS views'
+                'COALESCE(' . $db->quoteName('s.views') . ', 0) AS views',
             ])
             ->from($db->quoteName('#__youtubevideos_featured', 'f'))
-            ->join('LEFT', $db->quoteName('#__youtubevideos_statistics', 's') . ' ON ' . $db->quoteName('f.youtube_video_id') . ' = ' . $db->quoteName('s.youtube_video_id'))
+            ->join('LEFT', $db->quoteName('#__youtubevideos_statistics', 's'), $db->quoteName('f.youtube_video_id') . ' = ' . $db->quoteName('s.youtube_video_id'))
             ->where($db->quoteName('f.published') . ' = 1')
             ->where($db->quoteName('f.featured') . ' = 1')
             ->order($db->quoteName('f.created') . ' DESC')
             ->setLimit(5);
 
-        $db->setQuery($query);
-
-        return $db->loadObjectList();
+        return $db->setQuery($query)->loadObjectList();
     }
 
     /**
-     * Get categories count and list
+     * Count featured videos
+     *
+     * @return  int
+     *
+     * @since   1.0.45
+     */
+    public function getFeaturedCount(): int
+    {
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName('#__youtubevideos_featured'))
+            ->where($db->quoteName('published') . ' = 1')
+            ->where($db->quoteName('featured') . ' = 1');
+
+        return (int) $db->setQuery($query)->loadResult();
+    }
+
+    /**
+     * Get published categories
      *
      * @return  array
      */
     public function getCategories(): array
     {
-        $db = Factory::getDbo();
-        $query = $db->getQuery(true);
-
-        $query->select([
-                $db->quoteName('id'),
-                $db->quoteName('title')
-            ])
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName(['id', 'title']))
             ->from($db->quoteName('#__youtubevideos_categories'))
             ->where($db->quoteName('published') . ' = 1')
             ->order($db->quoteName('ordering') . ' ASC');
 
-        $db->setQuery($query);
-
-        return $db->loadObjectList();
+        return $db->setQuery($query)->loadObjectList();
     }
 
     /**
-     * Get playlists count and list
+     * Get published playlists
      *
      * @return  array
      */
     public function getPlaylists(): array
     {
-        $db = Factory::getDbo();
-        $query = $db->getQuery(true);
-
-        $query->select([
-                $db->quoteName('id'),
-                $db->quoteName('title'),
-                $db->quoteName('youtube_playlist_id')
-            ])
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName(['id', 'title', 'youtube_playlist_id']))
             ->from($db->quoteName('#__youtubevideos_playlists'))
             ->where($db->quoteName('published') . ' = 1')
             ->order($db->quoteName('ordering') . ' ASC');
 
-        $db->setQuery($query);
-
-        return $db->loadObjectList();
+        return $db->setQuery($query)->loadObjectList();
     }
 
     /**
-     * Get recent views/statistics
+     * Get the most recently refreshed statistics
      *
      * @return  array
      */
     public function getRecentViews(): array
     {
-        $db = Factory::getDbo();
-        $query = $db->getQuery(true);
-
-        $query->select([
-                's.youtube_video_id',
-                's.views',
-                's.likes',
-                's.last_updated',
-                'f.title'
-            ])
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName(['s.youtube_video_id', 's.views', 's.likes', 's.last_updated', 'f.title']))
             ->from($db->quoteName('#__youtubevideos_statistics', 's'))
-            ->join('LEFT', $db->quoteName('#__youtubevideos_featured', 'f') . ' ON ' . $db->quoteName('s.youtube_video_id') . ' = ' . $db->quoteName('f.youtube_video_id'))
+            ->join('LEFT', $db->quoteName('#__youtubevideos_featured', 'f'), $db->quoteName('s.youtube_video_id') . ' = ' . $db->quoteName('f.youtube_video_id'))
             ->order($db->quoteName('s.last_updated') . ' DESC')
             ->setLimit(10);
 
-        $db->setQuery($query);
-
-        return $db->loadObjectList();
+        return $db->setQuery($query)->loadObjectList();
     }
 
     /**
@@ -165,47 +174,49 @@ class DashboardModel extends BaseDatabaseModel
      */
     public function getPopularVideos(): array
     {
-        $db = Factory::getDbo();
-        $query = $db->getQuery(true);
-
-        $query->select([
-                's.youtube_video_id',
-                's.views',
-                's.likes',
-                'f.id',
-                'f.title'
-            ])
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName(['s.youtube_video_id', 's.views', 's.likes', 'f.id', 'f.title']))
             ->from($db->quoteName('#__youtubevideos_statistics', 's'))
-            ->join('LEFT', $db->quoteName('#__youtubevideos_featured', 'f') . ' ON ' . $db->quoteName('s.youtube_video_id') . ' = ' . $db->quoteName('f.youtube_video_id'))
+            ->join('INNER', $db->quoteName('#__youtubevideos_featured', 'f'), $db->quoteName('s.youtube_video_id') . ' = ' . $db->quoteName('f.youtube_video_id'))
             ->where($db->quoteName('f.published') . ' = 1')
             ->order($db->quoteName('s.views') . ' DESC')
             ->setLimit(5);
 
-        $db->setQuery($query);
-
-        return $db->loadObjectList();
+        return $db->setQuery($query)->loadObjectList();
     }
 
     /**
      * Get cache information
      *
-     * @return  object
+     * @return  object  enabled, time (minutes), size (bytes or null when unknown), count
      */
     public function getCacheInfo(): object
     {
         $params = ComponentHelper::getParams('com_youtubevideos');
-        
-        $cacheEnabled = $params->get('enable_cache', 1);
-        $cacheTime = $params->get('cache_time', 60);
 
-        $cacheInfo = new \stdClass();
-        $cacheInfo->enabled = $cacheEnabled;
-        $cacheInfo->time = $cacheTime;
-        $cacheInfo->status = $cacheEnabled ? 'Enabled' : 'Disabled';
-        
-        // Get cache size if enabled
-        $cacheInfo->size = '0 MB';
-        
+        $cacheInfo          = new \stdClass();
+        $cacheInfo->enabled = (bool) $params->get('enable_cache', 1);
+        $cacheInfo->time    = (int) $params->get('cache_time', 60);
+        $cacheInfo->size    = null;
+        $cacheInfo->count   = 0;
+
+        try {
+            $controller = Factory::getContainer()->get(CacheControllerFactoryInterface::class)
+                ->createCacheController('output', ['defaultgroup' => 'com_youtubevideos']);
+
+            $groups = $controller->cache->getAll();
+
+            if (\is_array($groups) && isset($groups['com_youtubevideos'])) {
+                $cacheInfo->size  = (int) $groups['com_youtubevideos']->size;
+                $cacheInfo->count = (int) $groups['com_youtubevideos']->count;
+            } elseif (\is_array($groups)) {
+                $cacheInfo->size = 0;
+            }
+        } catch (\Throwable $e) {
+            // Leave size unknown when the cache storage cannot be inspected.
+        }
+
         return $cacheInfo;
     }
 
@@ -217,17 +228,96 @@ class DashboardModel extends BaseDatabaseModel
     public function getSystemInfo(): object
     {
         $params = ComponentHelper::getParams('com_youtubevideos');
-        
-        $systemInfo = new \stdClass();
-        $systemInfo->apiKey = $params->get('api_key') ? 'Configured' : 'Not Configured';
-        $systemInfo->channelId = $params->get('channel_id') ? 'Configured' : 'Not Configured';
-        $systemInfo->playlistId = $params->get('playlist_id') ? 'Configured' : 'Not Configured';
-        $systemInfo->version = '1.0.3';
-        $systemInfo->apiStatus = ($params->get('api_key') && $params->get('channel_id')) ? 'Connected' : 'Disconnected';
-        $systemInfo->oauthEnabled = $params->get('oauth_enabled', 0);
+
+        $systemInfo                 = new \stdClass();
+        $systemInfo->apiKey         = (bool) $params->get('api_key');
+        $systemInfo->channelId      = (bool) $params->get('channel_id');
+        $systemInfo->playlistId     = (bool) $params->get('playlist_id');
+        $systemInfo->version        = $this->getComponentVersion();
+        $systemInfo->oauthEnabled   = (bool) $params->get('oauth_enabled', 0);
         $systemInfo->oauthConnected = $this->isOAuthConnected();
-        
+        $systemInfo->api            = $this->getApiStatus();
+
         return $systemInfo;
+    }
+
+    /**
+     * Read the installed component version from the extension manifest.
+     *
+     * @return  string
+     *
+     * @since   1.0.45
+     */
+    public function getComponentVersion(): string
+    {
+        try {
+            $db    = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->select($db->quoteName('manifest_cache'))
+                ->from($db->quoteName('#__extensions'))
+                ->where($db->quoteName('element') . ' = ' . $db->quote('com_youtubevideos'))
+                ->where($db->quoteName('type') . ' = ' . $db->quote('component'));
+
+            $manifest = json_decode((string) $db->setQuery($query)->loadResult());
+
+            if (!empty($manifest->version)) {
+                return (string) $manifest->version;
+            }
+        } catch (\RuntimeException $e) {
+            // Fall back to the manifest file below.
+        }
+
+        $data = Installer::parseXMLInstallFile(JPATH_ADMINISTRATOR . '/components/com_youtubevideos/youtubevideos.xml');
+
+        return (string) ($data['version'] ?? '');
+    }
+
+    /**
+     * Check the YouTube API connection, caching the result for ten minutes.
+     *
+     * @return  object  status ('ok', 'not_configured', 'error') and message
+     *
+     * @since   1.0.45
+     */
+    private function getApiStatus(): object
+    {
+        $params = ComponentHelper::getParams('com_youtubevideos');
+
+        if (!$params->get('api_key') && !$this->isOAuthConnected()) {
+            return (object) ['status' => 'not_configured', 'message' => ''];
+        }
+
+        $cacheId = 'api_status_' . md5(implode('|', [
+            $params->get('api_key'),
+            $params->get('channel_id'),
+            $params->get('playlist_id'),
+            (int) $this->isOAuthConnected(),
+        ]));
+
+        try {
+            $cache = Factory::getContainer()->get(CacheControllerFactoryInterface::class)
+                ->createCacheController('output', ['defaultgroup' => 'com_youtubevideos_status', 'caching' => true, 'lifetime' => 10]);
+
+            $cached = $cache->get($cacheId);
+
+            if (\is_string($cached) && ($decoded = json_decode($cached)) && isset($decoded->status)) {
+                return $decoded;
+            }
+        } catch (\Throwable $e) {
+            $cache = null;
+        }
+
+        $result = (object) (new YoutubeHelper())->testConnection();
+
+        if ($cache) {
+            try {
+                $cache->store(json_encode($result), $cacheId);
+            } catch (\Throwable $e) {
+                // Not caching the status only costs another quota unit next time.
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -238,17 +328,15 @@ class DashboardModel extends BaseDatabaseModel
     private function isOAuthConnected(): bool
     {
         try {
-            $db = Factory::getDbo();
-            $user = Factory::getApplication()->getIdentity();
-
-            $query = $db->getQuery(true)
+            $db     = $this->getDatabase();
+            $userId = (int) (Factory::getApplication()->getIdentity()->id ?? 0);
+            $query  = $db->getQuery(true)
                 ->select('COUNT(*)')
                 ->from($db->quoteName('#__youtubevideos_oauth_tokens'))
-                ->where($db->quoteName('user_id') . ' = ' . (int) $user->id);
+                ->where($db->quoteName('user_id') . ' = :userId')
+                ->bind(':userId', $userId, ParameterType::INTEGER);
 
-            $db->setQuery($query);
-            return (bool) $db->loadResult();
-
+            return (bool) $db->setQuery($query)->loadResult();
         } catch (\Exception $e) {
             return false;
         }
@@ -256,6 +344,10 @@ class DashboardModel extends BaseDatabaseModel
 
     /**
      * Sync videos from YouTube to the database
+     *
+     * Existing videos keep their local title/description when `sync_locked` is set.
+     * New private or unlisted videos are added unpublished. View, like and comment
+     * counts are stored in #__youtubevideos_statistics.
      *
      * @return  array  Result array with success status and counts
      *
@@ -265,301 +357,377 @@ class DashboardModel extends BaseDatabaseModel
     {
         $result = [
             'success' => false,
-            'added' => 0,
+            'added'   => 0,
             'updated' => 0,
             'skipped' => 0,
-            'error' => ''
+            'error'   => '',
         ];
 
-        // Load the YouTube Helper
-        if (!defined('JPATH_SITE')) {
-            $result['error'] = 'JPATH_SITE not defined';
-            return $result;
-        }
-
-        $helperPath = JPATH_SITE . '/components/com_youtubevideos/src/Helper/YoutubeHelper.php';
-        
-        if (!file_exists($helperPath)) {
-            $result['error'] = 'YouTube Helper not found';
-            return $result;
-        }
-
-        if (!class_exists('\BKWSU\Component\Youtubevideos\Site\Helper\YoutubeHelper')) {
-            require_once $helperPath;
-        }
-
         try {
-            $helper = new \BKWSU\Component\Youtubevideos\Site\Helper\YoutubeHelper();
-            
-            // Check if API is configured
             $params = ComponentHelper::getParams('com_youtubevideos');
-            if (!$params->get('api_key')) {
-                $result['error'] = 'YouTube API Key not configured. Please set it in Component Options.';
+            $helper = new YoutubeHelper();
+            $oauth  = $helper->isOAuthConnected();
+
+            if (!$params->get('api_key') && !$oauth) {
+                $result['error'] = Text::_('COM_YOUTUBEVIDEOS_SYNC_ERROR_NO_API_KEY');
+
                 return $result;
             }
-            
-            // Check what sync source to use: playlist, channel, or OAuth
+
             $playlistId = $params->get('playlist_id');
-            $channelId = $params->get('channel_id');
-            
-            if (!$playlistId && !$channelId && !$helper->isOAuthConnected()) {
-                $result['error'] = 'Please configure either a Playlist ID or Channel ID in Component Options.';
+            $channelId  = $params->get('channel_id');
+
+            if (!$playlistId && !$channelId && !$oauth) {
+                $result['error'] = Text::_('COM_YOUTUBEVIDEOS_SYNC_ERROR_NO_SOURCE');
+
                 return $result;
             }
-            
-            // Fetch videos from YouTube with pagination support
-            // Priority: 1) Custom Playlist (with OAuth if available), 2) OAuth with uploads playlist, 3) OAuth with forMine, 4) Channel Uploads, 5) Channel Search
-            $allItems = [];
-            $pageToken = '';
-            $pageCount = 0;
-            $maxPages = 20; // Safety limit to prevent infinite loops (20 pages × 50 = 1000 videos max)
-            
-            do {
-                $pageCount++;
-                
-                if ($playlistId) {
-                    // Use custom playlist if configured (works best for channel managers with OAuth)
-                    if ($pageCount === 1) {
-                        \Joomla\CMS\Log\Log::add('Using configured playlist ID: ' . $playlistId . ' (OAuth: ' . ($helper->isOAuthConnected() ? 'yes' : 'no') . ')', \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
-                    }
-                    $data = $helper->fetchPlaylistVideos('', '', 50, $pageToken);
-                    
-                    if (!$data || !isset($data->items)) {
-                        if ($pageCount === 1) {
-                            $authMethod = $helper->isOAuthConnected() ? 'OAuth' : 'API key';
-                            $result['error'] = 'Failed to fetch videos from the configured playlist using ' . $authMethod . '. Please verify the Playlist ID is correct and accessible.';
-                            return $result;
-                        }
-                        break; // Error on subsequent pages, just stop pagination
-                    }
-                } elseif ($helper->isOAuthConnected()) {
-                    // OAuth connected - use uploads playlist which works for channel managers
-                    if ($pageCount === 1) {
-                        \Joomla\CMS\Log\Log::add('Using OAuth to fetch channel uploads (including unlisted videos)', \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
-                    }
-                    $data = $helper->fetchChannelUploads(50, $pageToken);
-                    
-                    // If uploads playlist fails on first page, fall back to search with forMine for owned channels
-                    if ($pageCount === 1 && (!$data || !isset($data->items) || empty($data->items))) {
-                        \Joomla\CMS\Log\Log::add('Uploads playlist returned no results, trying search with forMine=true', \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
-                        $data = $helper->fetchChannelVideos('', '', 50, true, $pageToken); // Pass true for forMine
-                    }
-                } else {
-                    // No OAuth and no playlist - try channel uploads first, then fall back to search
-                    $data = $helper->fetchChannelUploads(50, $pageToken);
 
-                    if ($pageCount === 1 && (!$data || !isset($data->items))) {
-                        \Joomla\CMS\Log\Log::add('Uploads playlist failed, trying search method as fallback', \Joomla\CMS\Log\Log::WARNING, 'com_youtubevideos');
-                        $data = $helper->fetchChannelVideos('', '', 50, false, $pageToken);
-                    }
-                }
+            $allItems = $this->fetchAllItems($helper, (string) $playlistId, (bool) $oauth, $result);
 
-                if (!$data || !isset($data->items)) {
-                    if ($pageCount === 1) {
-                        if ($playlistId) {
-                            $result['error'] = 'Failed to fetch videos from YouTube API. Please verify your Playlist ID is correct. Check Joomla logs for details.';
-                        } else {
-                            $result['error'] = 'Failed to fetch videos from YouTube API. Please verify your Channel ID is correct (should start with "UC"). Check Joomla logs for details.';
-                        }
-                        return $result;
-                    }
-                    break; // Error on subsequent pages, just stop pagination
-                }
-
-                // Check if items array is empty on first page
-                if ($pageCount === 1 && empty($data->items)) {
-                    if ($playlistId && !$helper->isOAuthConnected()) {
-                        $result['error'] = 'The configured playlist returned 0 videos. Please check that the playlist ID is correct and contains videos.';
-                    } elseif ($helper->isOAuthConnected()) {
-                        \Joomla\CMS\Log\Log::add('OAuth sync returned 0 videos. Channel ID: ' . $channelId . ', OAuth connected: yes', \Joomla\CMS\Log\Log::WARNING, 'com_youtubevideos');
-                        $result['error'] = 'API returned 0 videos with OAuth. WORKAROUND: Create a custom YouTube playlist, add your unlisted videos to it, then enter the Playlist ID (starts with PL) in Component Options → Basic Settings → Playlist ID. OAuth will work with custom playlists even for managed channels.';
-                    } else {
-                        $result['error'] = 'API returned 0 videos. Note: Only PUBLIC videos can be synced via API key. If your videos are unlisted or private, please enable and connect OAuth in Component Options.';
-                    }
-                    return $result;
-                }
-                
-                // Accumulate items from this page
-                if (!empty($data->items)) {
-                    $allItems = array_merge($allItems, $data->items);
-                    \Joomla\CMS\Log\Log::add('Fetched page ' . $pageCount . ': ' . count($data->items) . ' videos (total so far: ' . count($allItems) . ')', \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
-                }
-                
-                // Get next page token
-                $pageToken = $data->nextPageToken ?? '';
-                
-            } while (!empty($pageToken) && $pageCount < $maxPages);
-            
-            if ($pageCount >= $maxPages) {
-                \Joomla\CMS\Log\Log::add('Reached maximum page limit (' . $maxPages . ' pages). Syncing first ' . count($allItems) . ' videos.', \Joomla\CMS\Log\Log::WARNING, 'com_youtubevideos');
+            if ($allItems === null) {
+                return $result;
             }
-            
-            \Joomla\CMS\Log\Log::add('Total videos fetched: ' . count($allItems) . ' from ' . $pageCount . ' page(s)', \Joomla\CMS\Log\Log::INFO, 'com_youtubevideos');
 
-            $db = Factory::getDbo();
-            $user = Factory::getApplication()->getIdentity();
-            $date = Factory::getDate();
-            
-            // Track processed video IDs to avoid duplicates
-            $processedVideoIds = [];
-            $skippedNoVideoId = 0;
+            // Normalise the API items into one entry per video ID.
+            $videos            = [];
+            $skippedNoVideoId  = 0;
             $skippedDuplicates = 0;
-            $itemIndex = 0;
 
-            foreach ($allItems as $item) {
-                $itemIndex++;
-                
-                // Extract video data - handle both playlist and search API formats
-                // Playlist API: item->snippet->resourceId->videoId or item->contentDetails->videoId
-                // Search API: item->id->videoId
-                $videoId = $item->snippet->resourceId->videoId 
-                    ?? $item->contentDetails->videoId 
-                    ?? $item->id->videoId 
+            foreach ($allItems as $index => $item) {
+                // Playlist API: snippet->resourceId->videoId or contentDetails->videoId; Search API: id->videoId
+                $videoId = $item->snippet->resourceId->videoId
+                    ?? $item->contentDetails->videoId
+                    ?? $item->id->videoId
                     ?? null;
-                
+
                 if (!$videoId) {
                     $skippedNoVideoId++;
-                    $itemTitle = $item->snippet->title ?? 'Unknown';
-                    \Joomla\CMS\Log\Log::add(
-                        'Skipping item #' . $itemIndex . ' - no valid video ID found. Title: ' . $itemTitle . 
-                        '. Item data: ' . json_encode($item),
-                        \Joomla\CMS\Log\Log::WARNING,
+                    Log::add(
+                        'Skipping item #' . ($index + 1) . ' with no video ID. Title: ' . ($item->snippet->title ?? 'Unknown'),
+                        Log::WARNING,
                         'com_youtubevideos'
                     );
                     continue;
                 }
-                
-                // Skip if we've already processed this video ID (handles duplicates in API response)
-                if (isset($processedVideoIds[$videoId])) {
+
+                if (isset($videos[$videoId])) {
                     $skippedDuplicates++;
-                    \Joomla\CMS\Log\Log::add('Skipping duplicate video ID in API response: ' . $videoId, \Joomla\CMS\Log\Log::DEBUG, 'com_youtubevideos');
                     continue;
                 }
-                $processedVideoIds[$videoId] = true;
 
-                $title = $item->snippet->title ?? '';
-                $description = $item->snippet->description ?? '';
+                $videos[$videoId] = (object) [
+                    'title'       => (string) ($item->snippet->title ?? ''),
+                    // YouTube descriptions are plain text; store them as safe HTML for the editor field.
+                    'description' => nl2br(htmlspecialchars((string) ($item->snippet->description ?? ''), ENT_QUOTES, 'UTF-8'), false),
+                    'privacy'     => (string) ($item->status->privacyStatus ?? ''),
+                ];
+            }
 
-                // Check if video already exists (get all matching records to detect duplicates)
+            // Statistics and privacy status, 50 videos per request.
+            $details = $this->fetchDetails($helper, array_keys($videos));
+
+            $db       = $this->getDatabase();
+            $existing = $this->loadExistingVideos();
+            $aliases  = $this->loadExistingAliases();
+            $now      = Factory::getDate()->toSql();
+            $userId   = (int) (Factory::getApplication()->getIdentity()->id ?? 0);
+
+            foreach ($videos as $videoId => $video) {
+                $privacy = (string) ($details[$videoId]->status->privacyStatus ?? $video->privacy);
+
+                // Deleted or inaccessible private videos come back from playlists as placeholders.
+                if ($video->title === 'Deleted video' || ($video->title === 'Private video' && !isset($details[$videoId]))) {
+                    $skippedNoVideoId++;
+                    continue;
+                }
+
+                if (isset($existing[$videoId])) {
+                    if (!(int) $existing[$videoId]->sync_locked) {
+                        $title       = $video->title;
+                        $description = $video->description;
+                        $id          = (int) $existing[$videoId]->id;
+
+                        $query = $db->getQuery(true)
+                            ->update($db->quoteName('#__youtubevideos_featured'))
+                            ->set($db->quoteName('title') . ' = :title')
+                            ->set($db->quoteName('description') . ' = :description')
+                            ->where($db->quoteName('id') . ' = :id')
+                            ->bind(':title', $title)
+                            ->bind(':description', $description)
+                            ->bind(':id', $id, ParameterType::INTEGER);
+
+                        $db->setQuery($query)->execute();
+                        $result['updated']++;
+                    }
+
+                    continue;
+                }
+
+                $alias     = $this->uniqueAlias($video->title, $aliases);
+                $published = \in_array($privacy, ['private', 'unlisted'], true) ? 0 : 1;
+                $language  = '*';
+                $title     = $video->title;
+                $desc      = $video->description;
+                $vid       = (string) $videoId;
+
                 $query = $db->getQuery(true)
-                    ->select(['id', 'published'])
-                    ->from($db->quoteName('#__youtubevideos_featured'))
-                    ->where($db->quoteName('youtube_video_id') . ' = ' . $db->quote($videoId));
+                    ->insert($db->quoteName('#__youtubevideos_featured'))
+                    ->columns($db->quoteName([
+                        'youtube_video_id', 'title', 'alias', 'description', 'published',
+                        'featured', 'created', 'created_by', 'language', 'access',
+                    ]))
+                    ->values(':vid, :title, :alias, :description, :published, 0, :created, :createdBy, :language, 1')
+                    ->bind(':vid', $vid)
+                    ->bind(':title', $title)
+                    ->bind(':alias', $alias)
+                    ->bind(':description', $desc)
+                    ->bind(':published', $published, ParameterType::INTEGER)
+                    ->bind(':created', $now)
+                    ->bind(':createdBy', $userId, ParameterType::INTEGER)
+                    ->bind(':language', $language);
 
-                $db->setQuery($query);
-                $existingRecords = $db->loadObjectList();
-                
-                // Check for duplicate database entries
-                if (count($existingRecords) > 1) {
-                    \Joomla\CMS\Log\Log::add('WARNING: Found ' . count($existingRecords) . ' duplicate entries for video ID: ' . $videoId . ' - updating all of them', \Joomla\CMS\Log\Log::WARNING, 'com_youtubevideos');
-                }
-                
-                if (!empty($existingRecords)) {
-                    // Update existing video(s) - handle both single entries and duplicates
-                    // Update all records with this youtube_video_id
-                    $query = $db->getQuery(true)
-                        ->update($db->quoteName('#__youtubevideos_featured'))
-                        ->set($db->quoteName('title') . ' = ' . $db->quote($title))
-                        ->set($db->quoteName('description') . ' = ' . $db->quote($description))
-                        ->set($db->quoteName('modified') . ' = ' . $db->quote($date->toSql()))
-                        ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
-                        ->where($db->quoteName('youtube_video_id') . ' = ' . $db->quote($videoId));
-
-                    $db->setQuery($query);
-                    $db->execute();
-                    $result['updated']++;
-                } else {
-                    // Insert new video
-                    $alias = \Joomla\CMS\Application\ApplicationHelper::stringURLSafe($title);
-                    
-                    $query = $db->getQuery(true)
-                        ->insert($db->quoteName('#__youtubevideos_featured'))
-                        ->columns([
-                            $db->quoteName('youtube_video_id'),
-                            $db->quoteName('title'),
-                            $db->quoteName('alias'),
-                            $db->quoteName('description'),
-                            $db->quoteName('published'),
-                            $db->quoteName('featured'),
-                            $db->quoteName('created'),
-                            $db->quoteName('created_by'),
-                            $db->quoteName('language'),
-                            $db->quoteName('access')
-                        ])
-                        ->values(
-                            $db->quote($videoId) . ', ' .
-                            $db->quote($title) . ', ' .
-                            $db->quote($alias) . ', ' .
-                            $db->quote($description) . ', ' .
-                            '1, ' .  // published
-                            '0, ' .  // featured
-                            $db->quote($date->toSql()) . ', ' .
-                            (int) $user->id . ', ' .
-                            $db->quote('*') . ', ' .
-                            '1'  // access
-                        );
-
-                    $db->setQuery($query);
-                    $db->execute();
-                    $result['added']++;
-                }
+                $db->setQuery($query)->execute();
+                $result['added']++;
             }
 
-            $result['success'] = true;
-            $result['skipped'] = $skippedNoVideoId + $skippedDuplicates;
-            
-            // Get final counts to show breakdown
-            $query = $db->getQuery(true)
-                ->select([
-                    'COUNT(*) as total',
-                    'SUM(CASE WHEN published = 1 THEN 1 ELSE 0 END) as published',
-                    'SUM(CASE WHEN published = 0 THEN 1 ELSE 0 END) as unpublished'
-                ])
-                ->from($db->quoteName('#__youtubevideos_featured'));
-            
-            $db->setQuery($query);
-            $counts = $db->loadObject();
-            
-            $result['total_in_db'] = (int) $counts->total;
-            $result['published_count'] = (int) $counts->published;
-            $result['unpublished_count'] = (int) $counts->unpublished;
-            $result['fetched_from_api'] = count($allItems);
-            
-            // Log detailed sync summary
-            \Joomla\CMS\Log\Log::add(
-                'Sync processing summary: ' . 
-                'Fetched from API: ' . count($allItems) . ', ' .
-                'Processed: ' . ($result['added'] + $result['updated']) . ', ' .
-                'Added: ' . $result['added'] . ', ' .
-                'Updated: ' . $result['updated'] . ', ' .
-                'Skipped (no video ID): ' . $skippedNoVideoId . ', ' .
-                'Skipped (duplicates): ' . $skippedDuplicates,
-                \Joomla\CMS\Log\Log::INFO,
-                'com_youtubevideos'
-            );
-            
-            \Joomla\CMS\Log\Log::add(
-                'Database summary: Total in DB: ' . $result['total_in_db'] . 
-                ' (Published: ' . $result['published_count'] . 
-                ', Unpublished: ' . $result['unpublished_count'] . ')',
-                \Joomla\CMS\Log\Log::INFO,
-                'com_youtubevideos'
-            );
-            
-            // Alert if videos were skipped
-            if ($skippedNoVideoId > 0) {
-                \Joomla\CMS\Log\Log::add(
-                    'ALERT: ' . $skippedNoVideoId . ' items were skipped because they had no valid video ID. ' .
-                    'Check the log for details. This may indicate deleted videos, private videos, or API response issues.',
-                    \Joomla\CMS\Log\Log::WARNING,
-                    'com_youtubevideos'
-                );
-            }
+            $this->storeStatistics($details);
 
+            $counts = $this->getVideoStats();
+
+            $result['success']           = true;
+            $result['skipped']           = $skippedNoVideoId + $skippedDuplicates;
+            $result['total_in_db']       = $counts->total;
+            $result['published_count']   = $counts->published;
+            $result['unpublished_count'] = $counts->unpublished;
+            $result['fetched_from_api']  = \count($allItems);
+
+            Log::add(
+                sprintf(
+                    'Sync summary: fetched %d, added %d, updated %d, skipped %d (no ID %d, duplicates %d), statistics %d',
+                    \count($allItems),
+                    $result['added'],
+                    $result['updated'],
+                    $result['skipped'],
+                    $skippedNoVideoId,
+                    $skippedDuplicates,
+                    \count($details)
+                ),
+                Log::INFO,
+                'com_youtubevideos'
+            );
         } catch (\Exception $e) {
-            $result['error'] = $e->getMessage();
+            Log::add('Sync failed: ' . $e->getMessage(), Log::ERROR, 'com_youtubevideos');
+            $result['error'] = Text::_('COM_YOUTUBEVIDEOS_SYNC_ERROR_EXCEPTION');
         }
 
         return $result;
+    }
+
+    /**
+     * Fetch every page of videos from the configured source.
+     *
+     * Priority: 1) configured playlist, 2) OAuth uploads playlist (falls back to search forMine),
+     * 3) channel uploads playlist (falls back to channel search).
+     *
+     * @param   YoutubeHelper  $helper      The API helper.
+     * @param   string         $playlistId  The configured playlist ID.
+     * @param   bool           $oauth       Whether OAuth is connected.
+     * @param   array          $result      The sync result, receives an error message on failure.
+     *
+     * @return  array|null  The API items, or null on failure.
+     *
+     * @since   1.0.45
+     */
+    private function fetchAllItems(YoutubeHelper $helper, string $playlistId, bool $oauth, array &$result): ?array
+    {
+        $allItems  = [];
+        $pageToken = '';
+        $pageCount = 0;
+
+        do {
+            $pageCount++;
+
+            if ($playlistId) {
+                $data = $helper->fetchPlaylistVideos('', '', 50, $pageToken);
+            } elseif ($oauth) {
+                $data = $helper->fetchChannelUploads(50, $pageToken);
+
+                if ($pageCount === 1 && empty($data->items)) {
+                    $data = $helper->fetchChannelVideos('', '', 50, true, $pageToken);
+                }
+            } else {
+                $data = $helper->fetchChannelUploads(50, $pageToken);
+
+                if ($pageCount === 1 && !isset($data->items)) {
+                    $data = $helper->fetchChannelVideos('', '', 50, false, $pageToken);
+                }
+            }
+
+            if (!$data || !isset($data->items)) {
+                if ($pageCount === 1) {
+                    $result['error'] = Text::_($playlistId ? 'COM_YOUTUBEVIDEOS_SYNC_ERROR_PLAYLIST_FETCH' : 'COM_YOUTUBEVIDEOS_SYNC_ERROR_CHANNEL_FETCH');
+
+                    return null;
+                }
+
+                // An error on a later page: keep what has been fetched so far.
+                break;
+            }
+
+            if ($pageCount === 1 && empty($data->items)) {
+                if ($oauth) {
+                    $result['error'] = Text::_('COM_YOUTUBEVIDEOS_SYNC_ERROR_EMPTY_OAUTH');
+                } elseif ($playlistId) {
+                    $result['error'] = Text::_('COM_YOUTUBEVIDEOS_SYNC_ERROR_EMPTY_PLAYLIST');
+                } else {
+                    $result['error'] = Text::_('COM_YOUTUBEVIDEOS_SYNC_ERROR_EMPTY_CHANNEL');
+                }
+
+                return null;
+            }
+
+            $allItems  = array_merge($allItems, $data->items);
+            $pageToken = $data->nextPageToken ?? '';
+        } while ($pageToken !== '' && $pageCount < self::SYNC_MAX_PAGES);
+
+        if ($pageToken !== '') {
+            Log::add('Reached the sync page limit; only the first ' . \count($allItems) . ' videos were synced.', Log::WARNING, 'com_youtubevideos');
+        }
+
+        return $allItems;
+    }
+
+    /**
+     * Fetch statistics and status for the given videos in batches of 50.
+     *
+     * @param   YoutubeHelper  $helper    The API helper.
+     * @param   string[]       $videoIds  YouTube video IDs.
+     *
+     * @return  array  Map of video ID => videos.list item. Failed batches are left out.
+     *
+     * @since   1.0.45
+     */
+    private function fetchDetails(YoutubeHelper $helper, array $videoIds): array
+    {
+        $details = [];
+
+        foreach (array_chunk($videoIds, 50) as $chunk) {
+            $batch = $helper->fetchVideoDetails($chunk);
+
+            if ($batch === null) {
+                Log::add('Could not fetch statistics for ' . \count($chunk) . ' videos.', Log::WARNING, 'com_youtubevideos');
+                continue;
+            }
+
+            $details += $batch;
+        }
+
+        return $details;
+    }
+
+    /**
+     * Upsert view, like and comment counts.
+     *
+     * @param   array  $details  Map of video ID => videos.list item.
+     *
+     * @return  void
+     *
+     * @since   1.0.45
+     */
+    private function storeStatistics(array $details): void
+    {
+        if (empty($details)) {
+            return;
+        }
+
+        $db  = $this->getDatabase();
+        $now = $db->quote(Factory::getDate()->toSql());
+
+        foreach (array_chunk($details, 100, true) as $chunk) {
+            $rows = [];
+
+            foreach ($chunk as $videoId => $item) {
+                $rows[] = '(' . implode(', ', [
+                    $db->quote((string) $videoId),
+                    (int) ($item->statistics->viewCount ?? 0),
+                    (int) ($item->statistics->likeCount ?? 0),
+                    (int) ($item->statistics->commentCount ?? 0),
+                    $now,
+                ]) . ')';
+            }
+
+            $db->setQuery(
+                'INSERT INTO ' . $db->quoteName('#__youtubevideos_statistics')
+                . ' (' . implode(', ', $db->quoteName(['youtube_video_id', 'views', 'likes', 'comments', 'last_updated'])) . ')'
+                . ' VALUES ' . implode(', ', $rows)
+                . ' ON DUPLICATE KEY UPDATE '
+                . $db->quoteName('views') . ' = VALUES(' . $db->quoteName('views') . '), '
+                . $db->quoteName('likes') . ' = VALUES(' . $db->quoteName('likes') . '), '
+                . $db->quoteName('comments') . ' = VALUES(' . $db->quoteName('comments') . '), '
+                . $db->quoteName('last_updated') . ' = VALUES(' . $db->quoteName('last_updated') . ')'
+            )->execute();
+        }
+    }
+
+    /**
+     * Load existing videos keyed by YouTube video ID.
+     *
+     * @return  array
+     *
+     * @since   1.0.45
+     */
+    private function loadExistingVideos(): array
+    {
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName(['id', 'youtube_video_id', 'sync_locked']))
+            ->from($db->quoteName('#__youtubevideos_featured'));
+
+        return $db->setQuery($query)->loadObjectList('youtube_video_id');
+    }
+
+    /**
+     * Load the aliases already in use, as a set.
+     *
+     * @return  array
+     *
+     * @since   1.0.45
+     */
+    private function loadExistingAliases(): array
+    {
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('alias'))
+            ->from($db->quoteName('#__youtubevideos_featured'));
+
+        return array_fill_keys($db->setQuery($query)->loadColumn(), true);
+    }
+
+    /**
+     * Build a unique alias for a new video and reserve it.
+     *
+     * @param   string  $title    The video title.
+     * @param   array   $aliases  Set of aliases in use (updated).
+     *
+     * @return  string
+     *
+     * @since   1.0.45
+     */
+    private function uniqueAlias(string $title, array &$aliases): string
+    {
+        $alias = ApplicationHelper::stringURLSafe($title);
+
+        if (trim(str_replace('-', '', $alias)) === '') {
+            $alias = Factory::getDate()->format('Y-m-d-H-i-s');
+        }
+
+        while (isset($aliases[$alias])) {
+            $alias = StringHelper::increment($alias, 'dash');
+        }
+
+        $aliases[$alias] = true;
+
+        return $alias;
     }
 }

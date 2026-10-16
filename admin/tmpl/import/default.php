@@ -24,7 +24,7 @@ $typeLabel = Text::_('COM_YOUTUBEVIDEOS_' . strtoupper($this->type));
 <form action="<?php echo Route::_('index.php?option=com_youtubevideos&task=import.upload&type=' . $this->type); ?>"
       method="post"
       name="adminForm"
-      id="import-form"
+      id="adminForm"
       class="form-validate"
       enctype="multipart/form-data">
 
@@ -37,12 +37,12 @@ $typeLabel = Text::_('COM_YOUTUBEVIDEOS_' . strtoupper($this->type));
                         
                         <div class="alert alert-info">
                             <span class="icon-info-circle" aria-hidden="true"></span>
-                            <?php echo Text::sprintf('COM_YOUTUBEVIDEOS_IMPORT_INSTRUCTIONS', $typeLabel); ?>
+                            <?php echo Text::sprintf($this->type === 'recipes' ? 'COM_YOUTUBEVIDEOS_IMPORT_INSTRUCTIONS_RECIPES' : 'COM_YOUTUBEVIDEOS_IMPORT_INSTRUCTIONS', $typeLabel); ?>
                         </div>
 
                         <div class="alert alert-warning">
                             <span class="icon-warning" aria-hidden="true"></span>
-                            <?php echo Text::_('COM_YOUTUBEVIDEOS_IMPORT_WARNING'); ?>
+                            <?php echo Text::_($this->type === 'recipes' ? 'COM_YOUTUBEVIDEOS_IMPORT_WARNING_RECIPES' : 'COM_YOUTUBEVIDEOS_IMPORT_WARNING'); ?>
                         </div>
 
                         <?php echo $this->form->renderFieldset('import'); ?>

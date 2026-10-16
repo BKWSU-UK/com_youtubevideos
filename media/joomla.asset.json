@@ -1,7 +1,7 @@
 {
     "$schema": "https://developer.joomla.org/schemas/json-schema/web_assets.json",
     "name": "com_youtubevideos",
-    "version": "1.0.0",
+    "version": "1.0.45",
     "description": "YouTube Videos Component Assets",
     "license": "GPL-2.0-or-later",
     "assets": [
@@ -17,22 +17,22 @@
             "uri": "com_youtubevideos/component.css"
         },
         {
-            "name": "com_youtubevideos.admin.js",
-            "type": "script",
-            "uri": "com_youtubevideos/admin.js",
-            "dependencies": ["core", "bootstrap.modal"]
-        },
-        {
             "name": "com_youtubevideos.youtube-player",
             "type": "script",
             "uri": "com_youtubevideos/youtube-player.js",
-            "dependencies": ["core", "bootstrap.modal"]
+            "dependencies": ["core", "bootstrap.modal"],
+            "attributes": {
+                "defer": true
+            }
         },
         {
             "name": "com_youtubevideos.playlist-player",
             "type": "script",
             "uri": "com_youtubevideos/playlist-player.js",
-            "dependencies": ["core"]
+            "dependencies": ["core"],
+            "attributes": {
+                "defer": true
+            }
         }
     ]
-} 
+}

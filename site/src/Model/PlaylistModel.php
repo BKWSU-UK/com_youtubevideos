@@ -2,10 +2,14 @@
 
 namespace BKWSU\Component\Youtubevideos\Site\Model;
 
+\defined('_JEXEC') or die;
+
+use BKWSU\Component\Youtubevideos\Site\Helper\RouteHelper;
+use BKWSU\Component\Youtubevideos\Site\Helper\VideoHelper;
 use Joomla\CMS\Factory;
-use Joomla\CMS\Form\Form;
-use Joomla\CMS\Language\Multilanguage;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\ItemModel;
+use Joomla\Database\ParameterType;
 
 /**
  * Playlist Model
@@ -14,7 +18,14 @@ use Joomla\CMS\MVC\Model\ItemModel;
  */
 class PlaylistModel extends ItemModel
 {
-    protected $forms = [];
+    /**
+     * Loaded playlist videos, keyed by playlist id.
+     *
+     * @var    array
+     * @since  1.0.45
+     */
+    protected $videos = [];
+
     /**
      * Model context string.
      *
@@ -32,31 +43,26 @@ class PlaylistModel extends ItemModel
      */
     protected function populateState(): void
     {
-        $app = Factory::getApplication();
+        $app   = Factory::getApplication();
+        $input = $app->getInput();
 
-        // Load state from the request
-        $pk = $app->input->getInt('id');
+        $pk = $input->getInt('id');
         $this->setState('playlist.id', $pk);
 
-        // Get the current video ID from URL parameter (optional)
-        $videoId = $app->input->getInt('video_id', 0);
-        $this->setState('playlist.video_id', $videoId);
+        // Keep the search state separate for every playlist and menu item.
+        $this->context = 'com_youtubevideos.playlist.' . $pk . '.' . $input->getInt('Itemid', 0);
 
-        // Load the parameters
-        $params = $app->getParams();
-        $this->setState('params', $params);
+        // The video to show first (optional)
+        $this->setState('playlist.video_id', $input->getInt('video_id', 0));
+        $this->setState('params', $app->getParams());
 
-        $this->setState('filter.published', 1);
-        $this->setState('filter.language', Multilanguage::isEnabled());
-
-        // Handle search filter
-        $filtersInput = $app->input->get('filter', null, 'array');
+        $filtersInput = $input->get('filter', null, 'array');
 
         if ($filtersInput !== null) {
             $search = trim((string) ($filtersInput['search'] ?? ''));
             $app->setUserState($this->context . '.filter.search', $search);
         } else {
-            $search = $app->getUserState($this->context . '.filter.search', '');
+            $search = (string) $app->getUserState($this->context . '.filter.search', '');
         }
 
         $this->setState('filter.search', $search);
@@ -67,51 +73,38 @@ class PlaylistModel extends ItemModel
      *
      * @param   integer  $pk  The id of the primary key.
      *
-     * @return  object|boolean  Object on success, false on failure.
+     * @return  object  The playlist.
      *
+     * @throws  \Exception  404 when the playlist does not exist or is not visible.
      * @since   1.0.0
      */
     public function getItem($pk = null)
     {
-        $pk = (!empty($pk)) ? $pk : (int) $this->getState('playlist.id');
+        $pk = (int) ($pk ?: $this->getState('playlist.id'));
 
         if ($this->_item === null) {
             $this->_item = [];
         }
 
         if (!isset($this->_item[$pk])) {
-            try {
-                $db = $this->getDatabase();
-                $query = $db->getQuery(true);
+            $db    = $this->getDatabase();
+            $query = $db->getQuery(true)
+                ->select('p.*')
+                ->from($db->quoteName('#__youtubevideos_playlists', 'p'))
+                ->where($db->quoteName('p.id') . ' = :id')
+                ->bind(':id', $pk, ParameterType::INTEGER);
 
-                $query->select('p.*')
-                    ->from($db->quoteName('#__youtubevideos_playlists', 'p'))
-                    ->where($db->quoteName('p.id') . ' = :id')
-                    ->bind(':id', $pk, \Joomla\Database\ParameterType::INTEGER);
+            VideoHelper::applyVisibility($query, $db, 'p', false);
 
-                // Filter by published state
-                $published = (int) $this->getState('filter.published');
-                if ($published) {
-                    $query->where($db->quoteName('p.published') . ' = 1');
-                }
+            $data = $db->setQuery($query)->loadObject();
 
-                // Filter by language
-                if ($this->getState('filter.language')) {
-                    $query->whereIn($db->quoteName('p.language'), [Factory::getLanguage()->getTag(), '*'], \Joomla\Database\ParameterType::STRING);
-                }
-
-                $db->setQuery($query);
-                $data = $db->loadObject();
-
-                if (empty($data)) {
-                    throw new \Exception(\Joomla\CMS\Language\Text::_('COM_YOUTUBEVIDEOS_ERROR_PLAYLIST_NOT_FOUND'), 404);
-                }
-
-                $this->_item[$pk] = $data;
-            } catch (\Exception $e) {
-                $this->setError($e->getMessage());
-                $this->_item[$pk] = false;
+            if (empty($data)) {
+                throw new \Exception(Text::_('COM_YOUTUBEVIDEOS_ERROR_PLAYLIST_NOT_FOUND'), 404);
             }
+
+            RouteHelper::primeAliases('playlist', [(int) $data->id => (string) $data->alias]);
+
+            $this->_item[$pk] = $data;
         }
 
         return $this->_item[$pk];
@@ -122,40 +115,35 @@ class PlaylistModel extends ItemModel
      *
      * @param   integer  $pk  The id of the playlist.
      *
-     * @return  array  Array of video objects
+     * @return  array  Array of normalised video objects
      *
      * @since   1.0.0
      */
     public function getVideos($pk = null)
     {
-        $pk = (!empty($pk)) ? $pk : (int) $this->getState('playlist.id');
+        $pk = (int) ($pk ?: $this->getState('playlist.id'));
 
-        $db = $this->getDatabase();
+        if (isset($this->videos[$pk])) {
+            return $this->videos[$pk];
+        }
+
+        $db    = $this->getDatabase();
         $query = $db->getQuery(true);
 
         $query->select('v.*')
+            ->select($db->quoteName(['s.views', 's.likes'], ['views', 'likes']))
             ->from($db->quoteName('#__youtubevideos_featured', 'v'))
+            ->leftJoin(
+                $db->quoteName('#__youtubevideos_statistics', 's'),
+                $db->quoteName('s.youtube_video_id') . ' = ' . $db->quoteName('v.youtube_video_id')
+            )
             ->where($db->quoteName('v.playlist_id') . ' = :playlist_id')
-            ->where($db->quoteName('v.published') . ' = 1')
-            ->bind(':playlist_id', $pk, \Joomla\Database\ParameterType::INTEGER);
+            ->bind(':playlist_id', $pk, ParameterType::INTEGER);
 
-        // Filter by language
-        if ($this->getState('filter.language')) {
-            $query->whereIn($db->quoteName('v.language'), [Factory::getLanguage()->getTag(), '*'], \Joomla\Database\ParameterType::STRING);
-        }
+        VideoHelper::applyVisibility($query, $db, 'v');
+        VideoHelper::applyCategoryVisibility($query, $db, 'v', 'c');
 
-        // Filter by access level
-        $user = Factory::getApplication()->getIdentity();
-        $groups = $user->getAuthorisedViewLevels();
-        $query->whereIn($db->quoteName('v.access'), $groups);
-
-        // Join with statistics
-        $query->select($db->quoteName('s.views', 'views'))
-            ->select($db->quoteName('s.likes', 'likes'))
-            ->leftJoin($db->quoteName('#__youtubevideos_statistics', 's') . ' ON ' . $db->quoteName('s.youtube_video_id') . ' = ' . $db->quoteName('v.youtube_video_id'));
-
-        // Order by
-        $params = $this->getState('params');
+        $params     = $this->getState('params');
         $videoOrder = $params ? $params->get('video_order', 'ordering') : 'ordering';
 
         switch ($videoOrder) {
@@ -172,42 +160,42 @@ class PlaylistModel extends ItemModel
                 $query->order($db->quoteName('v.created') . ' DESC');
                 break;
             case 'views_desc':
-                $query->order($db->quoteName('views') . ' DESC');
+                $query->order('COALESCE(' . $db->quoteName('s.views') . ', 0) DESC');
                 break;
             case 'ordering':
             default:
-                $query->order($db->quoteName('v.ordering') . ' ASC, ' . $db->quoteName('v.created') . ' DESC');
+                $query->order($db->quoteName('v.ordering') . ' ASC')
+                    ->order($db->quoteName('v.created') . ' DESC');
                 break;
         }
 
-        // Apply search filter
         $search = trim((string) $this->getState('filter.search'));
 
         if ($search !== '') {
-            $token = '%' . $db->escape($search, true) . '%';
+            $pattern = VideoHelper::likePattern($search);
             $query->where(
-                '(' . $db->quoteName('v.title') . ' LIKE :playlistSearchTitle OR ' .
-                $db->quoteName('v.description') . ' LIKE :playlistSearchDesc)'
+                '(' . $db->quoteName('v.title') . ' LIKE :search_title OR '
+                . $db->quoteName('v.description') . ' LIKE :search_desc)'
             )
-                ->bind(':playlistSearchTitle', $token)
-                ->bind(':playlistSearchDesc', $token);
+                ->bind(':search_title', $pattern)
+                ->bind(':search_desc', $pattern);
         }
-
-        $db->setQuery($query);
 
         try {
-            return $db->loadObjectList();
-        } catch (\Exception $e) {
-            $this->setError($e->getMessage());
-            return [];
+            $this->videos[$pk] = VideoHelper::normaliseList($db->setQuery($query)->loadObjectList());
+        } catch (\RuntimeException $e) {
+            $this->videos[$pk] = [];
         }
+
+        return $this->videos[$pk];
     }
 
     /**
-     * Method to get the current video (first video or specified video)
+     * Method to get the current video (requested video or the first one)
      *
      * @return  object|null  Video object or null
      *
+     * @throws  \Exception  404 when a requested video is not part of the playlist.
      * @since   1.0.0
      */
     public function getCurrentVideo()
@@ -218,106 +206,22 @@ class PlaylistModel extends ItemModel
             return null;
         }
 
-        // Check if a specific video ID was requested
         $videoId = (int) $this->getState('playlist.video_id');
-        
+
         if ($videoId > 0) {
             foreach ($videos as $video) {
-                if ($video->id == $videoId) {
+                if ((int) $video->id === $videoId) {
                     return $video;
                 }
             }
-        }
 
-        // Return the first video by default
-        return $videos[0];
-    }
-
-    /**
-     * Method to get the data that should be injected in the form.
-     *
-     * @return  array  The data for the form.
-     *
-     * @since   1.0.0
-     */
-    protected function loadFormData(): array
-    {
-        return [
-            'filter' => [
-                'search' => $this->getState('filter.search', ''),
-            ],
-        ];
-    }
-
-    /**
-     * Load a form.
-     *
-     * @param   string   $name     The name of the form.
-     * @param   string   $source   The form source (XML file name without path/extension).
-     * @param   array    $options  Optional array of options for the form.
-     * @param   boolean  $clear    Clear the form if already exists.
-     * @param   string   $xpath    Optional xpath to filter the form.
-     *
-     * @return  Form|false
-     */
-    protected function loadForm(string $name, string $source, array $options = [], bool $clear = false, string $xpath = ''): Form|false
-    {
-        $hash = md5($source . serialize($options));
-
-        if (isset($this->forms[$hash]) && !$clear) {
-            return $this->forms[$hash];
-        }
-
-        Form::addFormPath(JPATH_SITE . '/components/com_youtubevideos/forms');
-
-        try {
-            $form = Form::getInstance($name, $source, $options, false, $xpath);
-            
-            if ($form && !empty($options['load_data'])) {
-                $data = $this->loadFormData();
-                $form->bind($data);
+            // Unknown video ids would otherwise create endless duplicate URLs.
+            if (trim((string) $this->getState('filter.search')) === '') {
+                throw new \Exception(Text::_('COM_YOUTUBEVIDEOS_ERROR_VIDEO_NOT_FOUND'), 404);
             }
-        } catch (\Exception $e) {
-            return false;
         }
 
-        $this->forms[$hash] = $form;
-
-        return $form;
-    }
-
-    /**
-     * Retrieve the filter form.
-     *
-     * @param   array    $data      Data to bind.
-     * @param   boolean  $loadData  Load own data.
-     *
-     * @return  Form|false
-     */
-    public function getFilterForm($data = [], $loadData = true)
-    {
-        $form = $this->loadForm(
-            $this->context . '.filter',
-            'filter_playlist',
-            [
-                'control'   => '',
-                'load_data' => $loadData,
-            ]
-        );
-
-        return $form ?: false;
-    }
-
-    /**
-     * Get active filters for the playlist view.
-     *
-     * @return  array
-     */
-    public function getActiveFilters(): array
-    {
-        return [
-            'filter.search' => $this->getState('filter.search'),
-        ];
+        return $videos[0];
     }
 
     /**
@@ -325,40 +229,31 @@ class PlaylistModel extends ItemModel
      *
      * @param   integer  $pk  Primary key of the playlist to increment.
      *
-     * @return  boolean  True if successful; false otherwise and internal error set.
+     * @return  boolean  True if successful.
      *
      * @since   1.0.0
      */
     public function hit($pk = 0)
     {
-        if (empty($pk)) {
-            $pk = (int) $this->getState('playlist.id');
+        $pk = (int) ($pk ?: $this->getState('playlist.id'));
+
+        if (!$pk) {
+            return false;
         }
 
-        $playlist = $this->getItem($pk);
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__youtubevideos_playlists'))
+            ->set($db->quoteName('hits') . ' = ' . $db->quoteName('hits') . ' + 1')
+            ->where($db->quoteName('id') . ' = :id')
+            ->bind(':id', $pk, ParameterType::INTEGER);
 
-        if ($playlist) {
-            $db = $this->getDatabase();
-            $query = $db->getQuery(true);
-
-            $query->update($db->quoteName('#__youtubevideos_playlists'))
-                ->set($db->quoteName('hits') . ' = ' . $db->quoteName('hits') . ' + 1')
-                ->where($db->quoteName('id') . ' = :id')
-                ->bind(':id', $pk, \Joomla\Database\ParameterType::INTEGER);
-
-            try {
-                $db->setQuery($query);
-                $db->execute();
-
-                return true;
-            } catch (\Exception $e) {
-                $this->setError($e->getMessage());
-            }
+        try {
+            $db->setQuery($query)->execute();
+        } catch (\RuntimeException $e) {
+            return false;
         }
 
-        return false;
+        return true;
     }
 }
-
-
-

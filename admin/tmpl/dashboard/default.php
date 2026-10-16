@@ -3,7 +3,7 @@
  * @package     Joomla.Administrator
  * @subpackage  com_youtubevideos
  *
- * @copyright   Copyright (C) 2023 Your Name. All rights reserved.
+ * @copyright   Copyright (C) 2024 Brahma Kumaris. All rights reserved.
  * @license     GNU General Public License version 2 or later;
  */
 
@@ -16,13 +16,9 @@ use Joomla\CMS\Router\Route;
 
 /** @var \BKWSU\Component\Youtubevideos\Administrator\View\Dashboard\HtmlView $this */
 
-// Load required assets
-HTMLHelper::_('bootstrap.framework');
-HTMLHelper::_('behavior.core');
-
-$wa = $this->document->getWebAssetManager();
-$wa->useScript('com_youtubevideos.admin.js')
-   ->useStyle('com_youtubevideos.admin.css');
+$this->getDocument()->getWebAssetManager()
+    ->useScript('core')
+    ->useStyle('com_youtubevideos.admin.css');
 ?>
 
 <form action="<?php echo Route::_('index.php?option=com_youtubevideos&view=dashboard'); ?>" method="post" name="adminForm" id="adminForm">
@@ -32,7 +28,7 @@ $wa->useScript('com_youtubevideos.admin.js')
         <?php echo LayoutHelper::render('components.youtubevideos.admin.dashboard.statistics', [
             'totalVideos' => $this->totalVideos,
             'videoStats' => $this->videoStats,
-            'featuredVideos' => count($this->featuredVideos),
+            'featuredVideos' => $this->featuredCount,
             'categories' => count($this->categories),
             'playlists' => count($this->playlists)
         ]); ?>
@@ -62,11 +58,11 @@ $wa->useScript('com_youtubevideos.admin.js')
                                 <?php foreach ($this->featuredVideos as $video) : ?>
                                     <tr>
                                         <td>
-                                            <a href="<?php echo Route::_('index.php?option=com_youtubevideos&task=video.edit&id=' . $video->id); ?>">
+                                            <a href="<?php echo Route::_('index.php?option=com_youtubevideos&task=video.edit&id=' . (int) $video->id); ?>">
                                                 <?php echo $this->escape($video->title); ?>
                                             </a>
                                         </td>
-                                        <td><?php echo number_format($video->views); ?></td>
+                                        <td><?php echo number_format((int) $video->views); ?></td>
                                         <td><?php echo HTMLHelper::_('date', $video->created, Text::_('DATE_FORMAT_LC4')); ?></td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -106,12 +102,12 @@ $wa->useScript('com_youtubevideos.admin.js')
                                 <?php foreach ($this->popularVideos as $video) : ?>
                                     <tr>
                                         <td>
-                                            <a href="<?php echo Route::_('index.php?option=com_youtubevideos&task=video.edit&id=' . $video->id); ?>">
+                                            <a href="<?php echo Route::_('index.php?option=com_youtubevideos&task=video.edit&id=' . (int) $video->id); ?>">
                                                 <?php echo $this->escape($video->title); ?>
                                             </a>
                                         </td>
-                                        <td><?php echo number_format($video->views); ?></td>
-                                        <td><?php echo number_format($video->likes); ?></td>
+                                        <td><?php echo number_format((int) $video->views); ?></td>
+                                        <td><?php echo number_format((int) $video->likes); ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>

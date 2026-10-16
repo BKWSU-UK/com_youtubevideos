@@ -9,7 +9,6 @@
 
 defined('_JEXEC') or die;
 
-use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
@@ -17,10 +16,7 @@ use Joomla\CMS\Layout\LayoutHelper;
 
 /** @var \BKWSU\Component\Youtubevideos\Administrator\View\Category\HtmlView $this */
 
-$app = Factory::getApplication();
-$input = $app->input;
-
-$wa = $this->document->getWebAssetManager();
+$wa = $this->getDocument()->getWebAssetManager();
 $wa->useScript('keepalive')
     ->useScript('form.validate');
 

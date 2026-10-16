@@ -1,12 +1,19 @@
 <?php
 namespace BKWSU\Component\Youtubevideos\Administrator\View\Categories;
 
-use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
-use Joomla\CMS\Language\Text;
-use Joomla\CMS\Toolbar\ToolbarHelper;
 use Joomla\CMS\Factory;
-use Joomla\CMS\Toolbar\Toolbar;
+use Joomla\CMS\Helper\ContentHelper;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\MVC\View\GenericDataException;
+use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
+use Joomla\CMS\Session\Session;
+use Joomla\CMS\Toolbar\ToolbarHelper;
 
+/**
+ * View class for a list of categories.
+ *
+ * @since  1.0.0
+ */
 class HtmlView extends BaseHtmlView
 {
     /**
@@ -26,7 +33,7 @@ class HtmlView extends BaseHtmlView
     /**
      * The model state
      *
-     * @var  \Joomla\CMS\Object\CMSObject
+     * @var  \Joomla\Registry\Registry
      */
     protected $state;
 
@@ -49,20 +56,23 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null)
     {
-        $this->items         = $this->get('Items');
-        $this->pagination    = $this->get('Pagination');
-        $this->state        = $this->get('State');
-        $this->filterForm    = $this->get('FilterForm');
-        $this->activeFilters = $this->get('ActiveFilters');
+        /** @var \BKWSU\Component\Youtubevideos\Administrator\Model\CategoriesModel $model */
+        $model = $this->getModel();
+
+        $this->items         = $model->getItems();
+        $this->pagination    = $model->getPagination();
+        $this->state         = $model->getState();
+        $this->filterForm    = $model->getFilterForm();
+        $this->activeFilters = $model->getActiveFilters();
 
         // Check for errors.
-        if (count($errors = $this->get('Errors'))) {
-            throw new \Exception(implode("\n", $errors), 500);
+        if (\count($errors = $model->getErrors())) {
+            throw new GenericDataException(implode("\n", $errors), 500);
         }
 
         $this->addToolbar();
 
-        return parent::display($tpl);
+        parent::display($tpl);
     }
 
     /**
@@ -70,36 +80,58 @@ class HtmlView extends BaseHtmlView
      */
     protected function addToolbar()
     {
-        $canDo = Factory::getApplication()->getIdentity()->authorise('core.create', 'com_youtubevideos');
-        $toolbar = Toolbar::getInstance();
+        $canDo   = ContentHelper::getActions('com_youtubevideos');
+        $user    = Factory::getApplication()->getIdentity();
+        $toolbar = $this->getDocument()->getToolbar();
 
         ToolbarHelper::title(Text::_('COM_YOUTUBEVIDEOS_CATEGORIES'), 'folder');
 
-        if ($canDo) {
-            ToolbarHelper::addNew('category.add');
-        }
-        
-        if (Factory::getApplication()->getIdentity()->authorise('core.edit', 'com_youtubevideos')) {
-            ToolbarHelper::editList('category.edit');
+        if ($canDo->get('core.create')) {
+            $toolbar->addNew('category.add');
         }
 
-        if (Factory::getApplication()->getIdentity()->authorise('core.delete', 'com_youtubevideos')) {
-            ToolbarHelper::deleteList('', 'categories.delete');
+        if ($canDo->get('core.edit.state')) {
+            $dropdown = $toolbar->dropdownButton('status-group')
+                ->text('JTOOLBAR_CHANGE_STATUS')
+                ->toggleSplit(false)
+                ->icon('icon-ellipsis-h')
+                ->buttonClass('btn btn-action')
+                ->listCheck(true);
+
+            $childBar = $dropdown->getChildToolbar();
+            $childBar->publish('categories.publish')->listCheck(true);
+            $childBar->unpublish('categories.unpublish')->listCheck(true);
+
+            if ($canDo->get('core.admin')) {
+                $childBar->checkin('categories.checkin')->listCheck(true);
+            }
+
+            if ($this->state->get('filter.published') != -2) {
+                $childBar->trash('categories.trash')->listCheck(true);
+            }
         }
 
-        // Add Import/Export buttons
-        $toolbar->linkButton('import')
-            ->text('COM_YOUTUBEVIDEOS_IMPORT')
-            ->icon('icon-upload')
-            ->url('index.php?option=com_youtubevideos&view=import&type=categories');
+        if ($this->state->get('filter.published') == -2 && $canDo->get('core.delete')) {
+            $toolbar->delete('categories.delete')
+                ->text('JTOOLBAR_EMPTY_TRASH')
+                ->message('JGLOBAL_CONFIRM_DELETE')
+                ->listCheck(true);
+        }
+
+        if ($canDo->get('core.create')) {
+            $toolbar->linkButton('import')
+                ->text('COM_YOUTUBEVIDEOS_IMPORT')
+                ->icon('icon-upload')
+                ->url('index.php?option=com_youtubevideos&view=import&type=categories');
+        }
 
         $toolbar->linkButton('export')
             ->text('COM_YOUTUBEVIDEOS_EXPORT')
             ->icon('icon-download')
-            ->url('index.php?option=com_youtubevideos&task=export.export&type=categories');
+            ->url('index.php?option=com_youtubevideos&task=export.export&type=categories&' . Session::getFormToken() . '=1');
 
-        if (Factory::getApplication()->getIdentity()->authorise('core.admin', 'com_youtubevideos')) {
-            ToolbarHelper::preferences('com_youtubevideos');
+        if ($user->authorise('core.admin', 'com_youtubevideos') || $user->authorise('core.options', 'com_youtubevideos')) {
+            $toolbar->preferences('com_youtubevideos');
         }
     }
-} 
+}

@@ -10,7 +10,9 @@ use Joomla\CMS\Component\Router\Rules\MenuRules;
 use Joomla\CMS\Component\Router\Rules\NomenuRules;
 use Joomla\CMS\Component\Router\Rules\StandardRules;
 use Joomla\CMS\Menu\AbstractMenu;
+use BKWSU\Component\Youtubevideos\Site\Helper\RouteHelper;
 use Joomla\Database\DatabaseInterface;
+use Joomla\Database\ParameterType;
 
 /**
  * Routing class for com_youtubevideos
@@ -84,22 +86,7 @@ class Router extends RouterView
      */
     public function getCategorySegment($id, $query)
     {
-        $db = $this->db;
-        $dbquery = $db->getQuery(true)
-            ->select($db->quoteName('alias'))
-            ->from($db->quoteName('#__youtubevideos_categories'))
-            ->where($db->quoteName('id') . ' = :id')
-            ->bind(':id', $id, \Joomla\Database\ParameterType::INTEGER);
-
-        $db->setQuery($dbquery);
-
-        $alias = $db->loadResult();
-
-        if ($alias) {
-            return [(int) $id => $alias];
-        }
-
-        return [(int) $id => $id];
+        return $this->getSegment('category', '#__youtubevideos_categories', (int) $id);
     }
 
     /**
@@ -114,94 +101,7 @@ class Router extends RouterView
      */
     public function getVideoSegment($id, $query)
     {
-        $db = $this->db;
-        $dbquery = $db->getQuery(true)
-            ->select($db->quoteName('alias'))
-            ->from($db->quoteName('#__youtubevideos_featured'))
-            ->where($db->quoteName('id') . ' = :id')
-            ->bind(':id', $id, \Joomla\Database\ParameterType::INTEGER);
-
-        $db->setQuery($dbquery);
-
-        $alias = $db->loadResult();
-
-        if ($alias) {
-            return [(int) $id => $alias];
-        }
-
-        return [(int) $id => $id];
-    }
-
-    /**
-     * Method to get the id for a category
-     *
-     * @param   string  $segment  Segment to retrieve the ID for
-     * @param   array   $query    The request that is parsed right now
-     *
-     * @return  mixed   The id of this item or false
-     *
-     * @since   1.0.0
-     */
-    public function getCategoryId($segment, $query)
-    {
-        // Try to find by alias first
-        $db = $this->db;
-        $dbquery = $db->getQuery(true)
-            ->select($db->quoteName('id'))
-            ->from($db->quoteName('#__youtubevideos_categories'))
-            ->where($db->quoteName('alias') . ' = :alias')
-            ->bind(':alias', $segment);
-
-        $db->setQuery($dbquery);
-
-        $id = $db->loadResult();
-
-        if ($id) {
-            return (int) $id;
-        }
-
-        // If not found by alias, try by ID
-        if (is_numeric($segment)) {
-            return (int) $segment;
-        }
-
-        return false;
-    }
-
-    /**
-     * Method to get the id for a video
-     *
-     * @param   string  $segment  Segment to retrieve the ID for
-     * @param   array   $query    The request that is parsed right now
-     *
-     * @return  mixed   The id of this item or false
-     *
-     * @since   1.0.0
-     */
-    public function getVideoId($segment, $query)
-    {
-        // Try to find by alias first
-        $db = $this->db;
-        $dbquery = $db->getQuery(true)
-            ->select($db->quoteName('id'))
-            ->from($db->quoteName('#__youtubevideos_featured'))
-            ->where($db->quoteName('alias') . ' = :alias')
-            ->bind(':alias', $segment);
-
-        $db->setQuery($dbquery);
-
-        $id = $db->loadResult();
-
-        if ($id) {
-            return (int) $id;
-        }
-
-        // If not found by alias, try by ID
-        if (is_numeric($segment)) {
-            return (int) $segment;
-        }
-
-        return false;
+        return $this->getSegment('video', '#__youtubevideos_featured', (int) $id);
     }
 
     /**
@@ -216,22 +116,37 @@ class Router extends RouterView
      */
     public function getPlaylistSegment($id, $query)
     {
-        $db = $this->db;
-        $dbquery = $db->getQuery(true)
-            ->select($db->quoteName('alias'))
-            ->from($db->quoteName('#__youtubevideos_playlists'))
-            ->where($db->quoteName('id') . ' = :id')
-            ->bind(':id', $id, \Joomla\Database\ParameterType::INTEGER);
+        return $this->getSegment('playlist', '#__youtubevideos_playlists', (int) $id);
+    }
 
-        $db->setQuery($dbquery);
+    /**
+     * Method to get the id for a category
+     *
+     * @param   string  $segment  Segment to retrieve the ID for
+     * @param   array   $query    The request that is parsed right now
+     *
+     * @return  mixed   The id of this item or false
+     *
+     * @since   1.0.0
+     */
+    public function getCategoryId($segment, $query)
+    {
+        return $this->getIdFromSegment('#__youtubevideos_categories', (string) $segment);
+    }
 
-        $alias = $db->loadResult();
-
-        if ($alias) {
-            return [(int) $id => $alias];
-        }
-
-        return [(int) $id => $id];
+    /**
+     * Method to get the id for a video
+     *
+     * @param   string  $segment  Segment to retrieve the ID for
+     * @param   array   $query    The request that is parsed right now
+     *
+     * @return  mixed   The id of this item or false
+     *
+     * @since   1.0.0
+     */
+    public function getVideoId($segment, $query)
+    {
+        return $this->getIdFromSegment('#__youtubevideos_featured', (string) $segment);
     }
 
     /**
@@ -246,28 +161,77 @@ class Router extends RouterView
      */
     public function getPlaylistId($segment, $query)
     {
-        // Try to find by alias first
-        $db = $this->db;
-        $dbquery = $db->getQuery(true)
-            ->select($db->quoteName('id'))
-            ->from($db->quoteName('#__youtubevideos_playlists'))
-            ->where($db->quoteName('alias') . ' = :alias')
-            ->bind(':alias', $segment);
+        return $this->getIdFromSegment('#__youtubevideos_playlists', (string) $segment);
+    }
 
-        $db->setQuery($dbquery);
+    /**
+     * Build the segment for an item, using the shared per-request alias cache so
+     * listing pages do not run one query per link.
+     *
+     * @param   string   $type   Cache type key.
+     * @param   string   $table  Table name.
+     * @param   integer  $id     Record id.
+     *
+     * @return  array
+     *
+     * @since   1.0.45
+     */
+    private function getSegment(string $type, string $table, int $id): array
+    {
+        $alias = RouteHelper::getCachedAlias($type, $id);
 
-        $id = $db->loadResult();
+        if ($alias === null) {
+            $db    = $this->db;
+            $query = $db->getQuery(true)
+                ->select($db->quoteName('alias'))
+                ->from($db->quoteName($table))
+                ->where($db->quoteName('id') . ' = :id')
+                ->bind(':id', $id, ParameterType::INTEGER);
 
-        if ($id) {
-            return (int) $id;
+            $alias = (string) $db->setQuery($query)->loadResult();
+            RouteHelper::primeAliases($type, [$id => $alias]);
         }
 
-        // If not found by alias, try by ID
-        if (is_numeric($segment)) {
-            return (int) $segment;
+        return [$id => $alias !== '' ? $alias : (string) $id];
+    }
+
+    /**
+     * Resolve a URL segment to a record id. Aliases are matched first, preferring
+     * published rows and then the lowest id so duplicates resolve deterministically.
+     *
+     * @param   string  $table    Table name.
+     * @param   string  $segment  URL segment.
+     *
+     * @return  integer|false
+     *
+     * @since   1.0.45
+     */
+    private function getIdFromSegment(string $table, string $segment)
+    {
+        static $cache = [];
+
+        $key = $table . ':' . $segment;
+
+        if (!\array_key_exists($key, $cache)) {
+            $db    = $this->db;
+            $query = $db->getQuery(true)
+                ->select($db->quoteName('id'))
+                ->from($db->quoteName($table))
+                ->where($db->quoteName('alias') . ' = :alias')
+                ->order($db->quoteName('published') . ' DESC')
+                ->order($db->quoteName('id') . ' ASC')
+                ->bind(':alias', $segment)
+                ->setLimit(1);
+
+            $id = (int) $db->setQuery($query)->loadResult();
+
+            if (!$id && ctype_digit($segment)) {
+                $id = (int) $segment;
+            }
+
+            $cache[$key] = $id ?: false;
         }
 
-        return false;
+        return $cache[$key];
     }
 }
-

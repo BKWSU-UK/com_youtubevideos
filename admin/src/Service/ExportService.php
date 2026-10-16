@@ -2,8 +2,8 @@
 namespace BKWSU\Component\Youtubevideos\Administrator\Service;
 
 use Joomla\CMS\Factory;
-use Joomla\CMS\Language\Text;
-use Joomla\Database\DatabaseDriver;
+use Joomla\CMS\Installer\Installer;
+use Joomla\Database\DatabaseInterface;
 
 /**
  * Export Service for YouTube Videos Component
@@ -15,25 +15,18 @@ class ExportService
     /**
      * Database driver
      *
-     * @var DatabaseDriver
+     * @var DatabaseInterface
      */
     private $db;
 
     /**
-     * Component version
-     *
-     * @var string
-     */
-    private $version = '1.0.23';
-
-    /**
      * Constructor
      *
-     * @param   DatabaseDriver  $db  Database driver
+     * @param   ?DatabaseInterface  $db  Database driver
      */
-    public function __construct(DatabaseDriver $db = null)
+    public function __construct(?DatabaseInterface $db = null)
     {
-        $this->db = $db ?: Factory::getContainer()->get(DatabaseDriver::class);
+        $this->db = $db ?: Factory::getContainer()->get(DatabaseInterface::class);
     }
 
     /**
@@ -82,10 +75,16 @@ class ExportService
      */
     public function exportVideos(): string
     {
+        // Export the category alias and YouTube playlist ID as well, so links can be
+        // re-created on another site where the numeric ids differ.
         $query = $this->db->getQuery(true)
-            ->select('*')
-            ->from($this->db->quoteName('#__youtubevideos_featured'))
-            ->order($this->db->quoteName('id') . ' ASC');
+            ->select('a.*')
+            ->select($this->db->quoteName('c.alias', 'category_alias'))
+            ->select($this->db->quoteName('p.youtube_playlist_id', 'playlist_youtube_id'))
+            ->from($this->db->quoteName('#__youtubevideos_featured', 'a'))
+            ->join('LEFT', $this->db->quoteName('#__youtubevideos_categories', 'c'), $this->db->quoteName('c.id') . ' = ' . $this->db->quoteName('a.category_id'))
+            ->join('LEFT', $this->db->quoteName('#__youtubevideos_playlists', 'p'), $this->db->quoteName('p.id') . ' = ' . $this->db->quoteName('a.playlist_id'))
+            ->order($this->db->quoteName('a.id') . ' ASC');
 
         $this->db->setQuery($query);
         $videos = $this->db->loadObjectList();
@@ -117,7 +116,7 @@ class ExportService
         $exportDate = $xml->createElement('export_date', Factory::getDate()->toISO8601());
         $metadata->appendChild($exportDate);
 
-        $version = $xml->createElement('version', $this->version);
+        $version = $xml->createElement('version', $this->getComponentVersion());
         $metadata->appendChild($version);
 
         $typeElement = $xml->createElement('type', $type);
@@ -150,11 +149,11 @@ class ExportService
                 $field = $xml->createElement($key);
                 
                 // Use CDATA for text fields that might contain special characters
-                if (in_array($key, ['title', 'description', 'params', 'metakey', 'metadesc'])) {
-                    $cdata = $xml->createCDATASection((string) $value);
-                    $field->appendChild($cdata);
+                if (\in_array($key, ['title', 'description', 'params', 'metakey', 'metadesc', 'recipe_data'], true)) {
+                    $field->appendChild($xml->createCDATASection(str_replace(']]>', ']]]]><![CDATA[>', (string) $value)));
                 } else {
-                    $field->nodeValue = htmlspecialchars((string) $value, ENT_XML1, 'UTF-8');
+                    // createTextNode escapes the value itself; no htmlspecialchars needed.
+                    $field->appendChild($xml->createTextNode((string) $value));
                 }
                 
                 $element->appendChild($field);
@@ -163,5 +162,18 @@ class ExportService
 
         return $xml->saveXML();
     }
-}
 
+    /**
+     * Read the installed component version.
+     *
+     * @return  string
+     *
+     * @since   1.0.45
+     */
+    private function getComponentVersion(): string
+    {
+        $data = Installer::parseXMLInstallFile(JPATH_ADMINISTRATOR . '/components/com_youtubevideos/youtubevideos.xml');
+
+        return (string) ($data['version'] ?? '');
+    }
+}

@@ -2,7 +2,9 @@
 
 namespace BKWSU\Component\Youtubevideos\Site\Helper;
 
-use Joomla\CMS\Document\HtmlDocument;
+\defined('_JEXEC') or die;
+
+use Joomla\CMS\Document\Document;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
@@ -15,6 +17,14 @@ use Joomla\CMS\Uri\Uri;
 class RouteHelper
 {
     /**
+     * Per-request alias cache shared with the component router, keyed by type then id.
+     *
+     * @var    array<string, array<int, string>>
+     * @since  1.0.45
+     */
+    private static array $aliases = [];
+
+    /**
      * Build an absolute site URL for a component route.
      *
      * @param   string  $query  The internal Joomla route query.
@@ -25,8 +35,7 @@ class RouteHelper
      */
     public static function getAbsoluteUrl(string $query): string
     {
-        $app = Factory::getApplication();
-        $itemId = $app->input->getInt('Itemid', 0);
+        $itemId = Factory::getApplication()->getInput()->getInt('Itemid', 0);
 
         if ($itemId > 0 && !str_contains($query, 'Itemid=')) {
             $query .= '&Itemid=' . $itemId;
@@ -34,46 +43,72 @@ class RouteHelper
 
         $baseUrl = Uri::getInstance()->toString(['scheme', 'host', 'port']);
 
-        return $baseUrl . Route::_($query);
+        return $baseUrl . Route::_($query, false);
     }
 
     /**
-     * Remove all canonical link tags from the document head.
+     * Internal route to a single video page, keeping the current menu item.
      *
-     * @param   HtmlDocument  $document  The document object.
+     * @param   integer  $id  The video record id.
      *
-     * @return  void
+     * @return  string
      *
-     * @since   1.0.41
+     * @since   1.0.45
      */
-    public static function removeCanonicalLinks(HtmlDocument $document): void
+    public static function getVideoRoute(int $id): string
     {
-        $headData = $document->getHeadData();
-        $links = $headData['links'] ?? [];
+        $route  = 'index.php?option=com_youtubevideos&view=video&id=' . $id;
+        $itemId = Factory::getApplication()->getInput()->getInt('Itemid', 0);
 
-        foreach ($links as $href => $link) {
-            if (($link['relation'] ?? '') === 'canonical') {
-                unset($links[$href]);
-            }
-        }
-
-        $headData['links'] = $links;
-        $document->setHeadData($headData);
+        return $itemId > 0 ? $route . '&Itemid=' . $itemId : $route;
     }
 
     /**
      * Set a single absolute canonical URL for the current page.
      *
-     * @param   HtmlDocument  $document  The document object.
-     * @param   string        $query     The internal Joomla route query.
+     * @param   Document  $document  The document object.
+     * @param   string    $query     The internal Joomla route query.
      *
      * @return  void
      *
      * @since   1.0.41
      */
-    public static function setCanonicalUrl(HtmlDocument $document, string $query): void
+    public static function setCanonicalUrl(Document $document, string $query): void
     {
-        self::removeCanonicalLinks($document);
-        $document->addHeadLink(self::getAbsoluteUrl($query), 'canonical');
+        SeoHelper::setCanonical($document, self::getAbsoluteUrl($query));
+    }
+
+    /**
+     * Seed the alias cache so routing a list of items needs no extra queries.
+     *
+     * @param   string               $type     video, category or playlist.
+     * @param   array<int, string>   $aliases  Map of id => alias.
+     *
+     * @return  void
+     *
+     * @since   1.0.45
+     */
+    public static function primeAliases(string $type, array $aliases): void
+    {
+        foreach ($aliases as $id => $alias) {
+            if ($alias !== '') {
+                self::$aliases[$type][(int) $id] = (string) $alias;
+            }
+        }
+    }
+
+    /**
+     * Read an alias from the cache.
+     *
+     * @param   string   $type  video, category or playlist.
+     * @param   integer  $id    The record id.
+     *
+     * @return  string|null  The alias, or null when not cached.
+     *
+     * @since   1.0.45
+     */
+    public static function getCachedAlias(string $type, int $id): ?string
+    {
+        return self::$aliases[$type][$id] ?? null;
     }
 }

@@ -13,7 +13,6 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Form\Field\ListField;
-use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\Database\ParameterType;
 
@@ -41,12 +40,13 @@ class YoutubevideoField extends ListField
      */
     protected function getInput()
     {
-        $html = [];
-        $attr = '';
+        $html   = [];
+        $attr   = '';
+        $escape = static fn ($text): string => htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
 
         // Initialize some field attributes
-        $attr .= !empty($this->class) ? ' class="' . $this->class . '"' : '';
-        $attr .= !empty($this->size) ? ' size="' . $this->size . '"' : '';
+        $attr .= !empty($this->class) ? ' class="' . $escape($this->class) . '"' : '';
+        $attr .= !empty($this->size) ? ' size="' . (int) $this->size . '"' : '';
         $attr .= $this->required ? ' required' : '';
         $attr .= $this->autofocus ? ' autofocus' : '';
 
@@ -54,7 +54,8 @@ class YoutubevideoField extends ListField
         $db = Factory::getContainer()->get('DatabaseDriver');
         $currentVideo = null;
 
-        if ($this->value) {
+        if ((int) $this->value > 0) {
+            $videoId = (int) $this->value;
             $query = $db->getQuery(true)
                 ->select([
                     $db->quoteName('id'),
@@ -63,7 +64,7 @@ class YoutubevideoField extends ListField
                 ])
                 ->from($db->quoteName('#__youtubevideos_featured'))
                 ->where($db->quoteName('id') . ' = :id')
-                ->bind(':id', $this->value, ParameterType::INTEGER);
+                ->bind(':id', $videoId, ParameterType::INTEGER);
 
             $db->setQuery($query);
             $currentVideo = $db->loadObject();
@@ -82,20 +83,27 @@ class YoutubevideoField extends ListField
             ['type' => 'module']
         );
 
+        Text::script('MOD_YOUTUBE_SINGLE_NO_VIDEOS_FOUND');
+        Text::script('MOD_YOUTUBE_SINGLE_SEARCH_ERROR');
+        Text::script('MOD_YOUTUBE_SINGLE_SELECTED_VIDEO');
+
         // Build the field HTML
+        $id = $escape($id);
+
         $html[] = '<div class="youtube-video-selector" data-field-id="' . $id . '">';
         
         // Hidden input to store the selected video ID
-        $html[] = '<input type="hidden" name="' . $this->name . '" id="' . $id . '" value="' . (int) $this->value . '"' . $attr . ' />';
+        $html[] = '<input type="hidden" name="' . $escape($this->name) . '" id="' . $id . '" value="' . ((int) $this->value ?: '') . '"' . $attr . ' />';
         
         // Search input
         $html[] = '<div class="input-group mb-2">';
         $html[] = '<input type="text" class="form-control video-search-input" ';
         $html[] = 'id="' . $id . '_search" ';
-        $html[] = 'placeholder="' . Text::_('MOD_YOUTUBE_SINGLE_SEARCH_VIDEOS') . '" ';
+        $html[] = 'placeholder="' . $escape(Text::_('MOD_YOUTUBE_SINGLE_SEARCH_VIDEOS')) . '" ';
+        $html[] = 'aria-label="' . $escape(Text::_('MOD_YOUTUBE_SINGLE_SEARCH_VIDEOS')) . '" ';
         $html[] = 'autocomplete="off" />';
         $html[] = '<button type="button" class="btn btn-outline-secondary clear-selection" ';
-        $html[] = 'title="' . Text::_('JCLEAR') . '">';
+        $html[] = 'title="' . $escape(Text::_('JCLEAR')) . '" aria-label="' . $escape(Text::_('JCLEAR')) . '">';
         $html[] = '<span class="icon-times" aria-hidden="true"></span>';
         $html[] = '</button>';
         $html[] = '</div>';
@@ -104,8 +112,8 @@ class YoutubevideoField extends ListField
         if ($currentVideo) {
             $html[] = '<div class="alert alert-info current-selection">';
             $html[] = '<strong>' . Text::_('MOD_YOUTUBE_SINGLE_SELECTED_VIDEO') . ':</strong> ';
-            $html[] = $this->escape($currentVideo->title);
-            $html[] = ' <small class="text-muted">(' . $this->escape($currentVideo->youtube_video_id) . ')</small>';
+            $html[] = $escape($currentVideo->title);
+            $html[] = ' <small class="text-body-secondary">(' . $escape($currentVideo->youtube_video_id) . ')</small>';
             $html[] = '</div>';
         } else {
             $html[] = '<div class="alert alert-warning current-selection" style="display: none;"></div>';
@@ -135,7 +143,7 @@ class YoutubevideoField extends ListField
      */
     protected function getOptions()
     {
-        // We handle options dynamically via AJAX, so return empty array
+        // Options are loaded on demand via AJAX; the current value is kept in a hidden input
         return [];
     }
 }

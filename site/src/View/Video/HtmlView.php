@@ -2,10 +2,12 @@
 
 namespace BKWSU\Component\Youtubevideos\Site\View\Video;
 
+\defined('_JEXEC') or die;
+
 use BKWSU\Component\Youtubevideos\Site\Helper\RouteHelper;
 use BKWSU\Component\Youtubevideos\Site\Helper\SeoHelper;
+use BKWSU\Component\Youtubevideos\Site\Helper\VideoHelper;
 use Joomla\CMS\Factory;
-use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 
 /**
@@ -37,7 +39,7 @@ class HtmlView extends BaseHtmlView
      * @var    array
      * @since  1.0.0
      */
-    protected $related_videos;
+    protected $related_videos = [];
 
     /**
      * Execute and display a template script.
@@ -51,20 +53,18 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null): void
     {
-        $app = Factory::getApplication();
-        $this->params = $app->getParams();
-        $this->item = $this->get('Item');
-        $this->related_videos = $this->get('RelatedVideos');
+        /** @var \BKWSU\Component\Youtubevideos\Site\Model\VideoModel $model */
+        $model = $this->getModel();
 
-        // Check for errors
-        if (count($errors = $this->get('Errors'))) {
-            throw new \Exception(implode("\n", $errors), 500);
+        $this->params = $model->getState('params');
+        $this->item   = $model->getItem();
+
+        if ($this->params->get('show_related', 1)) {
+            $this->related_videos = $model->getRelatedVideos();
         }
 
-        // Increment the hit counter
-        $this->getModel()->hit();
+        $model->hit();
 
-        // Prepare the document
         $this->prepareDocument();
 
         parent::display($tpl);
@@ -79,125 +79,40 @@ class HtmlView extends BaseHtmlView
      */
     protected function prepareDocument(): void
     {
-        $app = Factory::getApplication();
-        $menus = $app->getMenu();
-        $menu = $menus->getActive();
+        $menu = Factory::getApplication()->getMenu()->getActive();
 
-        // Set the page title
-        if ($menu && isset($menu->query['view']) && $menu->query['view'] === 'video' && isset($menu->query['id']) && $menu->query['id'] == $this->item->id) {
-            $title = $menu->title ?: $this->item->title;
-        } else {
-            $title = $this->item->title;
-        }
+        $isMenuItem = $menu
+            && ($menu->query['view'] ?? '') === 'video'
+            && (int) ($menu->query['id'] ?? 0) === (int) $this->item->id;
 
-        $this->document->setTitle($title);
+        $title = $isMenuItem && $this->params->get('page_title') ? $this->params->get('page_title') : $this->item->title;
 
-        $description = SeoHelper::buildPageDescription($title, $this->item->description ?? null);
-        $this->document->setDescription($description);
+        $this->setDocumentTitle($title);
+        $this->document->setDescription(SeoHelper::buildPageDescription($this->item->title, $this->item->description));
 
-        // Set meta keywords
-        if ($this->item->metakey) {
-            $this->document->setMetaData('keywords', $this->item->metakey);
-        }
-
-        // Set robots
         if ($this->params->get('robots')) {
             $this->document->setMetaData('robots', $this->params->get('robots'));
         }
 
-        // Video-specific social tags that the template cannot infer.
-        $videoRoute = 'index.php?option=com_youtubevideos&view=video&id=' . (int) $this->item->id;
-        $videoUrl = RouteHelper::getAbsoluteUrl($videoRoute);
-        $thumbnailUrl = $this->item->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $this->item->youtube_video_id . '/maxresdefault.jpg';
+        $videoUrl     = RouteHelper::getAbsoluteUrl(RouteHelper::getVideoRoute((int) $this->item->id));
+        $thumbnailUrl = $this->item->custom_thumbnail ?: VideoHelper::youtubeThumbnail($this->item->videoId, 'maxresdefault');
 
         $this->document->setMetaData('og:url', $videoUrl, 'property');
         $this->document->setMetaData('og:image', $thumbnailUrl, 'property');
         $this->document->setMetaData('twitter:card', 'player');
         $this->document->setMetaData('twitter:image', $thumbnailUrl);
+        $this->document->setMetaData('twitter:player', 'https://www.youtube.com/embed/' . rawurlencode($this->item->videoId));
 
-        RouteHelper::setCanonicalUrl($this->document, $videoRoute);
+        SeoHelper::setCanonical($this->document, $videoUrl);
 
-        // Add the component's media files
-        $wa = $this->document->getWebAssetManager();
-        $wa->useStyle('com_youtubevideos.site.css')
-           ->useScript('com_youtubevideos.youtube-player');
+        $this->document->getWebAssetManager()
+            ->useStyle('fontawesome')
+            ->useStyle('com_youtubevideos.site.css');
 
-        // Add JSON+LD structured data
-        $this->addStructuredData();
-    }
-
-    /**
-     * Add structured data (JSON-LD) for SEO
-     *
-     * @return  void
-     *
-     * @since   1.0.0
-     */
-    protected function addStructuredData(): void
-    {
-        // Skip if no video ID
-        if (empty($this->item->youtube_video_id)) {
-            return;
+        if (!empty($this->item->videoId)) {
+            SeoHelper::addJsonLd($this->document, ['@context' => 'https://schema.org'] + SeoHelper::videoObject($this->item, $videoUrl));
         }
 
-        $baseUrl = \Joomla\CMS\Uri\Uri::getInstance()->toString(['scheme', 'host', 'port']);
-        $videoUrl = RouteHelper::getAbsoluteUrl('index.php?option=com_youtubevideos&view=video&id=' . (int) $this->item->id);
-        
-        // Use custom thumbnail or fallback to YouTube's hqdefault (more reliable than maxresdefault)
-        $thumbnailUrl = $this->item->custom_thumbnail ?: 'https://img.youtube.com/vi/' . $this->item->youtube_video_id . '/hqdefault.jpg';
-
-        $videoSchema = [
-            '@context' => 'https://schema.org',
-            '@type' => 'VideoObject',
-            'name' => $this->item->title,
-            'description' => strip_tags($this->item->description ?? ''),
-            'thumbnailUrl' => $thumbnailUrl,
-            'uploadDate' => !empty($this->item->created) ? date('c', strtotime($this->item->created)) : date('c'),
-            'contentUrl' => 'https://www.youtube.com/watch?v=' . $this->item->youtube_video_id,
-            'embedUrl' => 'https://www.youtube.com/embed/' . $this->item->youtube_video_id,
-            'url' => $videoUrl
-        ];
-
-        // Add interaction statistics if available
-        if (!empty($this->item->views)) {
-            $videoSchema['interactionStatistic'] = [
-                '@type' => 'InteractionCounter',
-                'interactionType' => 'https://schema.org/WatchAction',
-                'userInteractionCount' => (int)$this->item->views
-            ];
-        }
-
-        $this->document->addScriptDeclaration(json_encode($videoSchema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), 'application/ld+json');
-
-        // BreadcrumbList schema
-        $breadcrumbSchema = [
-            '@context' => 'https://schema.org',
-            '@type' => 'BreadcrumbList',
-            'itemListElement' => [
-                [
-                    '@type' => 'ListItem',
-                    'position' => 1,
-                    'name' => 'Home',
-                    'item' => $baseUrl . '/'
-                ],
-                [
-                    '@type' => 'ListItem',
-                    'position' => 2,
-                    'name' => 'Videos',
-                    'item' => $baseUrl . \Joomla\CMS\Router\Route::_('index.php?option=com_youtubevideos&view=videos')
-                ],
-                [
-                    '@type' => 'ListItem',
-                    'position' => 3,
-                    'name' => $this->item->title,
-                    'item' => $videoUrl
-                ]
-            ]
-        ];
-
-        $this->document->addScriptDeclaration(json_encode($breadcrumbSchema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), 'application/ld+json');
+        SeoHelper::addJsonLd($this->document, SeoHelper::breadcrumbList($this->item->title, $videoUrl, $isMenuItem));
     }
 }
-
-
-

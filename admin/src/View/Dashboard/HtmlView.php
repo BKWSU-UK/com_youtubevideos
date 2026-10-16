@@ -1,10 +1,11 @@
 <?php
 namespace BKWSU\Component\Youtubevideos\Administrator\View\Dashboard;
 
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\MVC\View\GenericDataException;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
-use Joomla\CMS\Toolbar\Toolbar;
 use Joomla\CMS\Toolbar\ToolbarHelper;
 
 class HtmlView extends BaseHtmlView
@@ -15,6 +16,7 @@ class HtmlView extends BaseHtmlView
     protected $totalVideos;
     protected $videoStats;
     protected $featuredVideos;
+    protected $featuredCount;
     protected $categories;
     protected $playlists;
     protected $recentViews;
@@ -37,8 +39,8 @@ class HtmlView extends BaseHtmlView
         $this->addToolbar();
 
         // Check for errors.
-        if (count($errors = $this->get('Errors'))) {
-            throw new \Exception(implode("\n", $errors), 500);
+        if (\count($errors = $this->getModel()->getErrors())) {
+            throw new GenericDataException(implode("\n", $errors), 500);
         }
 
         parent::display($tpl);
@@ -56,6 +58,7 @@ class HtmlView extends BaseHtmlView
         $this->totalVideos = $model->getTotalVideos();
         $this->videoStats = $model->getVideoStats();
         $this->featuredVideos = $model->getFeaturedVideos();
+        $this->featuredCount = $model->getFeaturedCount();
         $this->categories = $model->getCategories();
         $this->playlists = $model->getPlaylists();
         $this->recentViews = $model->getRecentViews();
@@ -73,10 +76,8 @@ class HtmlView extends BaseHtmlView
     {
         $app = Factory::getApplication();
         $user = $app->getIdentity();
-        $params = \Joomla\CMS\Component\ComponentHelper::getParams('com_youtubevideos');
-
-        // Get the toolbar object instance
-        $toolbar = Toolbar::getInstance('toolbar');
+        $params = ComponentHelper::getParams('com_youtubevideos');
+        $toolbar = $this->getDocument()->getToolbar();
 
         ToolbarHelper::title(Text::_('COM_YOUTUBEVIDEOS_DASHBOARD'), 'video');
 

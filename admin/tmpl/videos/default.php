@@ -18,12 +18,12 @@ use Joomla\CMS\Session\Session;
 
 /** @var \BKWSU\Component\Youtubevideos\Administrator\View\Videos\HtmlView $this */
 
-$wa = $this->document->getWebAssetManager();
+$wa = $this->getDocument()->getWebAssetManager();
 $wa->useScript('table.columns')
     ->useScript('multiselect');
 
 $user      = Factory::getApplication()->getIdentity();
-$userId    = $user->get('id');
+$userId    = (int) $user->id;
 $listOrder = $this->escape($this->state->get('list.ordering'));
 $listDirn  = $this->escape($this->state->get('list.direction'));
 $saveOrder = $listOrder == 'a.ordering';
@@ -34,22 +34,10 @@ if ($saveOrder && !empty($this->items))
     HTMLHelper::_('draggablelist.draggable');
 }
 
-// Define states for featured toggle
+// States for the featured toggle: [task, text, active title, inactive title, tip, active class, inactive class]
 $featuredStates = [
-    0 => [
-        'unfeatured',
-        'videos.featured',
-        'COM_YOUTUBEVIDEOS_UNFEATURED',
-        'COM_YOUTUBEVIDEOS_TOGGLE_TO_FEATURE',
-        'icon-unfeatured',
-    ],
-    1 => [
-        'featured',
-        'videos.unfeatured',
-        'COM_YOUTUBEVIDEOS_FEATURED',
-        'COM_YOUTUBEVIDEOS_TOGGLE_TO_UNFEATURE',
-        'icon-featured',
-    ],
+    0 => ['featured', '', 'COM_YOUTUBEVIDEOS_TOGGLE_TO_FEATURE', '', true, 'unfeatured', 'unfeatured'],
+    1 => ['unfeatured', '', 'COM_YOUTUBEVIDEOS_TOGGLE_TO_UNFEATURE', '', true, 'featured', 'featured'],
 ];
 ?>
 <form action="<?php echo Route::_('index.php?option=com_youtubevideos&view=videos'); ?>" method="post" name="adminForm" id="adminForm">

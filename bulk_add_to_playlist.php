@@ -2,13 +2,22 @@
 <?php
 /**
  * Bulk Add Videos to Playlist Script
- * 
- * This script fetches all videos from a YouTube channel using OAuth
- * and adds them to a specified playlist.
- * 
- * Usage: php bulk_add_to_playlist.php <playlist_id>
- * Example: php bulk_add_to_playlist.php PLaBcDeFgHiJkLmNoPqRsTuV
- * 
+ *
+ * Developer/maintenance CLI tool (not included in the installable package).
+ * Fetches all videos of the configured YouTube channel using the component's OAuth
+ * connection and adds them to the given playlist.
+ *
+ * Usage:
+ *   php bulk_add_to_playlist.php --joomla-root=/path/to/joomla [--dry-run] [--yes] <playlist_id>
+ *
+ * Options:
+ *   --joomla-root=PATH  Joomla installation root (defaults to $JOOMLA_ROOT or the current directory)
+ *   --dry-run           List what would be added without changing the playlist
+ *   --yes               Do not ask for confirmation before adding videos
+ *
+ * Quota: listing the channel uploads costs 1 unit per 50 videos; every playlist insert costs
+ * 50 units. The default daily YouTube Data API quota is 10,000 units (about 200 inserts).
+ *
  * @package    Joomla.CLI
  * @subpackage YouTubeVideos
  */
@@ -18,13 +27,37 @@ if (PHP_SAPI !== 'cli') {
     die('This script must be run from the command line.');
 }
 
-// Bootstrap Joomla Framework
+$options = getopt('', ['joomla-root:', 'dry-run', 'yes', 'help'], $restIndex);
+$args    = array_slice($argv, $restIndex);
+
+if (isset($options['help']) || count($args) < 1) {
+    echo "Usage: php bulk_add_to_playlist.php --joomla-root=/path/to/joomla [--dry-run] [--yes] <playlist_id>\n";
+    echo "Example: php bulk_add_to_playlist.php --joomla-root=/var/www/html --dry-run PLaBcDeFgHiJkLmNoPqRsTuV\n\n";
+    echo "The playlist ID starts with 'PL' and can be found in the playlist URL.\n";
+    exit(isset($options['help']) ? 0 : 1);
+}
+
+$dryRun     = isset($options['dry-run']);
+$assumeYes  = isset($options['yes']);
+$playlistId = trim($args[0]);
+$joomlaRoot = rtrim($options['joomla-root'] ?? (getenv('JOOMLA_ROOT') ?: getcwd()), '/');
+
+if (!preg_match('/^PL[a-zA-Z0-9_-]+$/', $playlistId)) {
+    echo "ERROR: Invalid playlist ID format!\n";
+    echo "Playlist IDs should start with 'PL' followed by letters, numbers, hyphens, or underscores.\n";
+    exit(1);
+}
+
+if (!is_file($joomlaRoot . '/includes/framework.php')) {
+    echo "ERROR: {$joomlaRoot} does not look like a Joomla installation (includes/framework.php not found).\n";
+    echo "Pass --joomla-root=/path/to/joomla or set JOOMLA_ROOT.\n";
+    exit(1);
+}
+
+// Bootstrap the Joomla framework (database access only)
 const _JEXEC = 1;
+define('JPATH_BASE', $joomlaRoot);
 
-// Detect Joomla root directory (we're in components/com_youtubevideos/)
-define('JPATH_BASE', dirname(__DIR__, 2));
-
-// Load system defines
 if (file_exists(JPATH_BASE . '/defines.php')) {
     require_once JPATH_BASE . '/defines.php';
 }
@@ -33,58 +66,30 @@ if (!defined('_JDEFINES')) {
     require_once JPATH_BASE . '/includes/defines.php';
 }
 
-// Load the Joomla framework
 require_once JPATH_BASE . '/includes/framework.php';
 
-// Boot the DI container
-$container = \Joomla\CMS\Factory::getContainer();
+$db = \Joomla\CMS\Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
 
-// We don't need a full application, just database access
-\Joomla\CMS\Factory::$application = null;
-
-// Load component parameters directly from database
-$db = \Joomla\CMS\Factory::getDbo();
+// Load component parameters directly from the database
 $query = $db->getQuery(true)
     ->select($db->quoteName('params'))
     ->from($db->quoteName('#__extensions'))
     ->where($db->quoteName('element') . ' = ' . $db->quote('com_youtubevideos'))
     ->where($db->quoteName('type') . ' = ' . $db->quote('component'));
 
-$db->setQuery($query);
-$paramsString = $db->loadResult();
-$params = new \Joomla\Registry\Registry($paramsString);
+$params = new \Joomla\Registry\Registry((string) $db->setQuery($query)->loadResult());
 
 echo "\n";
 echo "╔════════════════════════════════════════════════════════════╗\n";
 echo "║  YouTube Videos - Bulk Add to Playlist Tool               ║\n";
 echo "╚════════════════════════════════════════════════════════════╝\n";
 echo "\n";
-
-// Check command line arguments
-if ($argc < 2) {
-    echo "ERROR: Missing playlist ID argument!\n\n";
-    echo "Usage: php bulk_add_to_playlist.php <playlist_id>\n";
-    echo "Example: php bulk_add_to_playlist.php PLaBcDeFgHiJkLmNoPqRsTuV\n\n";
-    echo "The playlist ID starts with 'PL' and can be found in the playlist URL.\n";
-    exit(1);
-}
-
-$playlistId = trim($argv[1]);
-
-// Validate playlist ID format
-if (!preg_match('/^PL[a-zA-Z0-9_-]+$/', $playlistId)) {
-    echo "ERROR: Invalid playlist ID format!\n";
-    echo "Playlist IDs should start with 'PL' followed by letters, numbers, hyphens, or underscores.\n";
-    echo "Example: PLaBcDeFgHiJkLmNoPqRsTuV\n";
-    exit(1);
-}
-
-echo "Target Playlist ID: {$playlistId}\n\n";
+echo "Target Playlist ID: {$playlistId}\n";
+echo $dryRun ? "Mode: DRY RUN (no changes will be made)\n\n" : "\n";
 
 // Get OAuth token from database
 echo "[1/5] Retrieving OAuth credentials...\n";
 
-$db = \Joomla\CMS\Factory::getDbo();
 $query = $db->getQuery(true)
     ->select('*')
     ->from($db->quoteName('#__youtubevideos_oauth_tokens'))
@@ -258,6 +263,7 @@ if ($uploadsPlaylistId) {
 // Strategy 2: Fallback to search with forMine if uploads playlist failed or returned no results
 if (empty($allVideoIds)) {
     echo "\nUploads playlist returned no results, trying search with forMine=true...\n";
+    echo "Note: search requests cost 100 quota units per page of 50 videos.\n";
     
     $pageToken = null;
     $pageCount = 0;
@@ -340,6 +346,32 @@ if (empty($allVideoIds)) {
     exit(0);
 }
 
+$estimatedUnits = count($allVideoIds) * 50;
+echo "Estimated quota cost: {$estimatedUnits} units (50 per insert; default daily quota is 10,000).\n\n";
+
+if ($dryRun) {
+    echo "DRY RUN: the following videos would be added to {$playlistId}:\n";
+
+    foreach ($allVideoIds as $videoId) {
+        echo "  - {$videoId}\n";
+    }
+
+    echo "\nNo changes made.\n\n";
+    exit(0);
+}
+
+if (!$assumeYes) {
+    echo "Add " . count($allVideoIds) . " videos to playlist {$playlistId}? Type 'yes' to continue: ";
+    $answer = trim((string) fgets(STDIN));
+
+    if (strtolower($answer) !== 'yes') {
+        echo "Aborted. No changes made.\n";
+        exit(1);
+    }
+
+    echo "\n";
+}
+
 // Add videos to playlist
 echo "[4/5] Adding videos to playlist...\n";
 echo "This may take a while...\n\n";
@@ -390,6 +422,11 @@ foreach ($allVideoIds as $index => $videoId) {
         $errorData = json_decode($response);
         $errorMsg = $errorData->error->message ?? 'Unknown error';
         echo "\n  ERROR on video {$videoId}: {$errorMsg}\n";
+
+        if (($errorData->error->errors[0]->reason ?? '') === 'quotaExceeded') {
+            echo "\n  YouTube API quota exceeded. Stopping; run the script again tomorrow to continue.\n";
+            break;
+        }
     }
     
     // Delay to avoid rate limiting (YouTube allows ~3 requests per second)

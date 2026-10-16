@@ -24,7 +24,8 @@
         />
     </fieldset>
 
-    <fieldset name="oauth" label="COM_YOUTUBEVIDEOS_OAUTH_SETTINGS" description="COM_YOUTUBEVIDEOS_OAUTH_SETTINGS_DESC">
+    <fieldset name="oauth" label="COM_YOUTUBEVIDEOS_OAUTH_SETTINGS" description="COM_YOUTUBEVIDEOS_OAUTH_SETTINGS_DESC"
+              addfieldprefix="BKWSU\Component\Youtubevideos\Administrator\Field">
         
         <field name="oauth_enabled"
                type="radio"
@@ -53,11 +54,10 @@
         />
         
         <field name="oauth_redirect_uri"
-               type="text"
+               type="oauthredirecturi"
                label="COM_YOUTUBEVIDEOS_OAUTH_REDIRECT_URI_LABEL"
                description="COM_YOUTUBEVIDEOS_OAUTH_REDIRECT_URI_DESC"
-               size="50"
-               readonly="true"
+               filter="unset"
                showon="oauth_enabled:1"
         />
     </fieldset>
@@ -125,6 +125,8 @@
         <field name="cache_time"
                type="number"
                default="60"
+               min="1"
+               filter="integer"
                label="COM_YOUTUBEVIDEOS_CACHE_TIME_LABEL"
                description="COM_YOUTUBEVIDEOS_CACHE_TIME_DESC"
         />

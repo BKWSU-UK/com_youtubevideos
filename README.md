@@ -8,202 +8,113 @@ The YouTube Videos Component integrates seamlessly with the YouTube Data API v3 
 
 ## Features
 
-### Frontend Features
-- Display videos from YouTube channels or playlists
-- Video grid layout with responsive design
-- Modal video player using YouTube IFrame API
-- Search and filter videos by tags
-- Multi-language support
-- Configurable videos per page
-- Customisable grid columns (2, 3, or 4 columns)
-- Optional display of video metadata (views, description, publish date)
+### Frontend
+- Video grid (videos list and category views) with search, tag filter, ordering and pagination
+- Video cards are real links to each video's page, with a modal YouTube player as an enhancement (keyboard accessible, crawlable)
+- Playlist view with a main player and a sidebar that switches videos without reloading (Back/Forward supported)
+- Single video view with optional recipe (ingredients and method) and related videos
+- SEO: unique titles and meta descriptions, one canonical URL per page, Open Graph/Twitter tags and JSON-LD (`VideoObject`, `ItemList`, `BreadcrumbList`)
+- Respects Joomla access levels, publish up/down dates and content language
+- Bootstrap 5 markup, dark-mode compatible styles, fully translatable
 
-### Backend Features
-- **Dashboard**: Overview with statistics, popular videos, and system status
-- **Featured Videos Management**: CRUD operations with drag-and-drop ordering
-- **Categories Management**: Organise videos by categories with YouTube tags
-- **Playlists Management**: Import and manage YouTube playlists
-- **Statistics Tracking**: Track video views and likes
-- **Caching System**: Built-in caching to reduce API calls
-- **ACL Integration**: Granular permission control
-- **Multi-language Support**: Full internationalisation
+### Backend
+- **Dashboard**: statistics, popular videos, cache and system status, and **Sync Now** to import videos from YouTube
+- **Videos**: manage synced and manually added videos, feature/unfeature, tags, recipes, batch category/playlist assignment
+- **Categories** and **Playlists**: organise videos
+- **Import/Export**: XML import and export of categories, playlists and videos; JSON recipe import
+- **OAuth**: optional Google sign-in to sync private/unlisted videos from your own channel
+- ACL integration and response caching
 
-## Technologies
-- **PHP 8.3+**: Modern PHP with type declarations
-- **Joomla 5 Framework**: MVC architecture
-- **YouTube Data API v3**: Video data retrieval
-- **Bootstrap 5**: Frontend styling (via Joomla)
-- **YouTube IFrame API**: Video playback
+### Package contents
+| Extension | Purpose |
+|---|---|
+| `com_youtubevideos` | The component |
+| `mod_youtubevideos` | Grid of videos from a playlist |
+| `mod_youtube_single` | A single video |
+| `plg_system_youtubevideos` | Canonical/social-tag clean-up on component pages, and a video picker for menu items |
+
+## Requirements
+- Joomla 5.0+
+- PHP 8.3+
+- MySQL or MariaDB
+- A YouTube Data API v3 key
 
 ## Installation
 
 ### Step 1: Get a YouTube API Key
-
 1. Visit the [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
 3. Enable the YouTube Data API v3
 4. Create credentials (API Key)
 5. Restrict the API key to YouTube Data API v3 (recommended)
 
-### Step 2: Install the Component
+### Step 2: Install the Package
+1. Build the package with `./build.sh` (or use a released `pkg_youtubevideos.zip`)
+2. In the Joomla administrator, go to **System** → **Install** → **Extensions**
+3. Upload `pkg_youtubevideos.zip`. This installs the component, both modules and the system plugin, and creates the database tables
+4. The system plugin is enabled automatically on a fresh install and when upgrading from a version before 1.0.45
 
-1. Download the component package (`com_youtube.zip`)
-2. Log in to your Joomla administrator panel
-3. Navigate to **System** → **Install** → **Extensions**
-4. Upload and install the package
-5. The component will automatically create the necessary database tables
-
-### Step 3: Configure the Component
-
-1. Navigate to **Components** → **YouTube Videos**
-2. Click the **Options** button in the toolbar
-3. Enter your YouTube API key
-4. Enter your YouTube Channel ID (find it at https://www.youtube.com/account_advanced)
-5. Optionally enter a Playlist ID
-6. Configure display and cache settings
-7. Save the configuration
+### Step 3: Configure
+1. Go to **Components** → **YouTube Videos** → **Options**
+2. Enter your API key and Channel ID (find it at https://www.youtube.com/account_advanced), and optionally a Playlist ID to sync from
+3. Optionally set up OAuth (see `docs/OAUTH_SETUP_GUIDE.md`); the redirect URI to register with Google is shown on the OAuth tab
+4. Configure display and cache settings and save
+5. Open the **Dashboard** and click **Sync Now** to import your videos
 
 ## Configuration Options
 
 ### Basic Settings
-- **YouTube API Key**: Your Google YouTube Data API v3 key (required)
-- **Channel ID**: YouTube channel ID to fetch videos from (required)
-- **Playlist ID**: YouTube playlist ID (optional)
+- **YouTube API Key** (required), **Channel ID** (required), **Playlist ID** (optional; when set, sync imports this playlist instead of the channel uploads)
 
 ### Display Settings
-- **Videos per Page**: Number of videos to display per page (default: 12)
-- **Grid Columns**: Number of columns in desktop view (2, 3, or 4)
-- **Show Description**: Display video descriptions
-- **Show Published Date**: Display video publication dates
-- **Show View Count**: Display view counts
+These are site-wide defaults; menu items can override most of them.
+- **Videos per Page** (default: 12)
+- **Grid Columns**: 2, 3 or 4 columns on desktop (menu items can also choose 6)
+- **Show Description**, **Show Published Date**, **Show View Count**
 
 ### Cache Settings
-- **Enable Cache**: Enable/disable API response caching
-- **Cache Time**: Duration in minutes to cache YouTube API responses (default: 60)
+- **Enable Cache** and **Cache Time** (minutes) for YouTube API responses
 
 ## Usage
 
-### Creating Menu Items
+### Syncing Videos
+**Dashboard** → **Sync Now** imports videos from the configured playlist or channel and refreshes their statistics (views, likes, comments).
+- New public videos are published; private or unlisted videos are added unpublished.
+- Once you edit a video's title or description in the admin, sync stops overwriting them. You can also control this with the video's **Keep Local Title and Description** switch.
 
-#### Videos List
-1. Navigate to **Menus** → Select your menu
-2. Click **New** to create a menu item
-3. Select **YouTube Videos** → **Videos**
-4. Configure the menu item parameters
-5. Save
+### Menu Items
+Under **Menus** → *your menu* → **New** → **YouTube Videos**:
+- **Videos**: grid of all published videos
+- **Category**: videos in one category
+- **Playlist**: playlist player
+- **Video**: a single video, chosen from your videos
 
-#### Single Video
-1. Follow the same process
-2. Select **YouTube Videos** → **Video**
-3. Specify the video ID in the parameters
+### Managing Videos, Categories and Playlists
+- **Videos**: edit titles, descriptions, thumbnails, tags and recipes; use **Feature**/**Unfeature** and batch processing from the list
+- **Categories**: title, description and YouTube tag
+- **Playlists**: title, YouTube playlist ID and description
 
-#### Category View
-1. Follow the same process
-2. Select **YouTube Videos** → **Category**
-3. Select the category to display
+### Import and Export
+Each list screen has **Export** (XML) and **Import** buttons. Video exports include the category alias and YouTube playlist ID, so imports on another site link videos to the matching local categories and playlists. Each import runs in a single transaction.
 
-### Managing Featured Videos
-
-1. Navigate to **Components** → **YouTube Videos** → **Featured Videos**
-2. Click **New** to add a video
-3. Enter the video details:
-   - Title
-   - YouTube Video ID
-   - Description (optional)
-   - Category (optional)
-   - Custom thumbnail (optional)
-   - Tags (comma-separated, optional)
-4. Set as **Featured** and **Published**
-5. Save
-
-### Managing Categories
-
-1. Navigate to **Components** → **YouTube Videos** → **Categories**
-2. Click **New** to create a category
-3. Enter category details:
-   - Title
-   - Description
-   - YouTube Tag (for filtering)
-4. Publish the category
-5. Save
-
-### Managing Playlists
-
-1. Navigate to **Components** → **YouTube Videos** → **Playlists**
-2. Click **New** to add a playlist
-3. Enter the YouTube Playlist ID
-4. Publish the playlist
-5. Save
+### Bulk-adding Channel Videos to a Playlist
+`bulk_add_to_playlist.php` is a developer CLI tool in this repository; it is not installed with the component. See `docs/BULK_PLAYLIST_GUIDE.md`.
 
 ## Database Structure
 
-### Tables
+| Table | Contents |
+|---|---|
+| `#__youtubevideos_featured` | All videos (synced or added manually), despite the historical name |
+| `#__youtubevideos_categories` | Video categories |
+| `#__youtubevideos_playlists` | Playlists |
+| `#__youtubevideos_statistics` | Views, likes and comments per YouTube video, refreshed by sync |
+| `#__youtubevideos_tags` | Tags |
+| `#__youtubevideos_video_tag_map` | Video-to-tag links |
+| `#__youtubevideos_oauth_tokens` | OAuth tokens for the connected Google account |
 
-#### `#__youtubevideos_featured`
-Stores featured/curated videos with custom metadata.
-
-#### `#__youtubevideos_categories`
-Stores video categories with YouTube tags for filtering.
-
-#### `#__youtubevideos_playlists`
-Stores YouTube playlist information.
-
-#### `#__youtubevideos_statistics`
-Tracks video statistics (views, likes) from YouTube API.
-
-#### `#__youtubevideos_tags`
-Stores custom tags for video organisation.
-
-#### `#__youtubevideos_video_tag_map`
-Many-to-many relationship between videos and tags.
-
-## File Structure
-
-```
-com_youtubevideos/
-├── admin/                          # Backend files
-│   ├── access.xml                  # ACL configuration
-│   ├── config.xml                  # Component configuration
-│   ├── language/                   # Backend language files
-│   │   └── en-GB/
-│   │       ├── com_youtubevideos.ini
-│   │       └── com_youtubevideos.sys.ini
-│   ├── layouts/                    # Backend layouts
-│   │   └── components/youtubevideos/admin/dashboard/
-│   ├── services/
-│   │   └── provider.php            # Dependency injection
-│   ├── sql/                        # Database scripts
-│   │   ├── install.mysql.sql
-│   │   ├── uninstall.mysql.sql
-│   │   └── updates/mysql/
-│   ├── src/
-│   │   ├── Controller/             # Backend controllers
-│   │   ├── Extension/              # Component extension class
-│   │   ├── Model/                  # Backend models
-│   │   └── View/                   # Backend views
-│   └── tmpl/                       # Backend templates
-├── media/                          # Media files
-│   ├── css/
-│   │   └── component.css
-│   ├── js/
-│   │   └── youtube-player.js
-│   └── joomla.asset.json           # Web Asset configuration
-├── site/                           # Frontend files
-│   ├── forms/
-│   │   └── filter_videos.xml
-│   ├── language/                   # Frontend language files
-│   │   └── en-GB/
-│   │       └── com_youtubevideos.ini
-│   ├── src/
-│   │   ├── Controller/             # Frontend controllers
-│   │   ├── Helper/
-│   │   │   └── YoutubeHelper.php   # YouTube API helper
-│   │   ├── Model/                  # Frontend models
-│   │   └── View/                   # Frontend views
-│   └── tmpl/                       # Frontend templates
-├── script.php                      # Installation script
-└── youtubevideos.xml              # Component manifest
-```
+## Development
+- `./build.sh` builds the component, module, plugin and package zips (it also regenerates the `.min.js` files from their sources).
+- Release steps: bump the versions in `youtubevideos.xml` and `pkg_youtubevideos.xml`, add a `docs/CHANGELOG.md` entry, add `admin/sql/updates/mysql/<version>.sql` for schema changes (and mirror them in `install.mysql.sql`), then build.
 
 ## Licence
 

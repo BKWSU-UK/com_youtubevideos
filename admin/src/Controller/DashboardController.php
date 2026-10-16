@@ -2,6 +2,7 @@
 namespace BKWSU\Component\Youtubevideos\Administrator\Controller;
 
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Log\Log;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 
@@ -23,6 +24,14 @@ class DashboardController extends BaseController
     {
         // Check for request forgeries
         $this->checkToken();
+
+        $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=dashboard', false));
+
+        if (!$this->app->getIdentity()->authorise('core.create', 'com_youtubevideos')) {
+            $this->setMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+
+            return;
+        }
 
         /** @var \BKWSU\Component\Youtubevideos\Administrator\Model\DashboardModel $model */
         $model = $this->getModel('Dashboard', 'Administrator');
@@ -62,13 +71,12 @@ class DashboardController extends BaseController
                 );
             }
         } catch (\Exception $e) {
+            Log::add('Sync failed: ' . $e->getMessage(), Log::ERROR, 'com_youtubevideos');
             $this->setMessage(
-                Text::sprintf('COM_YOUTUBEVIDEOS_SYNC_ERROR', $e->getMessage()),
+                Text::sprintf('COM_YOUTUBEVIDEOS_SYNC_ERROR', Text::_('COM_YOUTUBEVIDEOS_SYNC_ERROR_EXCEPTION')),
                 'error'
             );
         }
-
-        $this->setRedirect(Route::_('index.php?option=com_youtubevideos&view=dashboard', false));
     }
 }
 
